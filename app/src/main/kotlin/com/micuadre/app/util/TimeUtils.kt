@@ -1,22 +1,19 @@
 package com.micuadre.app.util
 
-import android.os.SystemClock
 import java.util.concurrent.TimeUnit
 
 /**
- * Time helpers backed by [SystemClock.elapsedRealtime] so the source of
- * truth is monotonic and survives deep sleep.
+ * Pure time helpers. All timestamps are wall-clock epoch milliseconds
+ * supplied by a [Clock]; nothing here reads a clock directly.
  */
 object TimeUtils {
 
-    /**
-     * Returns the elapsed milliseconds since the supplied reference.
-     * Clamped at 0.
-     */
-    fun elapsedSince(referenceMs: Long): Long {
-        val now = SystemClock.elapsedRealtime()
-        return (now - referenceMs).coerceAtLeast(0L)
-    }
+    /** Milliseconds from [sinceMs] to [nowMs], clamped at 0 if the clock moved backwards. */
+    fun elapsedMs(sinceMs: Long, nowMs: Long): Long = (nowMs - sinceMs).coerceAtLeast(0L)
+
+    /** Whole seconds from [sinceMs] to [nowMs], rounded down, clamped at 0. */
+    fun elapsedSeconds(sinceMs: Long, nowMs: Long): Long =
+        TimeUnit.MILLISECONDS.toSeconds(elapsedMs(sinceMs, nowMs))
 
     /**
      * Converts milliseconds to whole seconds, rounding down.

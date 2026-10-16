@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.micuadre.app.domain.model.PaymentMethod
@@ -17,6 +16,7 @@ import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
 import com.micuadre.app.domain.usecase.StartShiftUseCase
 import com.micuadre.app.domain.usecase.StartTripUseCase
+import com.micuadre.app.util.Clock
 import com.micuadre.app.util.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -36,11 +36,13 @@ import javax.inject.Inject
  * session. Receives actions as Intents, persists results through the
  * repository use cases, and updates the persistent notification.
  *
- * Time references use [SystemClock.elapsedRealtime] for monotonicity.
+ * Time references are wall-clock epoch milliseconds from [Clock], so persisted
+ * values survive process death and reboots.
  */
 @AndroidEntryPoint
 class ShiftService : Service() {
 
+    @Inject lateinit var clock: Clock
     @Inject lateinit var controller: ShiftServiceController
     @Inject lateinit var startShift: StartShiftUseCase
     @Inject lateinit var endShift: EndShiftUseCase
@@ -49,7 +51,7 @@ class ShiftService : Service() {
     @Inject lateinit var getDailySummary: GetDailySummaryUseCase
     @Inject lateinit var rehydrateShiftState: RehydrateShiftStateUseCase
 
-    private val stateMachine = ShiftStateMachine(nowMs = { SystemClock.elapsedRealtime() })
+    private val stateMachine by lazy { ShiftStateMachine(nowMs = clock::nowMs) }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var tickerJob: Job? = null
@@ -69,7 +71,7 @@ class ShiftService : Service() {
         super.onCreate()
         notificationFactory = NotificationFactory(
             context = applicationContext,
-            nowMs = { SystemClock.elapsedRealtime() }
+            nowMs = clock::nowMs
         )
         notificationFactory.ensureChannel()
         rehydrateFromRepository()
@@ -120,7 +122,7 @@ class ShiftService : Service() {
     private fun handleConnect() {
         if (_currentState.value !is ShiftState.Disconnected) return
         scope.launch {
-            val now = SystemClock.elapsedRealtime()
+            val now = clock.nowMs()
             val sessionId = activeSessionId ?: startShift(startedAt = now).also { activeSessionId = it }
             val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Connect)
             _currentState.value = next
@@ -145,7 +147,7 @@ class ShiftService : Service() {
 
     private fun handleStartTrip() {
         if (_currentState.value !is ShiftState.Connected) return
-        val now = SystemClock.elapsedRealtime()
+        val now = clock.nowMs()
         scope.launch {
             val sessionId = activeSessionId ?: return@launch
             startTrip(sessionId, startedAt = now)
@@ -178,7 +180,7 @@ class ShiftService : Service() {
             return
         }
 
-        val now = SystemClock.elapsedRealtime()
+        val now = clock.nowMs()
         scope.launch {
             finishTrip(
                 sessionId = sessionId,
@@ -206,7 +208,7 @@ class ShiftService : Service() {
             return
         }
         scope.launch {
-            val now = SystemClock.elapsedRealtime()
+            val now = clock.nowMs()
             endShift(sessionId, endedAt = now)
             val summary = getDailySummary(sessionId)
             controller.publishSummary(summary)

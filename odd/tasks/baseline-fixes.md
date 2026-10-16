@@ -28,7 +28,7 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 ## Tasks
 - [x] T1 Git baseline: `git init` inside the project, fix `.gitignore` (`build/`, `.kotlin/`),
       baseline commit on `main`, create branch `fix/baseline-fixes`. Route: inline (mechanical).
-- [ ] T2 Wall-clock timestamps: persist `startedAt`/`endedAt` for sessions and trips as epoch
+- [x] T2 Wall-clock timestamps: persist `startedAt`/`endedAt` for sessions and trips as epoch
       millis via an injectable clock; keep `elapsedRealtime` only for on-screen timers;
       rehydration derives elapsed time from wall clock. Route: delegated writer (4+ files).
 - [ ] T3 ViewModel flow fix: replace nested `collect` in `MainViewModel` with

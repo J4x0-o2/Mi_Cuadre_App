@@ -2,7 +2,6 @@ package com.micuadre.app.presentation
 
 import android.content.Context
 import android.os.Build
-import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micuadre.app.domain.model.DailySummary
@@ -17,6 +16,8 @@ import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
 import com.micuadre.app.domain.usecase.StartShiftUseCase
 import com.micuadre.app.domain.usecase.StartTripUseCase
 import com.micuadre.app.service.ShiftServiceController
+import com.micuadre.app.util.Clock
+import com.micuadre.app.util.TimeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -38,6 +39,7 @@ class MainViewModel @Inject constructor(
     private val observeShiftState: ObserveShiftStateUseCase,
     private val getDailySummary: GetDailySummaryUseCase,
     private val repository: ShiftRepository,
+    private val clock: Clock,
     @ApplicationContext @Suppress("unused") private val app: Context
 ) : ViewModel() {
 
@@ -87,8 +89,7 @@ class MainViewModel @Inject constructor(
         tickerJob?.cancel()
         tickerJob = viewModelScope.launch {
             while (true) {
-                val now = SystemClock.elapsedRealtime()
-                val elapsed = ((now - connectedSinceMs).coerceAtLeast(0L)) / 1000L
+                val elapsed = TimeUtils.elapsedSeconds(connectedSinceMs, clock.nowMs())
                 _ui.update { it.copy(elapsedSec = elapsed) }
                 delay(1_000L)
             }
