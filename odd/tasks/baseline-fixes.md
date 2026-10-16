@@ -26,7 +26,7 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 - Conventional Commits, no AI attribution trailers.
 
 ## Tasks
-- [ ] T1 Git baseline: `git init` inside the project, fix `.gitignore` (`build/`, `.kotlin/`),
+- [x] T1 Git baseline: `git init` inside the project, fix `.gitignore` (`build/`, `.kotlin/`),
       baseline commit on `main`, create branch `fix/baseline-fixes`. Route: inline (mechanical).
 - [ ] T2 Wall-clock timestamps: persist `startedAt`/`endedAt` for sessions and trips as epoch
       millis via an injectable clock; keep `elapsedRealtime` only for on-screen timers;
@@ -66,5 +66,7 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 ## Progress
 - Baseline: `testDebugUnitTest` green before any change (2026-10-15).
 
+- T1 done: baseline commit c97c317 on `main`, branch `fix/baseline-fixes`. Route: inline.
+
 ## Next step
-T1.
+T2-T4 via one delegated writer (per-task commits).
