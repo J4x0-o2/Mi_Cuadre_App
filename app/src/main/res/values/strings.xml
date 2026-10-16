@@ -1,0 +1,43 @@
+<resources>
+    <string name="app_name">MiCuadré</string>
+
+    <string name="connect">Conectarme</string>
+    <string name="disconnect">Desconectarme</string>
+    <string name="new_trip">Nueva carrera</string>
+    <string name="finish_trip">Finalizar carrera</string>
+    <string name="end_shift">Terminar jornada</string>
+
+    <string name="total_today">Total del día</string>
+    <string name="no_trips_yet">Sin carreras todavía</string>
+
+    <string name="select_platform">Plataforma</string>
+    <string name="indriver">InDriver</string>
+    <string name="didi">Didi</string>
+    <string name="other">Otro</string>
+    <string name="other_platform_hint">¿Cuál?</string>
+
+    <string name="trip_amount">Monto de la carrera</string>
+    <string name="amount_hint">0</string>
+    <string name="payment_method">Método de pago</string>
+    <string name="cash">Efectivo</string>
+    <string name="transfer">Transferencia</string>
+    <string name="save">Guardar</string>
+    <string name="cancel">Cancelar</string>
+
+    <string name="shift_summary">Resumen del día</string>
+    <string name="total_earnings">Ingresos totales</string>
+    <string name="hours_worked">Horas trabajadas</string>
+    <string name="avg_trip_time">Promedio por carrera</string>
+    <string name="trip_count">Carreras</string>
+    <string name="close">Cerrar</string>
+
+    <string name="notif_channel_name">Servicio de jornada</string>
+    <string name="notif_channel_desc">Notificación persistente mientras estás conectado</string>
+    <string name="notif_connected">Conectado — %1$s</string>
+    <string name="notif_on_trip">Carrera en curso — %1$s</string>
+    <string name="notif_post_notifications_rationale">MiCuadré necesita mostrar una notificación para mantener el contador de jornada y de carrera activos.</string>
+
+    <string name="amount_required">Ingresá el monto</string>
+    <string name="platform_required">Elegí plataforma</string>
+    <string name="other_platform_required">Indicá cuál</string>
+</resources>
