@@ -35,16 +35,16 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
       `flatMapLatest`/`combine` so state updates never stall. Route: delegated writer.
 - [x] T4 Silent failures: `ShiftService` uses the `FinishTripUseCase` result; invalid payload
       surfaces an error to the UI (`pendingError`) instead of being dropped. Route: delegated writer.
-- [ ] T5 Notification permission: start the shift service only after the permission result
+- [x] T5 Notification permission: start the shift service only after the permission result
       (granted or denied handled explicitly). Route: delegated writer.
-- [ ] T6 Cleanup: remove unused injected ViewModel params, `touchTrip`/`touchTimeUtils` hacks,
+- [x] T6 Cleanup: remove unused injected ViewModel params, `touchTrip`/`touchTimeUtils` hacks,
       redundant `Result.Invalid` handling; move hardcoded UI strings to `strings.xml`.
       Route: delegated writer.
-- [ ] T7 Room `exportSchema = true` with KSP schema location, schema JSON committed.
+- [x] T7 Room `exportSchema = true` with KSP schema location, schema JSON committed.
       Route: delegated writer.
-- [ ] T8 Release build health: verify `assembleRelease` (minify) succeeds; add keep rules only
+- [x] T8 Release build health: verify `assembleRelease` (minify) succeeds; add keep rules only
       if needed. Route: delegated writer.
-- [ ] T9 Review follow-ups (advisory findings of review-96694084d3d99465 on T2-T4):
+- [x] T9 Review follow-ups (advisory findings of review-96694084d3d99465 on T2-T4):
       - legacy rows: on rehydrate, a persisted `startedAt` that is not a plausible epoch value
         (boot-relative from the old build) must not produce a ~56-year timer; close/discard safely.
       - `FinishTripHandler` must catch persistence exceptions and return `Rejected` (no crash).
@@ -87,5 +87,11 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
   acknowledged (review-96694084d3d99465, authority burned). 7 advisory findings -> T9.
   Reviewed boundary: 5640938.
 
+- T5 done: 201f739. `ConnectCoordinator` (pure) starts the service only after the permission result; denied still starts the shift and shows a hint (`UiMessage` id + @StringRes replaces `pendingError`). RED: 3 behavioral failures in ConnectCoordinatorTest against a start-immediately skeleton; GREEN: suite + assembleDebug. Route: delegated writer.
+- T6 done: d8dd01f. Removed unused VM params, touchTrip/touchTimeUtils, simplified FinishTripUseCase result; UI strings in strings.xml (voseo register). Pure refactor: suite green before/after. Route: delegated writer.
+- T7 done: 7c8da01. exportSchema=true, ksp room.schemaLocation=app/schemas, schema v1 committed. Suite + assembleDebug green. Route: delegated writer.
+- T8 done (no commit needed): `assembleRelease` with minify+shrink SUCCESSFUL, no keep rules required, unsigned release APK (no signing config defined). Route: delegated writer.
+- T9 done: ffc6a79. Legacy startedAt (< 2020-01-01 epoch) closes the stale session on rehydrate; FinishTripHandler catches persistence exceptions -> Rejected; FinishTripReducer tests reject path; real rehydration tests replace the tautological one; Snackbar keyed by `UiMessage.id` (done in T5). RED: 4 behavioral failures; GREEN: suite + assembleDebug. Route: delegated writer.
+
 ## Next step
-T5-T9 via one delegated writer.
+All tasks done. Pending: user provides remote to push, then PR.
