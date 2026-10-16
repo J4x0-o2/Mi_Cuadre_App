@@ -44,10 +44,21 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
       Route: delegated writer.
 - [ ] T8 Release build health: verify `assembleRelease` (minify) succeeds; add keep rules only
       if needed. Route: delegated writer.
+- [ ] T9 Review follow-ups (advisory findings of review-96694084d3d99465 on T2-T4):
+      - legacy rows: on rehydrate, a persisted `startedAt` that is not a plausible epoch value
+        (boot-relative from the old build) must not produce a ~56-year timer; close/discard safely.
+      - `FinishTripHandler` must catch persistence exceptions and return `Rejected` (no crash).
+      - tests for the reject path (state stays OnTrip, error published) and a real rehydration
+        test through `RehydrateShiftStateUseCase` (replace the tautological TimeUtils test).
+      - Snackbar must show repeated identical errors (do not key only on the message string).
+      Route: delegated writer.
 
-## Deferred / needs decision
-- Disconnect while on a trip is currently impossible (`handleDisconnect` only from
-  `Connected`). Product decision pending; not changed here.
+## Decisions
+- Disconnect while on a trip stays impossible (user confirmed 2026-10-15: the trip must be
+  finished first). Making this clear in the UI belongs to the design phase.
+- On-screen timers use the wall clock (T2 deviation from the original "keep elapsedRealtime"
+  note). Accepted: one time base keeps rehydration simple; clock jumps are clamped at 0.
+- Error copy register: match the existing `strings.xml` register.
 
 ## Acceptance criteria
 - All unit tests green, new tests cover T2-T5 behavior.
@@ -72,5 +83,9 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 - T3 done: 4087f99. `homeSnapshots` (flatMapLatest) replaces nested collect; tests prove later state emissions apply with a never-completing trips flow. RED: compile failure on missing homeSnapshots; GREEN: suite. Route: delegated writer.
 - T4 done: 57b1c29. `FinishTripHandler` + `ShiftError` via controller `errorEvents` -> `pendingError` -> Snackbar; trip stays OnTrip on rejection. RED: compile failure on missing FinishTripHandler; GREEN: suite + assembleDebug. Route: delegated writer.
 
+- Review T2-T4: medium risk, consent granted, lens review-reliability, APPROVED and
+  acknowledged (review-96694084d3d99465, authority burned). 7 advisory findings -> T9.
+  Reviewed boundary: 5640938.
+
 ## Next step
-T5 notification permission flow.
+T5-T9 via one delegated writer.
