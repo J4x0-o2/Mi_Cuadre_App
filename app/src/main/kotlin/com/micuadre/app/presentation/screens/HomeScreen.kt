@@ -1,6 +1,7 @@
 package com.micuadre.app.presentation.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -35,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,6 +49,7 @@ import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.presentation.HomeUiState
 import com.micuadre.app.presentation.MainViewModel
+import com.micuadre.app.presentation.NotificationPermission
 import com.micuadre.app.presentation.components.BigTimer
 import com.micuadre.app.presentation.components.FinishTripSheet
 import com.micuadre.app.presentation.components.PlatformPickerSheet
@@ -62,21 +65,12 @@ fun HomeScreen(
 
     val notifPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { viewModel.onNotificationPermissionConsumed() }
+        onResult = { granted -> viewModel.onNotificationPermissionResult(granted) }
     )
 
     LaunchedEffect(state.needsNotificationPermission) {
         if (state.needsNotificationPermission) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val granted = ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-                if (!granted) {
-                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
-            viewModel.onNotificationPermissionConsumed()
+            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -86,10 +80,12 @@ fun HomeScreen(
     var pendingOtherLabel by remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(state.pendingError) {
-        state.pendingError?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.onErrorShown()
+    val pendingMessage = state.pendingMessage
+    val pendingText = pendingMessage?.let { stringResource(it.textRes) }
+    LaunchedEffect(pendingMessage?.id) {
+        if (pendingMessage != null && pendingText != null) {
+            snackbarHostState.showSnackbar(pendingText)
+            viewModel.onMessageShown(pendingMessage.id)
         }
     }
 
@@ -106,7 +102,7 @@ fun HomeScreen(
                 is ShiftState.Disconnected -> DisconnectedView(
                     trips = state.trips,
                     totalMinor = state.totalMinor,
-                    onConnect = { viewModel.onConnectTapped() },
+                    onConnect = { viewModel.onConnectTapped(notificationPermissionState(context)) },
                     onEndShift = { viewModel.onEndShiftTapped() }
                 )
                 is ShiftState.Connected -> ConnectedView(
@@ -169,6 +165,15 @@ fun HomeScreen(
             onClose = { viewModel.onSummaryDismissed() }
         )
     }
+}
+
+private fun notificationPermissionState(context: Context): NotificationPermission {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return NotificationPermission.NotRequired
+    val granted = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.POST_NOTIFICATIONS
+    ) == PackageManager.PERMISSION_GRANTED
+    return if (granted) NotificationPermission.Granted else NotificationPermission.NeedsRequest
 }
 
 @Composable

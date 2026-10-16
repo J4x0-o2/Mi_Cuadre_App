@@ -1,9 +1,10 @@
 package com.micuadre.app.presentation
 
 import android.content.Context
-import android.os.Build
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.micuadre.app.R
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
@@ -49,6 +50,8 @@ class MainViewModel @Inject constructor(
 
     private var tickerJob: Job? = null
     private var tickerSinceMs: Long? = null
+    private var messageSeq = 0L
+    private val connectCoordinator = ConnectCoordinator(startShift = controller::connect)
 
     init {
         observeState()
@@ -104,15 +107,19 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             controller.errorEvents.collect { error ->
                 when (error) {
-                    ShiftError.InvalidFinishTrip ->
-                        _ui.update { it.copy(pendingError = FINISH_TRIP_ERROR_MESSAGE) }
+                    ShiftError.InvalidFinishTrip -> postMessage(R.string.error_finish_trip)
                 }
             }
         }
     }
 
-    fun onErrorShown() {
-        _ui.update { it.copy(pendingError = null) }
+    fun onMessageShown(id: Long) {
+        _ui.update { if (it.pendingMessage?.id == id) it.copy(pendingMessage = null) else it }
+    }
+
+    private fun postMessage(@StringRes textRes: Int) {
+        val message = UiMessage(id = ++messageSeq, textRes = textRes)
+        _ui.update { it.copy(pendingMessage = message) }
     }
 
     private fun startTicker(connectedSinceMs: Long) {
@@ -131,15 +138,24 @@ class MainViewModel @Inject constructor(
         tickerJob = null
     }
 
-    fun onConnectTapped() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            _ui.update { it.copy(needsNotificationPermission = true) }
-        }
-        controller.connect()
+    fun onConnectTapped(permission: NotificationPermission) {
+        applyConnectEffect(connectCoordinator.onConnectTapped(permission))
     }
 
-    fun onNotificationPermissionConsumed() {
+    /** Called with the outcome of the POST_NOTIFICATIONS prompt; starts the shift either way. */
+    fun onNotificationPermissionResult(granted: Boolean) {
         _ui.update { it.copy(needsNotificationPermission = false) }
+        applyConnectEffect(connectCoordinator.onPermissionResult(granted))
+    }
+
+    private fun applyConnectEffect(effect: ConnectCoordinator.Effect) {
+        when (effect) {
+            ConnectCoordinator.Effect.None -> Unit
+            ConnectCoordinator.Effect.RequestPermission ->
+                _ui.update { it.copy(needsNotificationPermission = true) }
+            ConnectCoordinator.Effect.ShowDeniedHint ->
+                postMessage(R.string.notif_permission_denied_hint)
+        }
     }
 
     fun onDisconnectTapped() {
@@ -155,7 +171,7 @@ class MainViewModel @Inject constructor(
     }
 
     fun onFinishTripDismissed() {
-        _ui.update { it.copy(showFinishSheet = false, pendingError = null) }
+        _ui.update { it.copy(showFinishSheet = false, pendingMessage = null) }
     }
 
     fun onFinishTripConfirmed(
@@ -165,7 +181,7 @@ class MainViewModel @Inject constructor(
         paymentMethod: PaymentMethod
     ) {
         controller.finishTrip(platform, platformOtherLabel, amountMinor, paymentMethod)
-        _ui.update { it.copy(showFinishSheet = false, pendingError = null) }
+        _ui.update { it.copy(showFinishSheet = false, pendingMessage = null) }
     }
 
     fun onEndShiftTapped() {
@@ -184,11 +200,5 @@ class MainViewModel @Inject constructor(
     override fun onCleared() {
         stopTicker()
         super.onCleared()
-    }
-
-    private companion object {
-        // TODO(T6): move to strings.xml with the other hardcoded UI strings.
-        const val FINISH_TRIP_ERROR_MESSAGE =
-            "No se pudo guardar la carrera. Revisá los datos e intentá de nuevo."
     }
 }

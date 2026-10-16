@@ -37,6 +37,9 @@
     <string name="notif_on_trip">Carrera en curso — %1$s</string>
     <string name="notif_post_notifications_rationale">MiCuadré necesita mostrar una notificación para mantener el contador de jornada y de carrera activos.</string>
 
+    <string name="notif_permission_denied_hint">Sin permiso de notificaciones no vas a ver el contador en la barra, pero la jornada sigue corriendo.</string>
+    <string name="error_finish_trip">No se pudo guardar la carrera. Revisá los datos e intentá de nuevo.</string>
+
     <string name="amount_required">Ingresá el monto</string>
     <string name="platform_required">Elegí plataforma</string>
     <string name="other_platform_required">Indicá cuál</string>
