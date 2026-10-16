@@ -2,6 +2,7 @@ package com.micuadre.app.domain.usecase
 
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.repository.ShiftRepository
+import com.micuadre.app.util.TimeUtils
 import javax.inject.Inject
 
 /**
@@ -18,7 +19,9 @@ import javax.inject.Inject
  * Returns the resolved [ShiftState] together with the [Session.id] that
  * backed it, so the service can populate its `activeSessionId` field in
  * the same call. When no active session exists the returned state is
- * [ShiftState.Disconnected] and [Result.sessionId] is `-1L`.
+ * [ShiftState.Disconnected] and [Result.sessionId] is `-1L`. An active
+ * session whose `startedAt` is not a plausible epoch value (legacy data) is
+ * closed and treated as no active session.
  */
 class RehydrateShiftStateUseCase @Inject constructor(
     private val repository: ShiftRepository
@@ -32,6 +35,14 @@ class RehydrateShiftStateUseCase @Inject constructor(
     suspend operator fun invoke(): Result {
         val session = repository.activeSession()
             ?: return Result(ShiftState.Disconnected, sessionId = -1L)
+
+        if (!TimeUtils.isPlausibleEpoch(session.startedAt)) {
+            // Legacy row from the old boot-relative build: resuming it would
+            // show a ~56-year timer. Close it at its own start (zero length)
+            // so it is never offered again, and start from Disconnected.
+            repository.endSession(session.id, endedAt = session.startedAt)
+            return Result(ShiftState.Disconnected, sessionId = -1L)
+        }
 
         val inProgress = repository.inProgressTrip(session.id)
         val state: ShiftState = if (inProgress != null) {

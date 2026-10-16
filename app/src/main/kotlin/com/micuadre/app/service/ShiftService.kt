@@ -48,6 +48,7 @@ class ShiftService : Service() {
     @Inject lateinit var rehydrateShiftState: RehydrateShiftStateUseCase
 
     private val stateMachine by lazy { ShiftStateMachine(nowMs = clock::nowMs) }
+    private val finishTripReducer by lazy { FinishTripReducer(stateMachine) }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var tickerJob: Job? = null
@@ -179,12 +180,13 @@ class ShiftService : Service() {
                 amountMinor = amountMinor,
                 paymentName = paymentName
             )
-            if (outcome == FinishTripHandler.Outcome.Rejected) {
+            val result = finishTripReducer.reduce(_currentState.value, outcome)
+            if (result.error != null) {
                 // Stay in OnTrip so the user can retry; tell the UI why.
-                controller.publishError(ShiftError.InvalidFinishTrip)
+                controller.publishError(result.error)
                 return@launch
             }
-            val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.FinishTrip)
+            val next = result.state
             _currentState.value = next
             activeTripStartMs = null
             controller.publishState(next)

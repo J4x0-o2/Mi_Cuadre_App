@@ -68,6 +68,13 @@ class FinishTripHandlerTest {
     }
 
     @Test
+    fun `persistence exception is reported as Rejected instead of crashing`() = runTest {
+        val repo = HandlerFakeRepository(saves = true, failure = IllegalStateException("disk full"))
+        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run())
+        assertEquals(1, repo.finishCalls)
+    }
+
+    @Test
     fun `repository failure is reported as Rejected so the trip stays open`() = runTest {
         val repo = HandlerFakeRepository(saves = false)
         assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run())
@@ -75,7 +82,10 @@ class FinishTripHandlerTest {
     }
 }
 
-private class HandlerFakeRepository(private val saves: Boolean) : ShiftRepository {
+private class HandlerFakeRepository(
+    private val saves: Boolean,
+    private val failure: Throwable? = null
+) : ShiftRepository {
     var finishCalls = 0
 
     override suspend fun createSession(startedAt: Long): Long = 1L
@@ -95,6 +105,7 @@ private class HandlerFakeRepository(private val saves: Boolean) : ShiftRepositor
         paymentMethod: PaymentMethod
     ): Boolean {
         finishCalls++
+        failure?.let { throw it }
         return saves
     }
 }

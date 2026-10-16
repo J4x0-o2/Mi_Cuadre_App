@@ -3,6 +3,7 @@ package com.micuadre.app.service
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.usecase.FinishTripUseCase
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 /**
@@ -36,15 +37,22 @@ class FinishTripHandler @Inject constructor(
         val payment = paymentName?.let { runCatching { PaymentMethod.valueOf(it) }.getOrNull() }
         if (platform == null || payment == null || amountMinor <= 0L) return Outcome.Rejected
 
-        val result = finishTrip(
-            sessionId = sessionId,
-            platform = platform,
-            platformOtherLabel = platformOtherLabel,
-            startedAt = tripStartedAt,
-            endedAt = endedAt,
-            amountMinor = amountMinor,
-            paymentMethod = payment
-        )
+        val result = try {
+            finishTrip(
+                sessionId = sessionId,
+                platform = platform,
+                platformOtherLabel = platformOtherLabel,
+                startedAt = tripStartedAt,
+                endedAt = endedAt,
+                amountMinor = amountMinor,
+                paymentMethod = payment
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (t: Throwable) {
+            // Persistence failure (disk full, locked DB...): keep the trip open.
+            return Outcome.Rejected
+        }
         return when (result) {
             FinishTripUseCase.Result.Saved -> Outcome.Finished
             FinishTripUseCase.Result.Invalid -> Outcome.Rejected
