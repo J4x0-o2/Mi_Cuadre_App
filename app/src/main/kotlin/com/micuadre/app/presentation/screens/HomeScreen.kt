@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.micuadre.app.R
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
@@ -204,13 +205,13 @@ private fun DisconnectedView(
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "MiCuadré",
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Tu jornada, en segundos",
+            text = stringResource(R.string.app_tagline),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp)
@@ -219,7 +220,7 @@ private fun DisconnectedView(
         if (trips.isNotEmpty()) {
             Spacer(modifier = Modifier.height(32.dp))
             Text(
-                text = "Total del día",
+                text = stringResource(R.string.total_today),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -252,7 +253,7 @@ private fun DisconnectedView(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
-        ) { Text("Conectarme", style = MaterialTheme.typography.titleMedium) }
+        ) { Text(stringResource(R.string.connect), style = MaterialTheme.typography.titleMedium) }
 
         if (trips.isNotEmpty()) {
             OutlinedButton(
@@ -262,13 +263,13 @@ private fun DisconnectedView(
                     .height(56.dp)
                     .padding(top = 8.dp, bottom = 24.dp),
                 shape = RoundedCornerShape(28.dp)
-            ) { Text("Terminar jornada", style = MaterialTheme.typography.titleMedium) }
+            ) { Text(stringResource(R.string.end_shift), style = MaterialTheme.typography.titleMedium) }
         } else {
             Spacer(modifier = Modifier.height(16.dp))
         }
 
         Text(
-            text = "MiCuadré · v0.1.0",
+            text = stringResource(R.string.app_footer),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -289,7 +290,7 @@ private fun ConnectedView(
     ) {
         Spacer(modifier = Modifier.height(48.dp))
         Text(
-            text = "Conectado",
+            text = stringResource(R.string.connected),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -298,7 +299,7 @@ private fun ConnectedView(
         BigTimer(seconds = ui.elapsedSec, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Total del día",
+            text = stringResource(R.string.total_today),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth(),
@@ -323,7 +324,7 @@ private fun ConnectedView(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
-        ) { Text("Nueva carrera") }
+        ) { Text(stringResource(R.string.new_trip)) }
 
         OutlinedButton(
             onClick = onDisconnect,
@@ -332,7 +333,7 @@ private fun ConnectedView(
                 .height(56.dp)
                 .padding(top = 8.dp),
             shape = RoundedCornerShape(28.dp)
-        ) { Text("Desconectarme") }
+        ) { Text(stringResource(R.string.disconnect)) }
 
         Spacer(modifier = Modifier.height(16.dp))
         LazyColumn(
@@ -348,7 +349,7 @@ private fun ConnectedView(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Sin carreras todavía",
+                            text = stringResource(R.string.no_trips_yet),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -373,7 +374,7 @@ private fun OnTripView(
     ) {
         Spacer(modifier = Modifier.height(48.dp))
         Text(
-            text = "Carrera en curso",
+            text = stringResource(R.string.trip_in_progress),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
@@ -381,7 +382,7 @@ private fun OnTripView(
         )
         BigTimer(seconds = ui.elapsedSec, modifier = Modifier.fillMaxWidth())
         Text(
-            text = "Tiempo de carrera",
+            text = stringResource(R.string.trip_time),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -390,7 +391,7 @@ private fun OnTripView(
 
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Total del día",
+            text = stringResource(R.string.total_today),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -417,6 +418,6 @@ private fun OnTripView(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
-        ) { Text("Finalizar carrera") }
+        ) { Text(stringResource(R.string.finish_trip)) }
     }
 }

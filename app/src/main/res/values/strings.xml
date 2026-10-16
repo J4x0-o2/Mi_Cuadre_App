@@ -40,6 +40,15 @@
     <string name="notif_permission_denied_hint">Sin permiso de notificaciones no vas a ver el contador en la barra, pero la jornada sigue corriendo.</string>
     <string name="error_finish_trip">No se pudo guardar la carrera. Revisá los datos e intentá de nuevo.</string>
 
+    <string name="app_tagline">Tu jornada, en segundos</string>
+    <string name="app_footer">MiCuadré · v0.1.0</string>
+    <string name="connected">Conectado</string>
+    <string name="trip_in_progress">Carrera en curso</string>
+    <string name="trip_time">Tiempo de carrera</string>
+    <string name="save_trip">Guardar carrera</string>
+    <string name="continue_action">Continuar</string>
+    <string name="payment_required">Elegí método de pago</string>
+
     <string name="amount_required">Ingresá el monto</string>
     <string name="platform_required">Elegí plataforma</string>
     <string name="other_platform_required">Indicá cuál</string>

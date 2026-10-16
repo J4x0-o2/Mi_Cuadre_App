@@ -1,6 +1,5 @@
 package com.micuadre.app.presentation
 
-import android.content.Context
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,18 +9,13 @@ import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.repository.ShiftRepository
-import com.micuadre.app.domain.usecase.EndShiftUseCase
-import com.micuadre.app.domain.usecase.FinishTripUseCase
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
-import com.micuadre.app.domain.usecase.StartShiftUseCase
-import com.micuadre.app.domain.usecase.StartTripUseCase
 import com.micuadre.app.service.ShiftError
 import com.micuadre.app.service.ShiftServiceController
 import com.micuadre.app.util.Clock
 import com.micuadre.app.util.TimeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,15 +28,10 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val controller: ShiftServiceController,
-    @Suppress("unused") private val startShift: StartShiftUseCase,
-    @Suppress("unused") private val endShift: EndShiftUseCase,
-    @Suppress("unused") private val startTrip: StartTripUseCase,
-    @Suppress("unused") private val finishTrip: FinishTripUseCase,
     private val observeShiftState: ObserveShiftStateUseCase,
     private val getDailySummary: GetDailySummaryUseCase,
     private val repository: ShiftRepository,
-    private val clock: Clock,
-    @ApplicationContext @Suppress("unused") private val app: Context
+    private val clock: Clock
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(HomeUiState())

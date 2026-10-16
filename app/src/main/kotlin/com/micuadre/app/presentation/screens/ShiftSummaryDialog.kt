@@ -25,9 +25,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.micuadre.app.R
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.util.Formatters
 
@@ -40,22 +42,22 @@ fun ShiftSummaryDialog(
         onDismissRequest = onClose,
         title = {
             Text(
-                text = "Resumen del día",
+                text = stringResource(R.string.shift_summary),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
         },
         text = {
             Column {
-                SummaryRow("Ingresos totales", Formatters.money(summary.totalAmountMinor))
-                SummaryRow("Horas trabajadas", Formatters.durationHMMSS(summary.totalDurationMs / 1000L))
-                SummaryRow("Promedio por carrera", Formatters.durationHMMSS(summary.avgDurationMs / 1000L))
-                SummaryRow("Carreras", summary.tripCount.toString())
+                SummaryRow(stringResource(R.string.total_earnings), Formatters.money(summary.totalAmountMinor))
+                SummaryRow(stringResource(R.string.hours_worked), Formatters.durationHMMSS(summary.totalDurationMs / 1000L))
+                SummaryRow(stringResource(R.string.avg_trip_time), Formatters.durationHMMSS(summary.avgDurationMs / 1000L))
+                SummaryRow(stringResource(R.string.trip_count), summary.tripCount.toString())
             }
         },
         confirmButton = {
             Button(onClick = onClose) {
-                Text("Cerrar")
+                Text(stringResource(R.string.close))
             }
         }
     )

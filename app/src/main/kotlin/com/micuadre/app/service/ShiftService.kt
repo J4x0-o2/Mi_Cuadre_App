@@ -14,7 +14,6 @@ import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
 import com.micuadre.app.domain.usecase.StartShiftUseCase
 import com.micuadre.app.domain.usecase.StartTripUseCase
 import com.micuadre.app.util.Clock
-import com.micuadre.app.util.TimeUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -267,9 +266,6 @@ class ShiftService : Service() {
 
     // Exposed for testing only — package-private accessor.
     internal fun _stateForTest(): StateFlow<ShiftState> = currentState
-
-    @Suppress("unused")
-    private fun touchTimeUtils() = TimeUtils // keep import meaningful
 
     private companion object {
         private const val TAG = "ShiftService"
