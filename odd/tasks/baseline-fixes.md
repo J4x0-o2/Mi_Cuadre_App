@@ -33,7 +33,7 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
       rehydration derives elapsed time from wall clock. Route: delegated writer (4+ files).
 - [x] T3 ViewModel flow fix: replace nested `collect` in `MainViewModel` with
       `flatMapLatest`/`combine` so state updates never stall. Route: delegated writer.
-- [ ] T4 Silent failures: `ShiftService` uses the `FinishTripUseCase` result; invalid payload
+- [x] T4 Silent failures: `ShiftService` uses the `FinishTripUseCase` result; invalid payload
       surfaces an error to the UI (`pendingError`) instead of being dropped. Route: delegated writer.
 - [ ] T5 Notification permission: start the shift service only after the permission result
       (granted or denied handled explicitly). Route: delegated writer.

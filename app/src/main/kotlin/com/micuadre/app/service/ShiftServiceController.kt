@@ -49,6 +49,14 @@ class ShiftServiceController @Inject constructor(
     private val _summaryEvents = MutableSharedFlow<DailySummary>(replay = 0, extraBufferCapacity = 4)
     val summaryEvents: SharedFlow<DailySummary> = _summaryEvents.asSharedFlow()
 
+    private val _errorEvents = MutableSharedFlow<ShiftError>(replay = 0, extraBufferCapacity = 4)
+    val errorEvents: SharedFlow<ShiftError> = _errorEvents.asSharedFlow()
+
+    /** Called by [ShiftService] when a requested action could not be applied. */
+    internal fun publishError(error: ShiftError) {
+        _errorEvents.tryEmit(error)
+    }
+
     /** Called by [ShiftService] to publish the current state. */
     internal fun publishState(newState: ShiftState) {
         _state.value = newState
@@ -89,4 +97,10 @@ class ShiftServiceController @Inject constructor(
         }
         ContextCompat.startForegroundService(context, intent)
     }
+}
+
+/** One-shot failures the service reports back to the UI. */
+enum class ShiftError {
+    /** Finish-trip payload was invalid or could not be saved; the trip stays open. */
+    InvalidFinishTrip
 }

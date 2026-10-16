@@ -15,6 +15,7 @@ import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
 import com.micuadre.app.domain.usecase.StartShiftUseCase
 import com.micuadre.app.domain.usecase.StartTripUseCase
+import com.micuadre.app.service.ShiftError
 import com.micuadre.app.service.ShiftServiceController
 import com.micuadre.app.util.Clock
 import com.micuadre.app.util.TimeUtils
@@ -52,6 +53,7 @@ class MainViewModel @Inject constructor(
     init {
         observeState()
         observeSummary()
+        observeErrors()
     }
 
     private fun observeState() {
@@ -96,6 +98,21 @@ class MainViewModel @Inject constructor(
                 _ui.update { it.copy(summary = summary) }
             }
         }
+    }
+
+    private fun observeErrors() {
+        viewModelScope.launch {
+            controller.errorEvents.collect { error ->
+                when (error) {
+                    ShiftError.InvalidFinishTrip ->
+                        _ui.update { it.copy(pendingError = FINISH_TRIP_ERROR_MESSAGE) }
+                }
+            }
+        }
+    }
+
+    fun onErrorShown() {
+        _ui.update { it.copy(pendingError = null) }
     }
 
     private fun startTicker(connectedSinceMs: Long) {
@@ -167,5 +184,11 @@ class MainViewModel @Inject constructor(
     override fun onCleared() {
         stopTicker()
         super.onCleared()
+    }
+
+    private companion object {
+        // TODO(T6): move to strings.xml with the other hardcoded UI strings.
+        const val FINISH_TRIP_ERROR_MESSAGE =
+            "No se pudo guardar la carrera. Revisá los datos e intentá de nuevo."
     }
 }

@@ -7,11 +7,8 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.usecase.EndShiftUseCase
-import com.micuadre.app.domain.usecase.FinishTripUseCase
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
 import com.micuadre.app.domain.usecase.StartShiftUseCase
@@ -47,7 +44,7 @@ class ShiftService : Service() {
     @Inject lateinit var startShift: StartShiftUseCase
     @Inject lateinit var endShift: EndShiftUseCase
     @Inject lateinit var startTrip: StartTripUseCase
-    @Inject lateinit var finishTrip: FinishTripUseCase
+    @Inject lateinit var finishTripHandler: FinishTripHandler
     @Inject lateinit var getDailySummary: GetDailySummaryUseCase
     @Inject lateinit var rehydrateShiftState: RehydrateShiftStateUseCase
 
@@ -172,25 +169,22 @@ class ShiftService : Service() {
         val amountMinor = intent.getLongExtra(ShiftServiceController.EXTRA_AMOUNT_MINOR, 0L)
         val paymentName = intent.getStringExtra(ShiftServiceController.EXTRA_PAYMENT_METHOD)
 
-        val platform = platformName?.let { runCatching { Platform.valueOf(it) }.getOrNull() }
-        val payment = paymentName?.let { runCatching { PaymentMethod.valueOf(it) }.getOrNull() }
-
-        if (platform == null || payment == null || amountMinor <= 0L) {
-            // Invalid payload; stay in OnTrip and let the UI re-render.
-            return
-        }
-
         val now = clock.nowMs()
         scope.launch {
-            finishTrip(
+            val outcome = finishTripHandler.handle(
                 sessionId = sessionId,
-                platform = platform,
-                platformOtherLabel = platformOther,
-                startedAt = tripStart,
+                tripStartedAt = tripStart,
                 endedAt = now,
+                platformName = platformName,
+                platformOtherLabel = platformOther,
                 amountMinor = amountMinor,
-                paymentMethod = payment
+                paymentName = paymentName
             )
+            if (outcome == FinishTripHandler.Outcome.Rejected) {
+                // Stay in OnTrip so the user can retry; tell the UI why.
+                controller.publishError(ShiftError.InvalidFinishTrip)
+                return@launch
+            }
             val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.FinishTrip)
             _currentState.value = next
             activeTripStartMs = null
