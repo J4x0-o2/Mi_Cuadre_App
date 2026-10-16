@@ -93,5 +93,14 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 - T8 done (no commit needed): `assembleRelease` with minify+shrink SUCCESSFUL, no keep rules required, unsigned release APK (no signing config defined). Route: delegated writer.
 - T9 done: ffc6a79. Legacy startedAt (< 2020-01-01 epoch) closes the stale session on rehydrate; FinishTripHandler catches persistence exceptions -> Rejected; FinishTripReducer tests reject path; real rehydration tests replace the tautological one; Snackbar keyed by `UiMessage.id` (done in T5). RED: 4 behavioral failures; GREEN: suite + assembleDebug. Route: delegated writer.
 
+- Review T5-T9: medium risk, consent granted, lens review-reliability, APPROVED and
+  acknowledged (review-c715f15688ecfa86, authority burned). Reviewed boundary: f8f9206.
+  Advisory follow-ups (non-blocking, later work):
+  - legacy rehydrate closes the session but leaves an in-progress legacy trip with
+    `endedAt == null` (only affects pre-fix dev data).
+  - `FinishTripHandler` catches `Throwable` without logging; prefer `Exception` + log.
+  - reboot rehydration test does not inject `FakeClock` into the use case.
+  - permission prompt may show twice if the activity is recreated while it is open.
+
 ## Next step
-All tasks done. Pending: user provides remote to push, then PR.
+All tasks done. Remote: origin https://github.com/J4x0-o2/Mi_Cuadre_App.git. Pending: push.
