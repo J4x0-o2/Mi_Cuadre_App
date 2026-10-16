@@ -47,6 +47,7 @@ class MainViewModel @Inject constructor(
     val ui: StateFlow<HomeUiState> = _ui.asStateFlow()
 
     private var tickerJob: Job? = null
+    private var tickerSinceMs: Long? = null
 
     init {
         observeState()
@@ -55,25 +56,37 @@ class MainViewModel @Inject constructor(
 
     private fun observeState() {
         viewModelScope.launch {
-            observeShiftState().collect { state ->
-                _ui.update { it.copy(shiftState = state) }
-                when (state) {
-                    is ShiftState.Connected -> {
-                        startTicker(state.connectedSinceMs)
-                        refreshTripsAndTotal()
-                    }
-                    is ShiftState.OnTrip -> {
-                        startTicker(state.connectedSinceMs)
-                        refreshTripsAndTotal()
-                    }
-                    is ShiftState.Disconnected -> {
-                        stopTicker()
-                        // Reset the visible list/total — the service will
-                        // rehydrate them on next connect if needed.
-                        _ui.update { it.copy(trips = emptyList(), totalMinor = 0L, elapsedSec = 0L) }
-                    }
+            homeSnapshots(
+                shiftState = observeShiftState(),
+                activeSessionId = { repository.activeSession()?.id },
+                observeTrips = repository::observeTrips
+            ).collect { snapshot ->
+                _ui.update {
+                    it.copy(
+                        shiftState = snapshot.shiftState,
+                        trips = snapshot.trips,
+                        totalMinor = snapshot.totalMinor
+                    )
                 }
+                syncTicker(snapshot.shiftState)
             }
+        }
+    }
+
+    /** (Re)starts the elapsed-time ticker only when the shift start changes. */
+    private fun syncTicker(state: ShiftState) {
+        val since = when (state) {
+            is ShiftState.Connected -> state.connectedSinceMs
+            is ShiftState.OnTrip -> state.connectedSinceMs
+            is ShiftState.Disconnected -> null
+        }
+        if (since == null) {
+            stopTicker()
+            tickerSinceMs = null
+            _ui.update { it.copy(elapsedSec = 0L) }
+        } else if (since != tickerSinceMs) {
+            tickerSinceMs = since
+            startTicker(since)
         }
     }
 
@@ -99,14 +112,6 @@ class MainViewModel @Inject constructor(
     private fun stopTicker() {
         tickerJob?.cancel()
         tickerJob = null
-    }
-
-    private suspend fun refreshTripsAndTotal() {
-        val session = repository.activeSession() ?: return
-        repository.observeTrips(session.id).collect { trips ->
-            val total = trips.sumOf { it.amountMinor ?: 0L }
-            _ui.update { it.copy(trips = trips, totalMinor = total) }
-        }
     }
 
     fun onConnectTapped() {

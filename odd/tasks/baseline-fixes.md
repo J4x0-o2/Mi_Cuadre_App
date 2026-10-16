@@ -31,7 +31,7 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 - [x] T2 Wall-clock timestamps: persist `startedAt`/`endedAt` for sessions and trips as epoch
       millis via an injectable clock; keep `elapsedRealtime` only for on-screen timers;
       rehydration derives elapsed time from wall clock. Route: delegated writer (4+ files).
-- [ ] T3 ViewModel flow fix: replace nested `collect` in `MainViewModel` with
+- [x] T3 ViewModel flow fix: replace nested `collect` in `MainViewModel` with
       `flatMapLatest`/`combine` so state updates never stall. Route: delegated writer.
 - [ ] T4 Silent failures: `ShiftService` uses the `FinishTripUseCase` result; invalid payload
       surfaces an error to the UI (`pendingError`) instead of being dropped. Route: delegated writer.
