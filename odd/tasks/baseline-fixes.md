@@ -68,5 +68,9 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 
 - T1 done: baseline commit c97c317 on `main`, branch `fix/baseline-fixes`. Route: inline.
 
+- T2 done: a214b5e. Injectable `Clock` (SystemWallClock via Hilt) replaces elapsedRealtime everywhere (persisted + on-screen elapsed derived from wall clock; clamped at 0). RED: compile failure on missing Clock/TimeUtils API; GREEN: testDebugUnitTest + assembleDebug. Route: delegated writer.
+- T3 done: 4087f99. `homeSnapshots` (flatMapLatest) replaces nested collect; tests prove later state emissions apply with a never-completing trips flow. RED: compile failure on missing homeSnapshots; GREEN: suite. Route: delegated writer.
+- T4 done: 57b1c29. `FinishTripHandler` + `ShiftError` via controller `errorEvents` -> `pendingError` -> Snackbar; trip stays OnTrip on rejection. RED: compile failure on missing FinishTripHandler; GREEN: suite + assembleDebug. Route: delegated writer.
+
 ## Next step
-T2-T4 via one delegated writer (per-task commits).
+T5 notification permission flow.
