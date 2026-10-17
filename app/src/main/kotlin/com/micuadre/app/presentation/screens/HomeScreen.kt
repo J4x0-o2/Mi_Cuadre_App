@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -319,37 +318,5 @@ private fun EndShiftButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
         shape = RoundedCornerShape(18.dp)
     ) {
         Text(stringResource(R.string.end_shift_cta), style = MaterialTheme.typography.titleSmall)
-    }
-}
-
-/** Interim on-trip layout; replaced by the ring timer screen in the next task. */
-@Composable
-private fun OnTripView(
-    ui: HomeUiState,
-    onFinishTrip: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = ScreenPadding)
-            .padding(top = 16.dp, bottom = 24.dp)
-    ) {
-        ScreenHeader(status = HeaderStatus.ON_TRIP)
-        Spacer(modifier = Modifier.weight(1f))
-        Text(
-            text = Formatters.tripTimer(ui.tripElapsedSec),
-            style = MiCuadreTheme.typography.timer.copy(fontSize = 52.sp, lineHeight = 60.sp),
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        PrimaryActionButton(
-            text = stringResource(R.string.finish_trip_cta),
-            icon = null,
-            height = 76.dp,
-            cornerRadius = 24.dp,
-            onClick = onFinishTrip
-        )
     }
 }

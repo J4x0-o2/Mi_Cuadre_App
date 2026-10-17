@@ -10,6 +10,12 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
+private val clockFormat = DateTimeFormatter.ofPattern("HH:mm")
+
+/** Wall-clock `HH:mm` of an epoch-millis timestamp. */
+fun clockTime(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    clockFormat.format(Instant.ofEpochMilli(epochMs).atZone(zone))
+
 /** Day figures shown on Home. Only finished trips count; the open trip has no amount yet. */
 data class DayBreakdown(
     val totalMinor: Long,
@@ -44,10 +50,8 @@ data class TripRowModel(
     val payment: PaymentMethod?
 ) {
     companion object {
-        private val timeFormat = DateTimeFormatter.ofPattern("HH:mm")
-
         fun from(trip: Trip, zone: ZoneId = ZoneId.systemDefault()): TripRowModel {
-            val start = timeFormat.format(Instant.ofEpochMilli(trip.startedAt).atZone(zone))
+            val start = clockTime(trip.startedAt, zone)
             val minutes = TimeUnit.MILLISECONDS.toMinutes(trip.durationMs).coerceAtLeast(1L)
             return TripRowModel(
                 id = trip.id,

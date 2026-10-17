@@ -151,6 +151,14 @@ class HomeModelsTest {
         assertEquals(1f, RingProgress.fraction(3 * 3_600L), 0f)
     }
 
+    // ---- clock ----
+
+    @Test
+    fun `clockTime renders HH_mm in the given zone`() {
+        assertEquals("14:05", clockTime(14L * 3_600_000 + 5L * 60_000, ZoneOffset.UTC))
+        assertEquals("09:30", clockTime(9L * 3_600_000 + 30L * 60_000 + 59_000, ZoneOffset.UTC))
+    }
+
     // ---- actions ----
 
     @Test
