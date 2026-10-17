@@ -6,11 +6,11 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.usecase.EndShiftUseCase
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
+import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.StartShiftUseCase
 import com.micuadre.app.domain.usecase.StartTripUseCase
 import com.micuadre.app.util.Clock
@@ -20,7 +20,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,12 +45,14 @@ class ShiftService : Service() {
     @Inject lateinit var finishTripHandler: FinishTripHandler
     @Inject lateinit var getDailySummary: GetDailySummaryUseCase
     @Inject lateinit var rehydrateShiftState: RehydrateShiftStateUseCase
+    @Inject lateinit var repository: ShiftRepository
 
     private val stateMachine by lazy { ShiftStateMachine(nowMs = clock::nowMs) }
     private val finishTripReducer by lazy { FinishTripReducer(stateMachine) }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private var tickerJob: Job? = null
+    private var totalsJob: Job? = null
+    private var dayTotals = DayTotals.EMPTY
 
     private val _currentState = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
     private val currentState: StateFlow<ShiftState> = _currentState.asStateFlow()
@@ -66,10 +67,7 @@ class ShiftService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        notificationFactory = NotificationFactory(
-            context = applicationContext,
-            nowMs = clock::nowMs
-        )
+        notificationFactory = NotificationFactory(applicationContext)
         notificationFactory.ensureChannel()
         rehydrateFromRepository()
     }
@@ -91,6 +89,7 @@ class ShiftService : Service() {
 
                 _currentState.value = restored
                 activeSessionId = result.sessionId
+                observeDayTotals(result.sessionId)
                 if (restored is ShiftState.OnTrip) {
                     activeTripStartMs = restored.tripStartedAtMs
                 }
@@ -121,6 +120,7 @@ class ShiftService : Service() {
         scope.launch {
             val now = clock.nowMs()
             val sessionId = activeSessionId ?: startShift(startedAt = now).also { activeSessionId = it }
+            observeDayTotals(sessionId)
             val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Connect)
             _currentState.value = next
             controller.publishState(next)
@@ -133,7 +133,7 @@ class ShiftService : Service() {
         val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Disconnect)
         _currentState.value = next
         controller.publishState(next)
-        stopTicker()
+        stopObservingTotals()
         // Keep the service alive but remove the foreground notification.
         stopForeground(STOP_FOREGROUND_REMOVE)
         // The service is no longer needed when disconnected; let it die so
@@ -197,7 +197,7 @@ class ShiftService : Service() {
     private fun handleEndShift() {
         val sessionId = activeSessionId
         if (sessionId == null) {
-            stopTicker()
+            stopObservingTotals()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
@@ -212,14 +212,14 @@ class ShiftService : Service() {
             activeSessionId = null
             activeTripStartMs = null
             controller.publishState(next)
-            stopTicker()
+            stopObservingTotals()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
 
     private fun startInForeground(state: ShiftState) {
-        val notification = notificationFactory.build(state)
+        val notification = notificationFactory.build(state, dayTotals)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 NotificationFactory.NOTIF_ID,
@@ -229,11 +229,10 @@ class ShiftService : Service() {
         } else {
             startForeground(NotificationFactory.NOTIF_ID, notification)
         }
-        startTicker()
     }
 
     private fun updateNotification(state: ShiftState) {
-        val notification = notificationFactory.build(state)
+        val notification = notificationFactory.build(state, dayTotals)
         val nm = androidx.core.app.NotificationManagerCompat.from(this)
         if (nm.areNotificationsEnabled()) {
             try {
@@ -244,21 +243,25 @@ class ShiftService : Service() {
         }
     }
 
-    private fun startTicker() {
-        stopTicker()
-        tickerJob = scope.launch {
-            while (true) {
-                val s = _currentState.value
-                if (s is ShiftState.Disconnected) break
-                updateNotification(s)
-                delay(1_000L)
+    /**
+     * Keeps [dayTotals] current and re-posts the notification when a trip is
+     * saved. The chronometer is system-driven, so no per-second refresh is needed.
+     */
+    private fun observeDayTotals(sessionId: Long) {
+        totalsJob?.cancel()
+        totalsJob = scope.launch {
+            repository.observeTrips(sessionId).collect { trips ->
+                dayTotals = DayTotals.from(trips)
+                val state = _currentState.value
+                if (state !is ShiftState.Disconnected) updateNotification(state)
             }
         }
     }
 
-    private fun stopTicker() {
-        tickerJob?.cancel()
-        tickerJob = null
+    private fun stopObservingTotals() {
+        totalsJob?.cancel()
+        totalsJob = null
+        dayTotals = DayTotals.EMPTY
     }
 
     override fun onDestroy() {

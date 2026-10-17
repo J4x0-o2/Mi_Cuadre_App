@@ -43,6 +43,8 @@ class MainViewModel @Inject constructor(
     private var tickerJob: Job? = null
     private var tickerSinceMs: Long? = null
     private var messageSeq = 0L
+    private val pendingFinish = PendingFinishRequest()
+    private var pendingFinishExpiry: Job? = null
     private val connectCoordinator = ConnectCoordinator(startShift = controller::connect)
 
     init {
@@ -66,6 +68,7 @@ class MainViewModel @Inject constructor(
                     )
                 }
                 syncTicker(snapshot.shiftState)
+                applyPendingFinish(snapshot.shiftState)
             }
         }
     }
@@ -158,6 +161,28 @@ class MainViewModel @Inject constructor(
         controller.startTrip()
     }
 
+    /** Entry from outside the app (notification action). Consumed once; see [PendingFinishRequest]. */
+    fun onLaunchRequest(request: LaunchRequest) {
+        when (request) {
+            LaunchRequest.OPEN_FINISH_SHEET -> {
+                pendingFinish.request()
+                pendingFinishExpiry?.cancel()
+                pendingFinishExpiry = viewModelScope.launch {
+                    delay(PENDING_FINISH_TIMEOUT_MS)
+                    pendingFinish.expire()
+                }
+                applyPendingFinish(_ui.value.shiftState)
+            }
+        }
+    }
+
+    private fun applyPendingFinish(state: ShiftState) {
+        if (pendingFinish.onState(state) == PendingFinishRequest.Decision.OpenSheet) {
+            pendingFinishExpiry?.cancel()
+            viewModelScope.launch { openFinishSheet() }
+        }
+    }
+
     fun onFinishTripTapped() {
         viewModelScope.launch { openFinishSheet() }
     }
@@ -203,6 +228,11 @@ class MainViewModel @Inject constructor(
     suspend fun fetchDailySummary(): DailySummary? {
         val session = repository.activeSession() ?: return null
         return getDailySummary(session.id)
+    }
+
+    private companion object {
+        /** How long a notification request waits for the shift state to be restored. */
+        const val PENDING_FINISH_TIMEOUT_MS = 3_000L
     }
 
     override fun onCleared() {

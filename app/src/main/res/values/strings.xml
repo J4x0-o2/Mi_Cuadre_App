@@ -35,8 +35,17 @@
 
     <string name="notif_channel_name">Servicio de jornada</string>
     <string name="notif_channel_desc">Notificación persistente mientras estás conectado</string>
-    <string name="notif_connected">Conectado — %1$s</string>
-    <string name="notif_on_trip">Carrera en curso — %1$s</string>
+    <string name="notif_trip_title">Carrera en curso</string>
+    <string name="notif_trip_text">Iniciada %1$s · Hoy %2$s en %3$s</string>
+    <string name="notif_connected_title">Hoy %1$s · %2$s</string>
+    <string name="notif_connected_text">Tocá Iniciar cuando subas al pasajero</string>
+    <string name="notif_action_finish_trip">Terminar carrera</string>
+    <string name="notif_action_start_trip">Iniciar carrera</string>
+    <string name="notif_action_open_app">Abrir app</string>
+    <plurals name="trip_count_label">
+        <item quantity="one">%d carrera</item>
+        <item quantity="other">%d carreras</item>
+    </plurals>
     <string name="notif_post_notifications_rationale">MiCuadré necesita mostrar una notificación para mantener el contador de jornada y de carrera activos.</string>
 
     <string name="notif_permission_denied_hint">Sin permiso de notificaciones no vas a ver el contador en la barra, pero la jornada sigue corriendo.</string>
