@@ -128,7 +128,7 @@ container/onContainer with gold dot).
       Remove the tautological `requiresForeground(hasIntent = true)` check (call
       `startInForeground` unconditionally). Route: delegated writer (slice 3).
 - T5 done (4dccbce), route: delegated writer. RED: 9 of 10 ShiftSummaryModelTest failing against a stub (time range, connected h:mm:ss, cash/transfer split, bars relative to max, Otra grouped by label, empties hidden); GREEN after implementation. DailySummary now carries session start/end and trips; summary is a full-screen Dialog (usePlatformDefaultWidth=false, back dismisses).
-- T5.1 done (see commit below), route: delegated writer. Robolectric 4.14.1 + hilt-android-testing, real Hilt-injected ShiftService with an in-memory repository (@BindValue) whose Room lookup can be held in flight, so the fresh-instance race is exercised. Characterization tests; RED shown by mutation (removing the Room fallbacks / startForeground fails 4 of 6). `requiresForeground` removed; startInForeground is unconditional for every delivered intent.
+- T5.1 done (47862b5), route: delegated writer. Robolectric 4.14.1 + hilt-android-testing, real Hilt-injected ShiftService with an in-memory repository (@BindValue) whose Room lookup can be held in flight, so the fresh-instance race is exercised. Characterization tests; RED shown by mutation (removing the Room fallbacks / startForeground fails 4 of 6). `requiresForeground` removed; startInForeground is unconditional for every delivered intent.
 
 ## Next step
 Review slice 3, then integrate feat/screen-redesign into main. Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
