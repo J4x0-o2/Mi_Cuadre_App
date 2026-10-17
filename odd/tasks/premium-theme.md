@@ -65,7 +65,7 @@ amounts and timers.
 ## Progress
 - Branch created from 647b603.
 
-- T1 done (route: delegated writer). RED: light scheme with untuned emerald failed 7 pairs (onPrimary/primary 1.77 etc.), dark failed only decorative outline/background 1.50 (pair dropped: WCAG exempts decorative borders). GREEN after light primary #0A7A4D, gold #8A6410. Commit: @T1@.
+- T1 done (route: delegated writer). RED: light scheme with untuned emerald failed 7 pairs (onPrimary/primary 1.77 etc.), dark failed only decorative outline/background 1.50 (pair dropped: WCAG exempts decorative borders). GREEN after light primary #0A7A4D, gold #8A6410. Commit: e318e12.
 
 ## Next step
 T2 (shapes + typography), then T3 (wiring).
