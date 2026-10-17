@@ -67,7 +67,7 @@ amounts and timers.
 
 - T1 done (route: delegated writer). RED: light scheme with untuned emerald failed 7 pairs (onPrimary/primary 1.77 etc.), dark failed only decorative outline/background 1.50 (pair dropped: WCAG exempts decorative borders). GREEN after light primary #0A7A4D, gold #8A6410. Commit: e318e12.
 
-- T2 done (route: delegated writer). RED: TypographyShapesTest failed to compile (AppShapes, DefaultMiCuadreTypography undefined). GREEN: full testDebugUnitTest passes. Fonts: Sora + Manrope variable TTF from google/fonts (OFL), licenses in licenses/. Commit: @T2@.
+- T2 done (route: delegated writer). RED: TypographyShapesTest failed to compile (AppShapes, DefaultMiCuadreTypography undefined). GREEN: full testDebugUnitTest passes. Fonts: Sora + Manrope variable TTF from google/fonts (OFL), licenses in licenses/. Commit: b188b1b.
 
 ## Next step
 T3 (wiring): scheme switching, edge-to-edge, themes.xml.
