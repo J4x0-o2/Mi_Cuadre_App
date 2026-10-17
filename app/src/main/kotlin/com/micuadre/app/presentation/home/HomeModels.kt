@@ -4,11 +4,11 @@ import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
+import com.micuadre.app.presentation.finish.FinishSheetSubtitle
 import com.micuadre.app.util.TimeUtils
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
 private val clockFormat = DateTimeFormatter.ofPattern("HH:mm")
 
@@ -44,21 +44,20 @@ data class TripRowModel(
     val platform: Platform,
     val otherLabel: String?,
     val badge: String,
-    /** "HH:mm · N min": start time and duration (at least one minute). */
+    /** "HH:mm – HH:mm · N min": start, end and duration (at least one minute). */
     val detail: String,
     val amountMinor: Long?,
     val payment: PaymentMethod?
 ) {
     companion object {
         fun from(trip: Trip, zone: ZoneId = ZoneId.systemDefault()): TripRowModel {
-            val start = clockTime(trip.startedAt, zone)
-            val minutes = TimeUnit.MILLISECONDS.toMinutes(trip.durationMs).coerceAtLeast(1L)
+            val end = trip.endedAt ?: trip.startedAt
             return TripRowModel(
                 id = trip.id,
                 platform = trip.platform,
                 otherLabel = trip.platformOtherLabel?.trim()?.takeIf { it.isNotEmpty() },
                 badge = PlatformBadge.text(trip.platform, trip.platformOtherLabel),
-                detail = "$start · $minutes min",
+                detail = FinishSheetSubtitle.format(trip.startedAt, end, zone),
                 amountMinor = trip.amountMinor,
                 payment = trip.paymentMethod
             )

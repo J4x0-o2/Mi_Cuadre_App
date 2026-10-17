@@ -67,18 +67,18 @@ class HomeModelsTest {
     // ---- trip rows ----
 
     @Test
-    fun `row detail shows start time and rounded-down minutes`() {
+    fun `row detail shows start and end time and rounded-down minutes`() {
         val start = 14L * 3_600_000 + 5L * 60_000
         val row = TripRowModel.from(trip(start = start, end = start + 12 * 60_000 + 30_000), ZoneOffset.UTC)
 
-        assertEquals("14:05 · 12 min", row.detail)
+        assertEquals("14:05 – 14:17 · 12 min", row.detail)
     }
 
     @Test
     fun `row detail never shows less than one minute`() {
         val row = TripRowModel.from(trip(start = 0L, end = 20_000L), ZoneOffset.UTC)
 
-        assertEquals("00:00 · 1 min", row.detail)
+        assertEquals("00:00 – 00:00 · 1 min", row.detail)
     }
 
     @Test
