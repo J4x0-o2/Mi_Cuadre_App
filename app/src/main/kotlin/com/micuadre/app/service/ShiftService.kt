@@ -5,19 +5,15 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.usecase.EndShiftUseCase
-import com.micuadre.app.domain.usecase.FinishTripUseCase
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
 import com.micuadre.app.domain.usecase.StartShiftUseCase
 import com.micuadre.app.domain.usecase.StartTripUseCase
-import com.micuadre.app.util.TimeUtils
+import com.micuadre.app.util.Clock
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,20 +32,23 @@ import javax.inject.Inject
  * session. Receives actions as Intents, persists results through the
  * repository use cases, and updates the persistent notification.
  *
- * Time references use [SystemClock.elapsedRealtime] for monotonicity.
+ * Time references are wall-clock epoch milliseconds from [Clock], so persisted
+ * values survive process death and reboots.
  */
 @AndroidEntryPoint
 class ShiftService : Service() {
 
+    @Inject lateinit var clock: Clock
     @Inject lateinit var controller: ShiftServiceController
     @Inject lateinit var startShift: StartShiftUseCase
     @Inject lateinit var endShift: EndShiftUseCase
     @Inject lateinit var startTrip: StartTripUseCase
-    @Inject lateinit var finishTrip: FinishTripUseCase
+    @Inject lateinit var finishTripHandler: FinishTripHandler
     @Inject lateinit var getDailySummary: GetDailySummaryUseCase
     @Inject lateinit var rehydrateShiftState: RehydrateShiftStateUseCase
 
-    private val stateMachine = ShiftStateMachine(nowMs = { SystemClock.elapsedRealtime() })
+    private val stateMachine by lazy { ShiftStateMachine(nowMs = clock::nowMs) }
+    private val finishTripReducer by lazy { FinishTripReducer(stateMachine) }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var tickerJob: Job? = null
@@ -69,7 +68,7 @@ class ShiftService : Service() {
         super.onCreate()
         notificationFactory = NotificationFactory(
             context = applicationContext,
-            nowMs = { SystemClock.elapsedRealtime() }
+            nowMs = clock::nowMs
         )
         notificationFactory.ensureChannel()
         rehydrateFromRepository()
@@ -120,7 +119,7 @@ class ShiftService : Service() {
     private fun handleConnect() {
         if (_currentState.value !is ShiftState.Disconnected) return
         scope.launch {
-            val now = SystemClock.elapsedRealtime()
+            val now = clock.nowMs()
             val sessionId = activeSessionId ?: startShift(startedAt = now).also { activeSessionId = it }
             val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Connect)
             _currentState.value = next
@@ -145,7 +144,7 @@ class ShiftService : Service() {
 
     private fun handleStartTrip() {
         if (_currentState.value !is ShiftState.Connected) return
-        val now = SystemClock.elapsedRealtime()
+        val now = clock.nowMs()
         scope.launch {
             val sessionId = activeSessionId ?: return@launch
             startTrip(sessionId, startedAt = now)
@@ -170,26 +169,24 @@ class ShiftService : Service() {
         val amountMinor = intent.getLongExtra(ShiftServiceController.EXTRA_AMOUNT_MINOR, 0L)
         val paymentName = intent.getStringExtra(ShiftServiceController.EXTRA_PAYMENT_METHOD)
 
-        val platform = platformName?.let { runCatching { Platform.valueOf(it) }.getOrNull() }
-        val payment = paymentName?.let { runCatching { PaymentMethod.valueOf(it) }.getOrNull() }
-
-        if (platform == null || payment == null || amountMinor <= 0L) {
-            // Invalid payload; stay in OnTrip and let the UI re-render.
-            return
-        }
-
-        val now = SystemClock.elapsedRealtime()
+        val now = clock.nowMs()
         scope.launch {
-            finishTrip(
+            val outcome = finishTripHandler.handle(
                 sessionId = sessionId,
-                platform = platform,
-                platformOtherLabel = platformOther,
-                startedAt = tripStart,
+                tripStartedAt = tripStart,
                 endedAt = now,
+                platformName = platformName,
+                platformOtherLabel = platformOther,
                 amountMinor = amountMinor,
-                paymentMethod = payment
+                paymentName = paymentName
             )
-            val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.FinishTrip)
+            val result = finishTripReducer.reduce(_currentState.value, outcome)
+            if (result.error != null) {
+                // Stay in OnTrip so the user can retry; tell the UI why.
+                controller.publishError(result.error)
+                return@launch
+            }
+            val next = result.state
             _currentState.value = next
             activeTripStartMs = null
             controller.publishState(next)
@@ -206,7 +203,7 @@ class ShiftService : Service() {
             return
         }
         scope.launch {
-            val now = SystemClock.elapsedRealtime()
+            val now = clock.nowMs()
             endShift(sessionId, endedAt = now)
             val summary = getDailySummary(sessionId)
             controller.publishSummary(summary)
@@ -271,9 +268,6 @@ class ShiftService : Service() {
 
     // Exposed for testing only — package-private accessor.
     internal fun _stateForTest(): StateFlow<ShiftState> = currentState
-
-    @Suppress("unused")
-    private fun touchTimeUtils() = TimeUtils // keep import meaningful
 
     private companion object {
         private const val TAG = "ShiftService"

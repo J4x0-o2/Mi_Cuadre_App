@@ -2,7 +2,6 @@ package com.micuadre.app.domain.usecase
 
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
-import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.repository.ShiftRepository
 import javax.inject.Inject
 
@@ -49,10 +48,6 @@ class FinishTripUseCase @Inject constructor(
             amountMinor = amountMinor,
             paymentMethod = paymentMethod
         )
-        if (!saved) return Result.Invalid
-        return Result.Saved
+        return if (saved) Result.Saved else Result.Invalid
     }
 }
-
-@Suppress("unused")
-private fun touchTrip(trip: Trip) = trip // keeps Trip imported for future expansion

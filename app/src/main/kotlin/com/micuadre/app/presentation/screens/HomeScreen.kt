@@ -1,6 +1,7 @@
 package com.micuadre.app.presentation.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,6 +24,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,18 +36,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.micuadre.app.R
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.presentation.HomeUiState
 import com.micuadre.app.presentation.MainViewModel
+import com.micuadre.app.presentation.NotificationPermission
 import com.micuadre.app.presentation.components.BigTimer
 import com.micuadre.app.presentation.components.FinishTripSheet
 import com.micuadre.app.presentation.components.PlatformPickerSheet
@@ -60,21 +66,12 @@ fun HomeScreen(
 
     val notifPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { viewModel.onNotificationPermissionConsumed() }
+        onResult = { granted -> viewModel.onNotificationPermissionResult(granted) }
     )
 
     LaunchedEffect(state.needsNotificationPermission) {
         if (state.needsNotificationPermission) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val granted = ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-                if (!granted) {
-                    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
-            viewModel.onNotificationPermissionConsumed()
+            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -83,7 +80,18 @@ fun HomeScreen(
     var pendingPlatform by remember { mutableStateOf<Platform?>(null) }
     var pendingOtherLabel by remember { mutableStateOf<String?>(null) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val pendingMessage = state.pendingMessage
+    val pendingText = pendingMessage?.let { stringResource(it.textRes) }
+    LaunchedEffect(pendingMessage?.id) {
+        if (pendingMessage != null && pendingText != null) {
+            snackbarHostState.showSnackbar(pendingText)
+            viewModel.onMessageShown(pendingMessage.id)
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Box(
@@ -95,7 +103,7 @@ fun HomeScreen(
                 is ShiftState.Disconnected -> DisconnectedView(
                     trips = state.trips,
                     totalMinor = state.totalMinor,
-                    onConnect = { viewModel.onConnectTapped() },
+                    onConnect = { viewModel.onConnectTapped(notificationPermissionState(context)) },
                     onEndShift = { viewModel.onEndShiftTapped() }
                 )
                 is ShiftState.Connected -> ConnectedView(
@@ -160,6 +168,15 @@ fun HomeScreen(
     }
 }
 
+private fun notificationPermissionState(context: Context): NotificationPermission {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return NotificationPermission.NotRequired
+    val granted = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.POST_NOTIFICATIONS
+    ) == PackageManager.PERMISSION_GRANTED
+    return if (granted) NotificationPermission.Granted else NotificationPermission.NeedsRequest
+}
+
 @Composable
 private fun DisconnectedView(
     trips: List<Trip>,
@@ -188,13 +205,13 @@ private fun DisconnectedView(
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "MiCuadré",
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Tu jornada, en segundos",
+            text = stringResource(R.string.app_tagline),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp)
@@ -203,7 +220,7 @@ private fun DisconnectedView(
         if (trips.isNotEmpty()) {
             Spacer(modifier = Modifier.height(32.dp))
             Text(
-                text = "Total del día",
+                text = stringResource(R.string.total_today),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -236,7 +253,7 @@ private fun DisconnectedView(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
-        ) { Text("Conectarme", style = MaterialTheme.typography.titleMedium) }
+        ) { Text(stringResource(R.string.connect), style = MaterialTheme.typography.titleMedium) }
 
         if (trips.isNotEmpty()) {
             OutlinedButton(
@@ -246,13 +263,13 @@ private fun DisconnectedView(
                     .height(56.dp)
                     .padding(top = 8.dp, bottom = 24.dp),
                 shape = RoundedCornerShape(28.dp)
-            ) { Text("Terminar jornada", style = MaterialTheme.typography.titleMedium) }
+            ) { Text(stringResource(R.string.end_shift), style = MaterialTheme.typography.titleMedium) }
         } else {
             Spacer(modifier = Modifier.height(16.dp))
         }
 
         Text(
-            text = "MiCuadré · v0.1.0",
+            text = stringResource(R.string.app_footer),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -273,7 +290,7 @@ private fun ConnectedView(
     ) {
         Spacer(modifier = Modifier.height(48.dp))
         Text(
-            text = "Conectado",
+            text = stringResource(R.string.connected),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -282,7 +299,7 @@ private fun ConnectedView(
         BigTimer(seconds = ui.elapsedSec, modifier = Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Total del día",
+            text = stringResource(R.string.total_today),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth(),
@@ -307,7 +324,7 @@ private fun ConnectedView(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
-        ) { Text("Nueva carrera") }
+        ) { Text(stringResource(R.string.new_trip)) }
 
         OutlinedButton(
             onClick = onDisconnect,
@@ -316,7 +333,7 @@ private fun ConnectedView(
                 .height(56.dp)
                 .padding(top = 8.dp),
             shape = RoundedCornerShape(28.dp)
-        ) { Text("Desconectarme") }
+        ) { Text(stringResource(R.string.disconnect)) }
 
         Spacer(modifier = Modifier.height(16.dp))
         LazyColumn(
@@ -332,7 +349,7 @@ private fun ConnectedView(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Sin carreras todavía",
+                            text = stringResource(R.string.no_trips_yet),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -357,7 +374,7 @@ private fun OnTripView(
     ) {
         Spacer(modifier = Modifier.height(48.dp))
         Text(
-            text = "Carrera en curso",
+            text = stringResource(R.string.trip_in_progress),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
@@ -365,7 +382,7 @@ private fun OnTripView(
         )
         BigTimer(seconds = ui.elapsedSec, modifier = Modifier.fillMaxWidth())
         Text(
-            text = "Tiempo de carrera",
+            text = stringResource(R.string.trip_time),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -374,7 +391,7 @@ private fun OnTripView(
 
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Total del día",
+            text = stringResource(R.string.total_today),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -401,6 +418,6 @@ private fun OnTripView(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
-        ) { Text("Finalizar carrera") }
+        ) { Text(stringResource(R.string.finish_trip)) }
     }
 }

@@ -19,16 +19,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
+import com.micuadre.app.R
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.util.Formatters
@@ -52,12 +53,10 @@ fun FinishTripSheet(
     var showPaymentError by remember { mutableStateOf(false) }
 
     val platformLabel = when (platform) {
-        Platform.INDRIVER -> "InDriver"
-        Platform.DIDI -> "Didi"
-        Platform.OTHER -> platformOtherLabel ?: "Otro"
+        Platform.INDRIVER -> stringResource(R.string.indriver)
+        Platform.DIDI -> stringResource(R.string.didi)
+        Platform.OTHER -> platformOtherLabel ?: stringResource(R.string.other)
     }
-
-    LaunchedEffect(Unit) { /* hook for future analytics */ }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -69,7 +68,7 @@ fun FinishTripSheet(
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             Text(
-                text = "Finalizar carrera",
+                text = stringResource(R.string.finish_trip),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -81,7 +80,7 @@ fun FinishTripSheet(
             )
 
             Text(
-                text = "Monto de la carrera",
+                text = stringResource(R.string.trip_amount),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 24.dp)
@@ -92,7 +91,7 @@ fun FinishTripSheet(
                     amountText = it
                     showAmountError = false
                 },
-                placeholder = { Text("0") },
+                placeholder = { Text(stringResource(R.string.amount_hint)) },
                 prefix = { Text("$") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
@@ -103,7 +102,7 @@ fun FinishTripSheet(
             )
             if (showAmountError) {
                 Text(
-                    text = "Ingresá el monto",
+                    text = stringResource(R.string.amount_required),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(top = 4.dp)
@@ -111,7 +110,7 @@ fun FinishTripSheet(
             }
 
             Text(
-                text = "Método de pago",
+                text = stringResource(R.string.payment_method),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 24.dp)
@@ -123,7 +122,7 @@ fun FinishTripSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 PaymentChoice(
-                    label = "Efectivo",
+                    label = stringResource(R.string.cash),
                     selected = payment == PaymentMethod.CASH,
                     onClick = {
                         payment = PaymentMethod.CASH
@@ -132,7 +131,7 @@ fun FinishTripSheet(
                     modifier = Modifier.weight(1f)
                 )
                 PaymentChoice(
-                    label = "Transferencia",
+                    label = stringResource(R.string.transfer),
                     selected = payment == PaymentMethod.TRANSFER,
                     onClick = {
                         payment = PaymentMethod.TRANSFER
@@ -143,7 +142,7 @@ fun FinishTripSheet(
             }
             if (showPaymentError) {
                 Text(
-                    text = "Elegí método de pago",
+                    text = stringResource(R.string.payment_required),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(top = 4.dp)
@@ -159,7 +158,7 @@ fun FinishTripSheet(
                 OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
-                ) { Text("Cancelar") }
+                ) { Text(stringResource(R.string.cancel)) }
                 Button(
                     onClick = {
                         val parsed = Formatters.parseAmount(amountText)
@@ -177,7 +176,7 @@ fun FinishTripSheet(
                         onConfirm(parsed!!, p!!)
                     },
                     modifier = Modifier.weight(1f)
-                ) { Text("Guardar carrera") }
+                ) { Text(stringResource(R.string.save_trip)) }
             }
         }
     }

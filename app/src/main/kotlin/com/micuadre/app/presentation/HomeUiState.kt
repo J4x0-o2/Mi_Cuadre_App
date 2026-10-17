@@ -17,5 +17,5 @@ data class HomeUiState(
     val showFinishSheet: Boolean = false,
     val showPlatformSheet: Boolean = false,
     val needsNotificationPermission: Boolean = false,
-    val pendingError: String? = null
+    val pendingMessage: UiMessage? = null
 )

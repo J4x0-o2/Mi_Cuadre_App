@@ -22,7 +22,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.micuadre.app.R
 import com.micuadre.app.domain.model.Platform
 
 /**
@@ -50,7 +52,7 @@ fun PlatformPickerSheet(
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             Text(
-                text = "Plataforma",
+                text = stringResource(R.string.select_platform),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -62,19 +64,19 @@ fun PlatformPickerSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 PlatformChoice(
-                    label = "InDriver",
+                    label = stringResource(R.string.indriver),
                     selected = selected == Platform.INDRIVER,
                     onClick = { selected = Platform.INDRIVER },
                     modifier = Modifier.weight(1f)
                 )
                 PlatformChoice(
-                    label = "Didi",
+                    label = stringResource(R.string.didi),
                     selected = selected == Platform.DIDI,
                     onClick = { selected = Platform.DIDI },
                     modifier = Modifier.weight(1f)
                 )
                 PlatformChoice(
-                    label = "Otro",
+                    label = stringResource(R.string.other),
                     selected = selected == Platform.OTHER,
                     onClick = { selected = Platform.OTHER },
                     modifier = Modifier.weight(1f)
@@ -85,7 +87,7 @@ fun PlatformPickerSheet(
                 OutlinedTextField(
                     value = otherLabel,
                     onValueChange = { otherLabel = it },
-                    label = { Text("¿Cuál?") },
+                    label = { Text(stringResource(R.string.other_platform_hint)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -95,7 +97,7 @@ fun PlatformPickerSheet(
 
             if (showError) {
                 Text(
-                    text = "Elegí plataforma",
+                    text = stringResource(R.string.platform_required),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(top = 8.dp)
@@ -112,7 +114,7 @@ fun PlatformPickerSheet(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Cancelar")
+                    Text(stringResource(R.string.cancel))
                 }
                 Button(
                     onClick = {
@@ -129,7 +131,7 @@ fun PlatformPickerSheet(
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Continuar")
+                    Text(stringResource(R.string.continue_action))
                 }
             }
         }

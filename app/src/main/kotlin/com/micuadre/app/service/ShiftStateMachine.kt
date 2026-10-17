@@ -14,8 +14,9 @@ import com.micuadre.app.domain.model.ShiftState
  *
  * Invalid transitions are no-ops (return the same state).
  *
- * All time inputs come from [android.os.SystemClock.elapsedRealtime]
- * so values are monotonic and comparable.
+ * All time inputs are wall-clock epoch milliseconds (see
+ * [com.micuadre.app.util.Clock]) so they can be persisted and compared across
+ * process restarts and reboots.
  */
 class ShiftStateMachine(
     private val nowMs: () -> Long

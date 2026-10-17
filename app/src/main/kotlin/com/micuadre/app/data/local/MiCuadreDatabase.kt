@@ -11,7 +11,7 @@ import com.micuadre.app.data.local.entity.TripEntity
 @Database(
     entities = [SessionEntity::class, TripEntity::class],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class MiCuadreDatabase : RoomDatabase() {

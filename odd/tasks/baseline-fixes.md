@@ -26,28 +26,39 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 - Conventional Commits, no AI attribution trailers.
 
 ## Tasks
-- [ ] T1 Git baseline: `git init` inside the project, fix `.gitignore` (`build/`, `.kotlin/`),
+- [x] T1 Git baseline: `git init` inside the project, fix `.gitignore` (`build/`, `.kotlin/`),
       baseline commit on `main`, create branch `fix/baseline-fixes`. Route: inline (mechanical).
-- [ ] T2 Wall-clock timestamps: persist `startedAt`/`endedAt` for sessions and trips as epoch
+- [x] T2 Wall-clock timestamps: persist `startedAt`/`endedAt` for sessions and trips as epoch
       millis via an injectable clock; keep `elapsedRealtime` only for on-screen timers;
       rehydration derives elapsed time from wall clock. Route: delegated writer (4+ files).
-- [ ] T3 ViewModel flow fix: replace nested `collect` in `MainViewModel` with
+- [x] T3 ViewModel flow fix: replace nested `collect` in `MainViewModel` with
       `flatMapLatest`/`combine` so state updates never stall. Route: delegated writer.
-- [ ] T4 Silent failures: `ShiftService` uses the `FinishTripUseCase` result; invalid payload
+- [x] T4 Silent failures: `ShiftService` uses the `FinishTripUseCase` result; invalid payload
       surfaces an error to the UI (`pendingError`) instead of being dropped. Route: delegated writer.
-- [ ] T5 Notification permission: start the shift service only after the permission result
+- [x] T5 Notification permission: start the shift service only after the permission result
       (granted or denied handled explicitly). Route: delegated writer.
-- [ ] T6 Cleanup: remove unused injected ViewModel params, `touchTrip`/`touchTimeUtils` hacks,
+- [x] T6 Cleanup: remove unused injected ViewModel params, `touchTrip`/`touchTimeUtils` hacks,
       redundant `Result.Invalid` handling; move hardcoded UI strings to `strings.xml`.
       Route: delegated writer.
-- [ ] T7 Room `exportSchema = true` with KSP schema location, schema JSON committed.
+- [x] T7 Room `exportSchema = true` with KSP schema location, schema JSON committed.
       Route: delegated writer.
-- [ ] T8 Release build health: verify `assembleRelease` (minify) succeeds; add keep rules only
+- [x] T8 Release build health: verify `assembleRelease` (minify) succeeds; add keep rules only
       if needed. Route: delegated writer.
+- [x] T9 Review follow-ups (advisory findings of review-96694084d3d99465 on T2-T4):
+      - legacy rows: on rehydrate, a persisted `startedAt` that is not a plausible epoch value
+        (boot-relative from the old build) must not produce a ~56-year timer; close/discard safely.
+      - `FinishTripHandler` must catch persistence exceptions and return `Rejected` (no crash).
+      - tests for the reject path (state stays OnTrip, error published) and a real rehydration
+        test through `RehydrateShiftStateUseCase` (replace the tautological TimeUtils test).
+      - Snackbar must show repeated identical errors (do not key only on the message string).
+      Route: delegated writer.
 
-## Deferred / needs decision
-- Disconnect while on a trip is currently impossible (`handleDisconnect` only from
-  `Connected`). Product decision pending; not changed here.
+## Decisions
+- Disconnect while on a trip stays impossible (user confirmed 2026-10-15: the trip must be
+  finished first). Making this clear in the UI belongs to the design phase.
+- On-screen timers use the wall clock (T2 deviation from the original "keep elapsedRealtime"
+  note). Accepted: one time base keeps rehydration simple; clock jumps are clamped at 0.
+- Error copy register: match the existing `strings.xml` register.
 
 ## Acceptance criteria
 - All unit tests green, new tests cover T2-T5 behavior.
@@ -66,5 +77,30 @@ Bug fixes and cleanup only. No visual redesign, no new screens, no dark theme (d
 ## Progress
 - Baseline: `testDebugUnitTest` green before any change (2026-10-15).
 
+- T1 done: baseline commit c97c317 on `main`, branch `fix/baseline-fixes`. Route: inline.
+
+- T2 done: a214b5e. Injectable `Clock` (SystemWallClock via Hilt) replaces elapsedRealtime everywhere (persisted + on-screen elapsed derived from wall clock; clamped at 0). RED: compile failure on missing Clock/TimeUtils API; GREEN: testDebugUnitTest + assembleDebug. Route: delegated writer.
+- T3 done: 4087f99. `homeSnapshots` (flatMapLatest) replaces nested collect; tests prove later state emissions apply with a never-completing trips flow. RED: compile failure on missing homeSnapshots; GREEN: suite. Route: delegated writer.
+- T4 done: 57b1c29. `FinishTripHandler` + `ShiftError` via controller `errorEvents` -> `pendingError` -> Snackbar; trip stays OnTrip on rejection. RED: compile failure on missing FinishTripHandler; GREEN: suite + assembleDebug. Route: delegated writer.
+
+- Review T2-T4: medium risk, consent granted, lens review-reliability, APPROVED and
+  acknowledged (review-96694084d3d99465, authority burned). 7 advisory findings -> T9.
+  Reviewed boundary: 5640938.
+
+- T5 done: 201f739. `ConnectCoordinator` (pure) starts the service only after the permission result; denied still starts the shift and shows a hint (`UiMessage` id + @StringRes replaces `pendingError`). RED: 3 behavioral failures in ConnectCoordinatorTest against a start-immediately skeleton; GREEN: suite + assembleDebug. Route: delegated writer.
+- T6 done: d8dd01f. Removed unused VM params, touchTrip/touchTimeUtils, simplified FinishTripUseCase result; UI strings in strings.xml (voseo register). Pure refactor: suite green before/after. Route: delegated writer.
+- T7 done: 7c8da01. exportSchema=true, ksp room.schemaLocation=app/schemas, schema v1 committed. Suite + assembleDebug green. Route: delegated writer.
+- T8 done (no commit needed): `assembleRelease` with minify+shrink SUCCESSFUL, no keep rules required, unsigned release APK (no signing config defined). Route: delegated writer.
+- T9 done: ffc6a79. Legacy startedAt (< 2020-01-01 epoch) closes the stale session on rehydrate; FinishTripHandler catches persistence exceptions -> Rejected; FinishTripReducer tests reject path; real rehydration tests replace the tautological one; Snackbar keyed by `UiMessage.id` (done in T5). RED: 4 behavioral failures; GREEN: suite + assembleDebug. Route: delegated writer.
+
+- Review T5-T9: medium risk, consent granted, lens review-reliability, APPROVED and
+  acknowledged (review-c715f15688ecfa86, authority burned). Reviewed boundary: f8f9206.
+  Advisory follow-ups (non-blocking, later work):
+  - legacy rehydrate closes the session but leaves an in-progress legacy trip with
+    `endedAt == null` (only affects pre-fix dev data).
+  - `FinishTripHandler` catches `Throwable` without logging; prefer `Exception` + log.
+  - reboot rehydration test does not inject `FakeClock` into the use case.
+  - permission prompt may show twice if the activity is recreated while it is open.
+
 ## Next step
-T1.
+All tasks done. Remote: origin https://github.com/J4x0-o2/Mi_Cuadre_App.git. Pending: push.

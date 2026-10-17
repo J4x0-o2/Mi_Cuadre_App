@@ -9,7 +9,7 @@ package com.micuadre.app.domain.model
  *  - OnTrip --(finishTrip)--> Connected
  *  - Connected --(disconnect)--> Disconnected
  *
- * Time references use [android.os.SystemClock.elapsedRealtime] for monotonicity.
+ * Time references are wall-clock epoch milliseconds (see [com.micuadre.app.util.Clock]).
  */
 sealed interface ShiftState {
     data object Disconnected : ShiftState
