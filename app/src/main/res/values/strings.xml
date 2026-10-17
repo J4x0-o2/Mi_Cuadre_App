@@ -37,12 +37,11 @@
     <string name="save">Guardar</string>
     <string name="cancel">Cancelar</string>
 
-    <string name="shift_summary">Resumen del día</string>
-    <string name="total_earnings">Ingresos totales</string>
-    <string name="hours_worked">Horas trabajadas</string>
-    <string name="avg_trip_time">Promedio por carrera</string>
-    <string name="trip_count">Carreras</string>
-    <string name="close">Cerrar</string>
+    <string name="summary_closed">Turno cerrado</string>
+    <string name="summary_range">Hoy · %1$s – %2$s</string>
+    <string name="summary_earned">Ganaste</string>
+    <string name="summary_by_platform">Por plataforma</string>
+    <string name="summary_done">Listo</string>
 
     <string name="notif_channel_name">Servicio de jornada</string>
     <string name="notif_channel_desc">Notificación persistente mientras estás conectado</string>

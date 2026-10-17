@@ -45,6 +45,7 @@ class ShiftRepositoryImpl @Inject constructor(
 
     override suspend fun summary(sessionId: Long): DailySummary {
         val trips = tripDao.listBySession(sessionId)
+        val session = sessionDao.byId(sessionId)
         val totalMinor = trips.sumOf { it.amountMinor ?: 0L }
         val count = trips.size
         val totalDurationMs = trips.sumOf {
@@ -56,7 +57,10 @@ class ShiftRepositoryImpl @Inject constructor(
             totalAmountMinor = totalMinor,
             tripCount = count,
             totalDurationMs = totalDurationMs,
-            avgDurationMs = avg
+            avgDurationMs = avg,
+            startedAt = session?.startedAt ?: 0L,
+            endedAt = session?.endedAt,
+            trips = trips.map { it.toDomain() }
         )
     }
 
