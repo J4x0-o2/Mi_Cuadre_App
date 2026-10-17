@@ -134,9 +134,7 @@ class ShiftService : Service() {
         }
         // Delivered via startForegroundService / getForegroundService: satisfy startForeground
         // up front so no early-return path below can leave the requirement unmet.
-        if (ServiceStartPolicy.requiresForeground(hasIntent = true)) {
-            startInForeground(_currentState.value)
-        }
+        startInForeground(_currentState.value)
         when (intent.action) {
             ShiftServiceController.ACTION_CONNECT -> handleConnect()
             ShiftServiceController.ACTION_DISCONNECT -> handleDisconnect()

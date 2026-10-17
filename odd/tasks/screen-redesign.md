@@ -72,7 +72,7 @@ container/onContainer with gold dot).
 - [x] T4.1 Restore "Desconectar" (pause) on Connected Home next to "Terminar turno"; paused shift keeps totals, can reconnect or end. Route: delegated writer.
 - [x] T4.2 Preselect the payment method of the last finished trip (cash default). Route: delegated writer.
 - [x] T4.3 Trip rows show start and end time ("HH:mm – HH:mm · N min"). Route: delegated writer.
-- [ ] T5 Shift summary redesign (metrics + per-platform bars). Route: delegated writer.
+- [x] T5 Shift summary redesign (metrics + per-platform bars). Route: delegated writer.
 
 ## Follow-ups carried from premium-theme review
 - Verify system bar icon contrast on a device in both modes.
@@ -122,11 +122,13 @@ container/onContainer with gold dot).
   APPROVED and acknowledged (review-fcbf244403827a1c). Reviewed boundary: ad3f0fe.
   Triage: "unsynchronized service flags" not applicable (service scope is
   `Dispatchers.Main.immediate`, all reads/writes on main). Real follow-ups -> T5.1.
-- [ ] T5.1 Service tests (Robolectric `ServiceController` or equivalent): reconnect after a
+- [x] T5.1 Service tests (Robolectric `ServiceController` or equivalent): reconnect after a
       pause resumes the open Room session (no second session); End Shift on a fresh service
       instance ends the open session; every delivered start intent calls `startForeground`.
       Remove the tautological `requiresForeground(hasIntent = true)` check (call
       `startInForeground` unconditionally). Route: delegated writer (slice 3).
+- T5 done (4dccbce), route: delegated writer. RED: 9 of 10 ShiftSummaryModelTest failing against a stub (time range, connected h:mm:ss, cash/transfer split, bars relative to max, Otra grouped by label, empties hidden); GREEN after implementation. DailySummary now carries session start/end and trips; summary is a full-screen Dialog (usePlatformDefaultWidth=false, back dismisses).
+- T5.1 done (see commit below), route: delegated writer. Robolectric 4.14.1 + hilt-android-testing, real Hilt-injected ShiftService with an in-memory repository (@BindValue) whose Room lookup can be held in flight, so the fresh-instance race is exercised. Characterization tests; RED shown by mutation (removing the Room fallbacks / startForeground fails 4 of 6). `requiresForeground` removed; startInForeground is unconditional for every delivered intent.
 
 ## Next step
-T5 Shift summary redesign + T5.1 service tests (slice 3, delegated writer). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
+Review slice 3, then integrate feat/screen-redesign into main. Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.

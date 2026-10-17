@@ -10,16 +10,6 @@ class ServiceStartPolicyTest {
     private val connected = ShiftState.Connected(connectedSinceMs = 1L)
 
     @Test
-    fun `any delivered intent must satisfy startForeground even without a known action`() {
-        assertTrue(ServiceStartPolicy.requiresForeground(hasIntent = true))
-    }
-
-    @Test
-    fun `a system restart without an intent has no foreground obligation`() {
-        assertFalse(ServiceStartPolicy.requiresForeground(hasIntent = false))
-    }
-
-    @Test
     fun `idle service stops once rehydration finished and nothing is connecting`() {
         assertTrue(
             ServiceStartPolicy.shouldStopWhenIdle(
