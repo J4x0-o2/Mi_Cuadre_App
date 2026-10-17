@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -47,8 +48,6 @@ class HomeSnapshotFlowTest {
         states.emit(ShiftState.Disconnected)
 
         assertEquals(ShiftState.Disconnected, seen.last().shiftState)
-        assertTrue(seen.last().trips.isEmpty())
-        assertEquals(0L, seen.last().totalMinor)
         assertTrue(seen.any { it.shiftState is ShiftState.OnTrip })
         job.cancel()
     }
@@ -82,6 +81,34 @@ class HomeSnapshotFlowTest {
 
         assertTrue(result.trips.isEmpty())
         assertEquals(0L, result.totalMinor)
+    }
+
+    @Test
+    fun `paused shift keeps the open session trips and total`() = runTest {
+        val states = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
+        val result = homeSnapshots(
+            states,
+            activeSessionId = { 7L },
+            observeTrips = { MutableStateFlow(listOf(trip(1, 100L), trip(2, 250L))) }
+        ).firstSnapshot()
+
+        assertEquals(2, result.trips.size)
+        assertEquals(350L, result.totalMinor)
+        assertTrue(result.hasOpenShift)
+    }
+
+    @Test
+    fun `disconnected without an open session is empty`() = runTest {
+        val states = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
+        val result = homeSnapshots(
+            states,
+            activeSessionId = { null },
+            observeTrips = { error("must not be called") }
+        ).firstSnapshot()
+
+        assertTrue(result.trips.isEmpty())
+        assertEquals(0L, result.totalMinor)
+        assertFalse(result.hasOpenShift)
     }
 
     private suspend fun Flow<HomeSnapshot>.firstSnapshot(): HomeSnapshot =

@@ -154,7 +154,12 @@ class ShiftService : Service() {
         scope.launch {
             try {
                 val now = clock.nowMs()
-                val sessionId = activeSessionId ?: startShift(startedAt = now).also { activeSessionId = it }
+                // A paused shift leaves its session open in Room while this service instance is gone:
+                // resume it instead of opening a second one.
+                val sessionId = activeSessionId
+                    ?: repository.activeSession()?.id
+                    ?: startShift(startedAt = now)
+                activeSessionId = sessionId
                 observeDayTotals(sessionId)
                 val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Connect)
                 _currentState.value = next
@@ -243,14 +248,15 @@ class ShiftService : Service() {
     }
 
     private fun handleEndShift() {
-        val sessionId = activeSessionId
-        if (sessionId == null) {
-            stopObservingTotals()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-            return
-        }
         scope.launch {
+            // After a pause this instance may be fresh: fall back to the open session in Room.
+            val sessionId = activeSessionId ?: repository.activeSession()?.id
+            if (sessionId == null) {
+                stopObservingTotals()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return@launch
+            }
             val now = clock.nowMs()
             endShift(sessionId, endedAt = now)
             val summary = getDailySummary(sessionId)

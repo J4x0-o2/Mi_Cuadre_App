@@ -16,6 +16,7 @@
     <string name="trip_started_at">Iniciada %1$s</string>
     <string name="finish_trip_cta">Terminar carrera</string>
     <string name="disconnect_cta">Desconectar</string>
+    <string name="paused_hint">Seguís en turno. Conectate para seguir sumando carreras o terminá el turno.</string>
     <string name="disconnect_hint">Terminá la carrera para desconectarte</string>
     <string name="logo_description">Logo de MiCuadré</string>
     <string name="no_trips_yet">Sin carreras todavía</string>

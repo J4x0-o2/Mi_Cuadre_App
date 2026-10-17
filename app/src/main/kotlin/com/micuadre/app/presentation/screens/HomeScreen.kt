@@ -53,6 +53,8 @@ import com.micuadre.app.presentation.components.SectionLabel
 import com.micuadre.app.presentation.components.TripRow
 import com.micuadre.app.presentation.components.cardSurface
 import com.micuadre.app.presentation.home.DayBreakdown
+import com.micuadre.app.presentation.home.HomeAction
+import com.micuadre.app.presentation.home.HomeActions
 import com.micuadre.app.presentation.home.TripRowModel
 import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.util.Formatters
@@ -98,13 +100,14 @@ fun HomeScreen(
         ) {
             when (state.shiftState) {
                 is ShiftState.Disconnected -> DisconnectedView(
-                    hasTrips = state.trips.isNotEmpty(),
+                    ui = state,
                     onConnect = { viewModel.onConnectTapped(notificationPermissionState(context)) },
                     onEndShift = { viewModel.onEndShiftTapped() }
                 )
                 is ShiftState.Connected -> ConnectedView(
                     ui = state,
                     onNewTrip = { viewModel.onNewTripTapped() },
+                    onDisconnect = { viewModel.onDisconnectTapped() },
                     onEndShift = { viewModel.onEndShiftTapped() }
                 )
                 is ShiftState.OnTrip -> OnTripView(
@@ -147,13 +150,19 @@ private fun notificationPermissionState(context: Context): NotificationPermissio
     return if (granted) NotificationPermission.Granted else NotificationPermission.NeedsRequest
 }
 
-/** Simple welcome: header, tagline and the primary "Conectarse" action. */
+/**
+ * Welcome with the primary "Conectarse" action. When a paused shift is still open it also
+ * shows the session's day total and offers "Terminar turno".
+ */
 @Composable
 private fun DisconnectedView(
-    hasTrips: Boolean,
+    ui: HomeUiState,
     onConnect: () -> Unit,
     onEndShift: () -> Unit
 ) {
+    val actions = HomeActions.secondary(ui.shiftState, ui.hasOpenShift)
+    val paused = ui.hasOpenShift
+    val breakdown = remember(ui.trips) { DayBreakdown.from(ui.trips) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -161,26 +170,48 @@ private fun DisconnectedView(
             .padding(top = 16.dp, bottom = 24.dp)
     ) {
         ScreenHeader(status = null)
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = stringResource(R.string.welcome_title),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = stringResource(R.string.app_tagline),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+        if (paused) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TotalCard(breakdown)
+                MetricTile(
+                    label = stringResource(R.string.trips_label),
+                    value = breakdown.tripCount.toString(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = stringResource(R.string.paused_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.welcome_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = stringResource(R.string.app_tagline),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
         PrimaryActionButton(
             text = stringResource(R.string.connect_cta),
@@ -189,8 +220,12 @@ private fun DisconnectedView(
             cornerRadius = 22.dp,
             onClick = onConnect
         )
-        if (hasTrips) {
-            EndShiftButton(onClick = onEndShift, modifier = Modifier.padding(top = 12.dp))
+        if (HomeAction.END_SHIFT in actions) {
+            SecondaryActionButton(
+                text = stringResource(R.string.end_shift_cta),
+                onClick = onEndShift,
+                modifier = Modifier.padding(top = 12.dp)
+            )
         }
     }
 }
@@ -199,8 +234,10 @@ private fun DisconnectedView(
 private fun ConnectedView(
     ui: HomeUiState,
     onNewTrip: () -> Unit,
+    onDisconnect: () -> Unit,
     onEndShift: () -> Unit
 ) {
+    val actions = HomeActions.secondary(ui.shiftState, ui.hasOpenShift)
     val breakdown = remember(ui.trips) { DayBreakdown.from(ui.trips) }
     val rows = remember(ui.trips) {
         ui.trips.filter { it.endedAt != null }.map { TripRowModel.from(it) }
@@ -263,10 +300,25 @@ private fun ConnectedView(
                 items(rows, key = { it.id }) { row -> TripRow(model = row) }
             }
         }
-        EndShiftButton(
-            onClick = onEndShift,
-            modifier = Modifier.padding(top = 12.dp, bottom = 24.dp)
-        )
+        Row(
+            modifier = Modifier.padding(top = 12.dp, bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            actions.forEach { action ->
+                when (action) {
+                    HomeAction.DISCONNECT -> SecondaryActionButton(
+                        text = stringResource(R.string.disconnect_cta),
+                        onClick = onDisconnect,
+                        modifier = Modifier.weight(1f)
+                    )
+                    HomeAction.END_SHIFT -> SecondaryActionButton(
+                        text = stringResource(R.string.end_shift_cta),
+                        onClick = onEndShift,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -309,7 +361,7 @@ private fun TotalCard(breakdown: DayBreakdown) {
 }
 
 @Composable
-private fun EndShiftButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun SecondaryActionButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     OutlinedButton(
         onClick = onClick,
         modifier = modifier
@@ -317,6 +369,6 @@ private fun EndShiftButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             .height(52.dp),
         shape = RoundedCornerShape(18.dp)
     ) {
-        Text(stringResource(R.string.end_shift_cta), style = MaterialTheme.typography.titleSmall)
+        Text(text, style = MaterialTheme.typography.titleSmall, maxLines = 1)
     }
 }

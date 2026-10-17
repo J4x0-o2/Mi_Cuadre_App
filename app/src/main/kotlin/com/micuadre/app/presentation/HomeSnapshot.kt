@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.map
 data class HomeSnapshot(
     val shiftState: ShiftState,
     val trips: List<Trip>,
-    val totalMinor: Long
+    val totalMinor: Long,
+    /** True while a session is open, including a paused (Disconnected) one. */
+    val hasOpenShift: Boolean = false
 )
 
 /**
@@ -21,8 +23,8 @@ data class HomeSnapshot(
  *
  * Each new state cancels the previous trips subscription (`flatMapLatest`),
  * so a never-completing trips flow can never stall later state updates.
- * While [ShiftState.Disconnected], or when there is no active session, trips
- * are empty and the total is zero.
+ * A paused shift ([ShiftState.Disconnected] with an open session) keeps showing that
+ * session's trips and total. With no open session, trips are empty and the total is zero.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 fun homeSnapshots(
@@ -30,18 +32,14 @@ fun homeSnapshots(
     activeSessionId: suspend () -> Long?,
     observeTrips: (Long) -> Flow<List<Trip>>
 ): Flow<HomeSnapshot> = shiftState.flatMapLatest { state ->
-    if (state is ShiftState.Disconnected) {
-        flow { emit(HomeSnapshot(state, emptyList(), 0L)) }
-    } else {
-        flow {
-            val sessionId = activeSessionId()
-            if (sessionId == null) {
-                emit(HomeSnapshot(state, emptyList(), 0L))
-            } else {
-                emitAll(observeTrips(sessionId).map { trips ->
-                    HomeSnapshot(state, trips, trips.sumOf { it.amountMinor ?: 0L })
-                })
-            }
+    flow {
+        val sessionId = activeSessionId()
+        if (sessionId == null) {
+            emit(HomeSnapshot(state, emptyList(), 0L, hasOpenShift = false))
+        } else {
+            emitAll(observeTrips(sessionId).map { trips ->
+                HomeSnapshot(state, trips, trips.sumOf { it.amountMinor ?: 0L }, hasOpenShift = true)
+            })
         }
     }
 }

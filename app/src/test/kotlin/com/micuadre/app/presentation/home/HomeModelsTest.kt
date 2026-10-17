@@ -167,4 +167,30 @@ class HomeModelsTest {
         assertTrue(HomeActions.canDisconnect(ShiftState.Connected(0L)))
         assertTrue(HomeActions.canDisconnect(ShiftState.Disconnected))
     }
+
+    @Test
+    fun `connected offers disconnect then end shift`() {
+        assertEquals(
+            listOf(HomeAction.DISCONNECT, HomeAction.END_SHIFT),
+            HomeActions.secondary(ShiftState.Connected(0L), hasOpenShift = true)
+        )
+    }
+
+    @Test
+    fun `paused shift can only be ended`() {
+        assertEquals(
+            listOf(HomeAction.END_SHIFT),
+            HomeActions.secondary(ShiftState.Disconnected, hasOpenShift = true)
+        )
+    }
+
+    @Test
+    fun `no open shift offers nothing while disconnected`() {
+        assertTrue(HomeActions.secondary(ShiftState.Disconnected, hasOpenShift = false).isEmpty())
+    }
+
+    @Test
+    fun `on trip home offers no secondary actions`() {
+        assertTrue(HomeActions.secondary(ShiftState.OnTrip(0L, 1L), hasOpenShift = true).isEmpty())
+    }
 }

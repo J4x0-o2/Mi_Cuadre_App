@@ -104,7 +104,21 @@ object RingProgress {
     }
 }
 
+/** Secondary (outlined) actions shown at the bottom of Home. */
+enum class HomeAction { DISCONNECT, END_SHIFT }
+
 object HomeActions {
     /** Business rule: a trip must be finished before disconnecting. */
     fun canDisconnect(state: ShiftState): Boolean = state !is ShiftState.OnTrip
+
+    /**
+     * Secondary actions available on Home, in display order. Connected can pause ("Desconectar")
+     * or end the shift; a paused shift (Disconnected with an open session) can still be ended.
+     * On a trip the on-trip view owns the (disabled) disconnect, so nothing is offered here.
+     */
+    fun secondary(state: ShiftState, hasOpenShift: Boolean): List<HomeAction> = when (state) {
+        is ShiftState.Connected -> listOf(HomeAction.DISCONNECT, HomeAction.END_SHIFT)
+        is ShiftState.Disconnected -> if (hasOpenShift) listOf(HomeAction.END_SHIFT) else emptyList()
+        is ShiftState.OnTrip -> emptyList()
+    }
 }

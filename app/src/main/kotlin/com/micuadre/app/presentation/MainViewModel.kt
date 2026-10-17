@@ -67,7 +67,8 @@ class MainViewModel @Inject constructor(
                     it.copy(
                         shiftState = snapshot.shiftState,
                         trips = snapshot.trips,
-                        totalMinor = snapshot.totalMinor
+                        totalMinor = snapshot.totalMinor,
+                        hasOpenShift = snapshot.hasOpenShift
                     )
                 }
                 syncTicker(snapshot.shiftState)

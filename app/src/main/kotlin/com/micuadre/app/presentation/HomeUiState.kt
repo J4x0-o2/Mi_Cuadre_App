@@ -13,6 +13,8 @@ data class HomeUiState(
     val shiftState: ShiftState = ShiftState.Disconnected,
     val trips: List<Trip> = emptyList(),
     val totalMinor: Long = 0L,
+    /** A session is open, including a paused (Disconnected) one. */
+    val hasOpenShift: Boolean = false,
     /** Seconds since the shift started. */
     val elapsedSec: Long = 0L,
     /** Seconds since the current trip started (0 when not on a trip). */
