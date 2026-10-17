@@ -69,7 +69,7 @@ amounts and timers.
 
 - T2 done (route: delegated writer). RED: TypographyShapesTest failed to compile (AppShapes, DefaultMiCuadreTypography undefined). GREEN: full testDebugUnitTest passes. Fonts: Sora + Manrope variable TTF from google/fonts (OFL), licenses in licenses/. Commit: b188b1b.
 
-- T3 done (route: delegated writer). RED: ThemeSelectionTest failed to compile (colorSchemeFor, extendedColorsFor undefined). GREEN: testDebugUnitTest + assembleDebug pass. enableEdgeToEdge was already in MainActivity (activity-compose 1.9.3). Commit: @T3@.
+- T3 done (route: delegated writer). RED: ThemeSelectionTest failed to compile (colorSchemeFor, extendedColorsFor undefined). GREEN: testDebugUnitTest + assembleDebug pass. enableEdgeToEdge was already in MainActivity (activity-compose 1.9.3). Commit: a84ea5d.
 
 ## Next step
 Hand back to parent: review, then next feature (screen redesign).
