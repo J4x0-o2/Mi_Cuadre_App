@@ -24,6 +24,9 @@ interface TripDao {
     @Query("SELECT COUNT(*) FROM trips WHERE sessionId = :sessionId")
     suspend fun countBySession(sessionId: Long): Int
 
+    @Query("SELECT * FROM trips WHERE endedAt IS NOT NULL ORDER BY endedAt DESC LIMIT 1")
+    suspend fun lastFinished(): TripEntity?
+
     /**
      * Returns the in-progress trip for [sessionId] (a row whose `endedAt`
      * is null), or null if there is none. Used by the service on

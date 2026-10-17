@@ -37,6 +37,9 @@ class ShiftRepositoryImpl @Inject constructor(
     override suspend fun inProgressTrip(sessionId: Long): Trip? =
         tripDao.inProgressBySession(sessionId)?.toDomain()
 
+    override suspend fun lastFinishedTrip(): Trip? =
+        tripDao.lastFinished()?.toDomain()
+
     override suspend fun insertTrip(trip: Trip): Long =
         tripDao.insert(trip.toEntity())
 

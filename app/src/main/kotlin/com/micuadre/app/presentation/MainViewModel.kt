@@ -10,6 +10,8 @@ import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
+import com.micuadre.app.domain.usecase.GetLastUsedPlatformUseCase
+import com.micuadre.app.presentation.finish.FinishSheetState
 import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
 import com.micuadre.app.service.ShiftError
 import com.micuadre.app.service.ShiftServiceController
@@ -30,6 +32,7 @@ class MainViewModel @Inject constructor(
     private val controller: ShiftServiceController,
     private val observeShiftState: ObserveShiftStateUseCase,
     private val getDailySummary: GetDailySummaryUseCase,
+    private val getLastUsedPlatform: GetLastUsedPlatformUseCase,
     private val repository: ShiftRepository,
     private val clock: Clock
 ) : ViewModel() {
@@ -156,11 +159,27 @@ class MainViewModel @Inject constructor(
     }
 
     fun onFinishTripTapped() {
-        _ui.update { it.copy(showFinishSheet = true) }
+        viewModelScope.launch { openFinishSheet() }
+    }
+
+    /** Opens the finish sheet for the current trip with the last used platform preselected. */
+    private suspend fun openFinishSheet() {
+        if (_ui.value.finishSheet != null) return
+        val state = _ui.value.shiftState as? ShiftState.OnTrip ?: return
+        val selection = getLastUsedPlatform()
+        _ui.update {
+            it.copy(
+                finishSheet = FinishSheetState(
+                    tripStartedAtMs = state.tripStartedAtMs,
+                    tripEndedAtMs = clock.nowMs(),
+                    initialSelection = selection
+                )
+            )
+        }
     }
 
     fun onFinishTripDismissed() {
-        _ui.update { it.copy(showFinishSheet = false, pendingMessage = null) }
+        _ui.update { it.copy(finishSheet = null, pendingMessage = null) }
     }
 
     fun onFinishTripConfirmed(
@@ -170,7 +189,7 @@ class MainViewModel @Inject constructor(
         paymentMethod: PaymentMethod
     ) {
         controller.finishTrip(platform, platformOtherLabel, amountMinor, paymentMethod)
-        _ui.update { it.copy(showFinishSheet = false, pendingMessage = null) }
+        _ui.update { it.copy(finishSheet = null, pendingMessage = null) }
     }
 
     fun onEndShiftTapped() {

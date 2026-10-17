@@ -53,7 +53,6 @@ import com.micuadre.app.presentation.MainViewModel
 import com.micuadre.app.presentation.NotificationPermission
 import com.micuadre.app.presentation.components.BigTimer
 import com.micuadre.app.presentation.components.FinishTripSheet
-import com.micuadre.app.presentation.components.PlatformPickerSheet
 import com.micuadre.app.presentation.components.TripRow
 import com.micuadre.app.util.Formatters
 
@@ -74,11 +73,6 @@ fun HomeScreen(
             notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-
-    // Local state for the two-step finish flow.
-    // Step 1: show platform picker; step 2: show finish sheet with chosen platform.
-    var pendingPlatform by remember { mutableStateOf<Platform?>(null) }
-    var pendingOtherLabel by remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val pendingMessage = state.pendingMessage
@@ -113,49 +107,23 @@ fun HomeScreen(
                 )
                 is ShiftState.OnTrip -> OnTripView(
                     ui = state,
-                    onFinishTrip = {
-                        viewModel.onFinishTripTapped()
-                        // Open platform picker alongside the finish sheet flag.
-                        // The sheet opens only if the user confirms a platform.
-                    }
+                    onFinishTrip = { viewModel.onFinishTripTapped() }
                 )
             }
         }
     }
 
-    if (state.showFinishSheet && pendingPlatform == null) {
-        PlatformPickerSheet(
-            onDismiss = {
-                pendingPlatform = null
-                pendingOtherLabel = null
-                viewModel.onFinishTripDismissed()
-            },
-            onConfirm = { platform, otherLabel ->
-                pendingPlatform = platform
-                pendingOtherLabel = otherLabel
-            }
-        )
-    }
-
-    val chosen = pendingPlatform
-    if (chosen != null) {
+    state.finishSheet?.let { sheet ->
         FinishTripSheet(
-            platform = chosen,
-            platformOtherLabel = pendingOtherLabel,
-            onDismiss = {
-                pendingPlatform = null
-                pendingOtherLabel = null
-                viewModel.onFinishTripDismissed()
-            },
-            onConfirm = { amountMinor, method ->
+            state = sheet,
+            onDismiss = { viewModel.onFinishTripDismissed() },
+            onConfirm = { platform, otherLabel, amountMinor, method ->
                 viewModel.onFinishTripConfirmed(
-                    platform = chosen,
-                    platformOtherLabel = pendingOtherLabel,
+                    platform = platform,
+                    platformOtherLabel = otherLabel,
                     amountMinor = amountMinor,
                     paymentMethod = method
                 )
-                pendingPlatform = null
-                pendingOtherLabel = null
             }
         )
     }

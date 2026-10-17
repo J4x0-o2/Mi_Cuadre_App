@@ -32,6 +32,9 @@ interface ShiftRepository {
      */
     suspend fun inProgressTrip(sessionId: Long): Trip? = null
 
+    /** Most recently finished trip across all sessions, or null if none. */
+    suspend fun lastFinishedTrip(): Trip? = null
+
     /** Inserts a trip row. */
     suspend fun insertTrip(trip: Trip): Long
 

@@ -3,6 +3,7 @@ package com.micuadre.app.presentation
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
+import com.micuadre.app.presentation.finish.FinishSheetState
 
 /**
  * UI state for the home screen. All fields are stable to support Compose
@@ -14,8 +15,7 @@ data class HomeUiState(
     val totalMinor: Long = 0L,
     val elapsedSec: Long = 0L,
     val summary: DailySummary? = null,
-    val showFinishSheet: Boolean = false,
-    val showPlatformSheet: Boolean = false,
+    val finishSheet: FinishSheetState? = null,
     val needsNotificationPermission: Boolean = false,
     val pendingMessage: UiMessage? = null
 )

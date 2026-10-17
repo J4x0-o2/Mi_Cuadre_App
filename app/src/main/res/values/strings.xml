@@ -10,13 +10,15 @@
     <string name="total_today">Total del día</string>
     <string name="no_trips_yet">Sin carreras todavía</string>
 
-    <string name="select_platform">Plataforma</string>
+    <string name="platform_label">Plataforma</string>
     <string name="indriver">InDriver</string>
     <string name="didi">Didi</string>
-    <string name="other">Otro</string>
+    <string name="other">Otra</string>
     <string name="other_platform_hint">¿Cuál?</string>
 
-    <string name="trip_amount">Monto de la carrera</string>
+    <string name="trip_amount">Valor de la carrera</string>
+    <string name="finish_sheet_title">Cerrar carrera</string>
+    <string name="close_sheet">Cerrar</string>
     <string name="amount_hint">0</string>
     <string name="payment_method">Método de pago</string>
     <string name="cash">Efectivo</string>
@@ -46,10 +48,8 @@
     <string name="trip_in_progress">Carrera en curso</string>
     <string name="trip_time">Tiempo de carrera</string>
     <string name="save_trip">Guardar carrera</string>
-    <string name="continue_action">Continuar</string>
     <string name="payment_required">Elegí método de pago</string>
 
     <string name="amount_required">Ingresá el monto</string>
-    <string name="platform_required">Elegí plataforma</string>
     <string name="other_platform_required">Indicá cuál</string>
 </resources>
