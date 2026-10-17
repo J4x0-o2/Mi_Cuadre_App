@@ -43,7 +43,7 @@ amounts and timers.
 - [x] T1 Color tokens + contrast: dark/light schemes and extended colors; JVM test asserting
       WCAG contrast (>= 4.5:1 text roles, >= 3:1 large/non-text) for every on/container pair.
       Route: delegated writer (2+ non-trivial files).
-- [ ] T2 Shapes + typography: `Shapes` with the radii above; Sora/Manrope bundled fonts;
+- [x] T2 Shapes + typography: `Shapes` with the radii above; Sora/Manrope bundled fonts;
       `Typography` scale with tabular-number styles for amounts/timers. Route: delegated writer.
 - [ ] T3 Theme wiring: `MiCuadreTheme(darkTheme = isSystemInDarkTheme())` really switching
       schemes, edge-to-edge system bars, `themes.xml` window background per mode.
@@ -67,5 +67,7 @@ amounts and timers.
 
 - T1 done (route: delegated writer). RED: light scheme with untuned emerald failed 7 pairs (onPrimary/primary 1.77 etc.), dark failed only decorative outline/background 1.50 (pair dropped: WCAG exempts decorative borders). GREEN after light primary #0A7A4D, gold #8A6410. Commit: e318e12.
 
+- T2 done (route: delegated writer). RED: TypographyShapesTest failed to compile (AppShapes, DefaultMiCuadreTypography undefined). GREEN: full testDebugUnitTest passes. Fonts: Sora + Manrope variable TTF from google/fonts (OFL), licenses in licenses/. Commit: @T2@.
+
 ## Next step
-T2 (shapes + typography), then T3 (wiring).
+T3 (wiring): scheme switching, edge-to-edge, themes.xml.

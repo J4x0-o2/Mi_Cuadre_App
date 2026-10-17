@@ -12,6 +12,11 @@ object MiCuadreTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalMiCuadreColors.current
+
+    val typography: MiCuadreTypography
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalMiCuadreTypography.current
 }
 
 @Composable
@@ -22,10 +27,14 @@ fun MiCuadreTheme(
     // Scheme switching is wired in the theme-wiring task; light only until then.
     @Suppress("UNUSED_VARIABLE")
     val dark = useDarkTheme
-    CompositionLocalProvider(LocalMiCuadreColors provides LightMiCuadreColors) {
+    CompositionLocalProvider(
+        LocalMiCuadreColors provides LightMiCuadreColors,
+        LocalMiCuadreTypography provides DefaultMiCuadreTypography
+    ) {
         MaterialTheme(
             colorScheme = LightColorScheme,
             typography = AppTypography,
+            shapes = AppShapes,
             content = content
         )
     }
