@@ -1,6 +1,7 @@
 package com.micuadre.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -19,20 +20,27 @@ object MiCuadreTheme {
         get() = LocalMiCuadreTypography.current
 }
 
+internal fun colorSchemeFor(darkTheme: Boolean): ColorScheme =
+    if (darkTheme) DarkColorScheme else LightColorScheme
+
+internal fun extendedColorsFor(darkTheme: Boolean): MiCuadreColors =
+    if (darkTheme) DarkMiCuadreColors else LightMiCuadreColors
+
+/**
+ * Follows the system dark/light setting by default. Dynamic color is intentionally off:
+ * the brand palette is fixed.
+ */
 @Composable
 fun MiCuadreTheme(
-    useDarkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    // Scheme switching is wired in the theme-wiring task; light only until then.
-    @Suppress("UNUSED_VARIABLE")
-    val dark = useDarkTheme
     CompositionLocalProvider(
-        LocalMiCuadreColors provides LightMiCuadreColors,
+        LocalMiCuadreColors provides extendedColorsFor(darkTheme),
         LocalMiCuadreTypography provides DefaultMiCuadreTypography
     ) {
         MaterialTheme(
-            colorScheme = LightColorScheme,
+            colorScheme = colorSchemeFor(darkTheme),
             typography = AppTypography,
             shapes = AppShapes,
             content = content

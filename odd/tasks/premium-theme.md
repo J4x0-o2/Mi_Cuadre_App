@@ -45,7 +45,7 @@ amounts and timers.
       Route: delegated writer (2+ non-trivial files).
 - [x] T2 Shapes + typography: `Shapes` with the radii above; Sora/Manrope bundled fonts;
       `Typography` scale with tabular-number styles for amounts/timers. Route: delegated writer.
-- [ ] T3 Theme wiring: `MiCuadreTheme(darkTheme = isSystemInDarkTheme())` really switching
+- [x] T3 Theme wiring: `MiCuadreTheme(darkTheme = isSystemInDarkTheme())` really switching
       schemes, edge-to-edge system bars, `themes.xml` window background per mode.
       Route: delegated writer.
 
@@ -69,5 +69,7 @@ amounts and timers.
 
 - T2 done (route: delegated writer). RED: TypographyShapesTest failed to compile (AppShapes, DefaultMiCuadreTypography undefined). GREEN: full testDebugUnitTest passes. Fonts: Sora + Manrope variable TTF from google/fonts (OFL), licenses in licenses/. Commit: b188b1b.
 
+- T3 done (route: delegated writer). RED: ThemeSelectionTest failed to compile (colorSchemeFor, extendedColorsFor undefined). GREEN: testDebugUnitTest + assembleDebug pass. enableEdgeToEdge was already in MainActivity (activity-compose 1.9.3). Commit: @T3@.
+
 ## Next step
-T3 (wiring): scheme switching, edge-to-edge, themes.xml.
+Hand back to parent: review, then next feature (screen redesign).
