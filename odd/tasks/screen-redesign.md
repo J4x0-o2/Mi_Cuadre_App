@@ -63,9 +63,9 @@ container/onContainer with gold dot).
 - Conventional Commits, no AI attribution trailers. Untracked `.idea/vcs.xml`: never commit.
 
 ## Tasks
-- [ ] T1 Finish-trip sheet redesign + last-used platform preselection + amount formatting.
+- [x] T1 Finish-trip sheet redesign + last-used platform preselection + amount formatting.
       Route: delegated writer.
-- [ ] T2 Notification redesign + "Terminar carrera" deep link into the sheet + "Iniciar
+- [x] T2 Notification redesign + "Terminar carrera" deep link into the sheet + "Iniciar
       carrera" service action. Route: delegated writer.
 - [ ] T3 Home (connected/disconnected) redesign. Route: delegated writer.
 - [ ] T4 On-trip state redesign (ring timer, disabled disconnect + hint). Route: delegated writer.
@@ -90,6 +90,8 @@ container/onContainer with gold dot).
 
 ## Progress
 - Branch created from 3ff16eb.
+- T1 done (960d0ea), route: delegated writer. RED: 14 failing (AmountInput, FinishSheetSubtitle, GetLastUsedPlatform) against stubs; GREEN after implementation. Platform picker step retired (PlatformPickerSheet deleted).
+- T2 done (370a73b), route: delegated writer. RED: 9 failing (ShiftNotificationModel, LaunchRequests); GREEN after implementation. testDebugUnitTest and assembleDebug green.
 
 ## Next step
-T1-T2 (critical flow) via one delegated writer.
+T3 Home redesign, then T4 On-trip, T5 Summary (delegated writer). Device check pending for T1/T2: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app.
