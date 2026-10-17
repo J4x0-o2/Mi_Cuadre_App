@@ -101,13 +101,14 @@ container/onContainer with gold dot).
   granted, lens review-reliability, APPROVED and acknowledged (review-6ac1ef0fb3eb23f7).
   Triage: "no notification re-post on Connected->OnTrip" is a false positive
   (`handleStartTrip` calls `updateNotification`). Real follow-ups -> T2.1.
-- [ ] T2.1 Hardening from review: (a) every service start command that can arrive via
+- [x] T2.1 Hardening from review: (a) every service start command that can arrive via
       `getForegroundService` (notification "Iniciar carrera") must satisfy `startForeground`
       even on early-return paths (e.g. not Connected, restarted service); (b)
       `openFinishSheet` re-entrancy: re-check `finishSheet == null` and OnTrip inside the state
       update after the suspend lookup, and don't reopen if dismissed meanwhile; (c) ViewModel
       wiring test for pending finish request (request + OnTrip -> sheet; expiry -> null).
       Route: delegated writer.
+- T2.1 done (e0a3b6f), route: delegated writer. RED: 4 failing FinishSheetCoordinatorTest (stubs) + 2 failing ServiceStartPolicyTest; GREEN after implementation. (a) every delivered start intent calls startForeground first, idle service stops itself (ServiceStartPolicy); (b)/(c) opening logic extracted to FinishSheetCoordinator (atomic re-check in state update, in-flight Job cancelled on dismiss).
 
 ## Next step
 T2.1 hardening, T3 Home redesign, then T4 On-trip, T5 Summary (delegated writer). Device check pending for T1/T2: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app.
