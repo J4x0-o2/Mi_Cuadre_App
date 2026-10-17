@@ -64,7 +64,6 @@
 
     <string name="app_tagline">Tu jornada, en segundos</string>
     <string name="save_trip">Guardar carrera</string>
-    <string name="payment_required">Elegí método de pago</string>
 
     <string name="amount_required">Ingresá el monto</string>
     <string name="other_platform_required">Indicá cuál</string>

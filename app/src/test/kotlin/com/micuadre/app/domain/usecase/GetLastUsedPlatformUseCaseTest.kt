@@ -15,9 +15,13 @@ import org.junit.Test
 
 class GetLastUsedPlatformUseCaseTest {
 
-    private fun trip(platform: Platform, label: String? = null) = Trip(
+    private fun trip(
+        platform: Platform,
+        label: String? = null,
+        payment: PaymentMethod? = PaymentMethod.CASH
+    ) = Trip(
         id = 1L, sessionId = 1L, platform = platform, platformOtherLabel = label,
-        startedAt = 1L, endedAt = 2L, amountMinor = 100L, paymentMethod = PaymentMethod.CASH
+        startedAt = 1L, endedAt = 2L, amountMinor = 100L, paymentMethod = payment
     )
 
     @Test
@@ -46,6 +50,40 @@ class GetLastUsedPlatformUseCaseTest {
         val result = GetLastUsedPlatformUseCase(LastTripRepository(trip(Platform.OTHER, "  ")))()
 
         assertEquals(PlatformSelection(Platform.INDRIVER), result)
+    }
+
+    @Test
+    fun `preselects the payment method of the last finished trip`() = runTest {
+        val result = GetLastUsedPlatformUseCase(
+            LastTripRepository(trip(Platform.DIDI, payment = PaymentMethod.TRANSFER))
+        )()
+
+        assertEquals(PlatformSelection(Platform.DIDI, paymentMethod = PaymentMethod.TRANSFER), result)
+    }
+
+    @Test
+    fun `defaults to cash when there are no finished trips`() = runTest {
+        val result = GetLastUsedPlatformUseCase(LastTripRepository(null))()
+
+        assertEquals(PaymentMethod.CASH, result.paymentMethod)
+    }
+
+    @Test
+    fun `defaults to cash when the last trip has no payment method`() = runTest {
+        val result = GetLastUsedPlatformUseCase(
+            LastTripRepository(trip(Platform.DIDI, payment = null))
+        )()
+
+        assertEquals(PaymentMethod.CASH, result.paymentMethod)
+    }
+
+    @Test
+    fun `keeps the last payment method when the Otra label fallback applies`() = runTest {
+        val result = GetLastUsedPlatformUseCase(
+            LastTripRepository(trip(Platform.OTHER, " ", PaymentMethod.TRANSFER))
+        )()
+
+        assertEquals(PlatformSelection(Platform.INDRIVER, paymentMethod = PaymentMethod.TRANSFER), result)
     }
 
     private class LastTripRepository(private val last: Trip?) : ShiftRepository {

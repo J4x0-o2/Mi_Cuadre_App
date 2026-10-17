@@ -72,9 +72,8 @@ fun FinishTripSheet(
     var amountField by remember { mutableStateOf(TextFieldValue("")) }
     var platform by remember { mutableStateOf(state.initialSelection.platform) }
     var otherLabel by remember { mutableStateOf(state.initialSelection.otherLabel.orEmpty()) }
-    var payment by remember { mutableStateOf<PaymentMethod?>(null) }
+    var payment by remember { mutableStateOf(state.initialSelection.paymentMethod) }
     var showAmountError by remember { mutableStateOf(false) }
-    var showPaymentError by remember { mutableStateOf(false) }
     var showOtherError by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
@@ -193,25 +192,19 @@ fun FinishTripSheet(
                 selected = payment,
                 onSelect = {
                     payment = it
-                    showPaymentError = false
                 },
                 modifier = Modifier.padding(top = 8.dp)
             )
-            if (showPaymentError) {
-                ErrorText(stringResource(R.string.payment_required))
-            }
 
             Button(
                 onClick = {
                     val minor = AmountInput.toMinor(amountField.text)
-                    val method = payment
                     val label = otherLabel.trim()
                     var invalid = false
                     if (minor == null) { showAmountError = true; invalid = true }
-                    if (method == null) { showPaymentError = true; invalid = true }
                     if (platform == Platform.OTHER && label.isEmpty()) { showOtherError = true; invalid = true }
                     if (invalid) return@Button
-                    onConfirm(platform, label.takeIf { platform == Platform.OTHER }, minor!!, method!!)
+                    onConfirm(platform, label.takeIf { platform == Platform.OTHER }, minor!!, payment)
                 },
                 shape = RoundedCornerShape(22.dp),
                 colors = ButtonDefaults.buttonColors(
