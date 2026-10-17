@@ -69,6 +69,9 @@ container/onContainer with gold dot).
       carrera" service action. Route: delegated writer.
 - [x] T3 Home (connected/disconnected) redesign. Route: delegated writer.
 - [x] T4 On-trip state redesign (ring timer, disabled disconnect + hint). Route: delegated writer.
+- [x] T4.1 Restore "Desconectar" (pause) on Connected Home next to "Terminar turno"; paused shift keeps totals, can reconnect or end. Route: delegated writer.
+- [x] T4.2 Preselect the payment method of the last finished trip (cash default). Route: delegated writer.
+- [x] T4.3 Trip rows show start and end time ("HH:mm – HH:mm · N min"). Route: delegated writer.
 - [ ] T5 Shift summary redesign (metrics + per-platform bars). Route: delegated writer.
 
 ## Follow-ups carried from premium-theme review
@@ -111,6 +114,9 @@ container/onContainer with gold dot).
 - T2.1 done (e0a3b6f), route: delegated writer. RED: 4 failing FinishSheetCoordinatorTest (stubs) + 2 failing ServiceStartPolicyTest; GREEN after implementation. (a) every delivered start intent calls startForeground first, idle service stops itself (ServiceStartPolicy); (b)/(c) opening logic extracted to FinishSheetCoordinator (atomic re-check in state update, in-flight Job cancelled on dismiss).
 - T3 done (d2c0375), route: delegated writer. RED: 15 HomeModelsTest + 2 FormattersTest failing against stubs (day breakdown, trip rows, badge, elapsed, ring, disconnect rule, h:mm:ss, trip timer); GREEN after implementation. Trip rows show start time (HH:mm) and duration; "Ver todas" omitted. Connected Home has no Desconectar (spec); Terminar turno ends the shift.
 - T4 done (24bb2f2), route: delegated writer. RED: clockTime test failing against stub; GREEN after implementation. Ring arc is decorative: one step per elapsed minute over a 30 min reference (min 5%, cap 100%). testDebugUnitTest and assembleDebug green.
+- T4.1 done (6f0678f), route: delegated writer. RED: 3 failing (HomeActions.secondary x2, paused snapshot) against stubs; GREEN after implementation. Paused shift (Disconnected + open session) now shows its trips/total and "Terminar turno"; service resumes/ends the open session from Room instead of creating a second one or ignoring the end.
+- T4.3 done (c63bd0b), route: delegated writer. RED: 2 HomeModelsTest row-detail failures; GREEN reusing FinishSheetSubtitle.
+- T4.2 done (526bde0), route: delegated writer. RED: 2 failing GetLastUsedPlatformUseCaseTest (payment); GREEN after implementation. testDebugUnitTest and assembleDebug green.
 
 ## Next step
-T5 Shift summary redesign (slice 3, delegated writer). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
+Review slice 2, then T5 Shift summary redesign (slice 3, delegated writer). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
