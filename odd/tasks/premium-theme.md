@@ -40,7 +40,7 @@ amounts and timers.
 - Conventional Commits, no AI attribution trailers.
 
 ## Tasks
-- [ ] T1 Color tokens + contrast: dark/light schemes and extended colors; JVM test asserting
+- [x] T1 Color tokens + contrast: dark/light schemes and extended colors; JVM test asserting
       WCAG contrast (>= 4.5:1 text roles, >= 3:1 large/non-text) for every on/container pair.
       Route: delegated writer (2+ non-trivial files).
 - [ ] T2 Shapes + typography: `Shapes` with the radii above; Sora/Manrope bundled fonts;
@@ -65,5 +65,7 @@ amounts and timers.
 ## Progress
 - Branch created from 647b603.
 
+- T1 done (route: delegated writer). RED: light scheme with untuned emerald failed 7 pairs (onPrimary/primary 1.77 etc.), dark failed only decorative outline/background 1.50 (pair dropped: WCAG exempts decorative borders). GREEN after light primary #0A7A4D, gold #8A6410. Commit: @T1@.
+
 ## Next step
-T1-T3 via one delegated writer.
+T2 (shapes + typography), then T3 (wiring).
