@@ -1,0 +1,95 @@
+# Feature: screen-redesign
+
+## Objective
+Rebuild the app screens to match the approved mockup (claude.ai Design canvas "MiCuadre
+Boceto", https://claude.ai/artifact/4UzYHWnu4Joxv84ETtF83d) on top of the premium theme,
+prioritizing the most frequent flow: finishing a trip from the background.
+
+## Problem / Why
+The app lives mostly in the background. The critical moment is: trip ends -> driver opens the
+app (or taps the notification) -> enters the amount -> saves. That flow must take 1-2 taps.
+Current screens are functional but do not follow the approved design.
+
+## Scope (authorized)
+Finish-trip sheet, ongoing notification (actions), Home while connected, On-trip state,
+Shift summary. Uses `MiCuadreTheme` tokens only (no hardcoded colors).
+Out of scope: history screen ("Ver todas" link is omitted until it exists), user-defined
+platforms (future vision), light-mode-specific layouts (theme already handles light).
+
+## Design spec (from the approved mockup; values map to theme tokens)
+Common: screen padding 20dp horizontal; cards = surface + 1dp outlineVariant border,
+radius large (28); tiles radius 22; Sora for big numbers (`MiCuadreTheme.typography.money*`,
+`timer`), Manrope elsewhere; uppercase 13sp muted section labels (letterSpacing 0.4sp).
+Header: 40dp emerald rounded-square logo "M" + "MiCuadre"; status pill on the right
+("En turno": primaryContainer/onPrimaryContainer with primary dot; "En carrera": gold
+container/onContainer with gold dot).
+
+1. Finish-trip sheet (ModalBottomSheet, top radius 32): title "Cerrar carrera" + subtitle
+   "HH:mm – HH:mm · N min"; close icon button 44dp. Amount field: label "VALOR DE LA
+   CARRERA", 80dp tall, radius 24, 2dp primary border, "$" prefix, Sora 40sp, autofocus
+   with numeric keyboard open, thousands separator formatting. Platform: 3 equal chips
+   (InDriver, Didi, Otra) 52dp radius 16, selected = primary border + primaryContainer;
+   "Otra" reveals the label field. Last used platform preselected. Payment: segmented
+   control (Efectivo / Transferencia) inside a 6dp-padded container, selected = onSurface
+   fill with surface text. Primary button "Guardar carrera" 68dp radius 22. Validation
+   errors keep showing via existing UiMessage path.
+2. Notification: two states. On trip: title "Carrera en curso · <chronometer>", text
+   "Iniciada HH:mm · Hoy $X en N carreras", actions "Terminar carrera" (opens the app
+   directly into the finish sheet) and "Abrir app". Connected (between trips): title
+   "Hoy $X · N carreras", text "Tocá Iniciar cuando subas al pasajero", actions "Iniciar
+   carrera" (starts the trip via the service without opening the app) and "Abrir app".
+   Use the system chronometer (setUsesChronometer) for live time.
+3. Home, connected: total card ("TOTAL DEL DÍA", Sora ~46sp, cash/transfer split tiles),
+   two tiles (Conectado h:mm:ss, Carreras N), primary CTA "Iniciar carrera" 68dp radius 22
+   with play icon, "Carreras de hoy" list (row: 42dp platform badge, platform + "HH:mm · N
+   min", amount + payment), secondary outlined "Terminar turno" 52dp at the bottom.
+   Disconnected state: keep a simple welcome + primary "Conectarse" in the same style.
+4. On trip: gold "En carrera" pill; centered 264dp ring (10dp track surfaceVariant, gold
+   progress arc) with "DURACIÓN", Sora 52sp timer, "Iniciada HH:mm"; tiles Total del día /
+   Conectado; primary "Terminar carrera" 76dp radius 24 with check icon; disabled
+   "Desconectar" + hint "Terminá la carrera para desconectarte" (business rule: a trip
+   must be finished before disconnecting).
+5. Shift summary (full screen or large sheet): check badge, "Turno cerrado", "Hoy · HH:mm –
+   HH:mm", "GANASTE" total in primary Sora ~50sp, 2x2 metrics (Conectado, Carreras,
+   Efectivo, Transferencia), "Por plataforma" bars (relative to max), "Listo" button
+   (onSurface fill).
+
+## Constraints
+- Strict TDD (source: global config). Runner: `./gradlew testDebugUnitTest` with
+  `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"`. Test pure logic (formatters,
+  summary/bars math, last-used platform, notification content model, intent routing);
+  Compose layout itself is not unit-tested.
+- Copy: Spanish, voseo register, all in `strings.xml`.
+- Conventional Commits, no AI attribution trailers. Untracked `.idea/vcs.xml`: never commit.
+
+## Tasks
+- [ ] T1 Finish-trip sheet redesign + last-used platform preselection + amount formatting.
+      Route: delegated writer.
+- [ ] T2 Notification redesign + "Terminar carrera" deep link into the sheet + "Iniciar
+      carrera" service action. Route: delegated writer.
+- [ ] T3 Home (connected/disconnected) redesign. Route: delegated writer.
+- [ ] T4 On-trip state redesign (ring timer, disabled disconnect + hint). Route: delegated writer.
+- [ ] T5 Shift summary redesign (metrics + per-platform bars). Route: delegated writer.
+
+## Follow-ups carried from premium-theme review
+- Verify system bar icon contrast on a device in both modes.
+- Theme wiring test (Compose/Robolectric) if cheap; otherwise keep documented.
+
+## Acceptance criteria
+- Screens match the spec using theme tokens; existing behavior and tests preserved.
+- `testDebugUnitTest`, `assembleDebug` green.
+
+## Checks
+- `./gradlew testDebugUnitTest`
+- `./gradlew assembleDebug`
+
+## Delivery
+- Branch `feat/screen-redesign` stacked on `feat/premium-theme` (3ff16eb, PR pending).
+- Forecast ~1200-1600 authored lines: exceeds the ~400 budget -> ask-on-risk chain strategy
+  question asked to the user.
+
+## Progress
+- Branch created from 3ff16eb.
+
+## Next step
+T1-T2 (critical flow) via one delegated writer.
