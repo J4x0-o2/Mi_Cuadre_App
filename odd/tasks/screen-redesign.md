@@ -118,5 +118,15 @@ container/onContainer with gold dot).
 - T4.3 done (c63bd0b), route: delegated writer. RED: 2 HomeModelsTest row-detail failures; GREEN reusing FinishSheetSubtitle.
 - T4.2 done (526bde0), route: delegated writer. RED: 2 failing GetLastUsedPlatformUseCaseTest (payment); GREEN after implementation. testDebugUnitTest and assembleDebug green.
 
+- Review slice 2 (base 819b2bb, T2.1-T4.3): medium, consent granted, lens review-reliability,
+  APPROVED and acknowledged (review-fcbf244403827a1c). Reviewed boundary: ad3f0fe.
+  Triage: "unsynchronized service flags" not applicable (service scope is
+  `Dispatchers.Main.immediate`, all reads/writes on main). Real follow-ups -> T5.1.
+- [ ] T5.1 Service tests (Robolectric `ServiceController` or equivalent): reconnect after a
+      pause resumes the open Room session (no second session); End Shift on a fresh service
+      instance ends the open session; every delivered start intent calls `startForeground`.
+      Remove the tautological `requiresForeground(hasIntent = true)` check (call
+      `startInForeground` unconditionally). Route: delegated writer (slice 3).
+
 ## Next step
-Review slice 2, then T5 Shift summary redesign (slice 3, delegated writer). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
+T5 Shift summary redesign + T5.1 service tests (slice 3, delegated writer). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
