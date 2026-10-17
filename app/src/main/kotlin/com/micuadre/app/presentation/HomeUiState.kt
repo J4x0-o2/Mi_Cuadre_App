@@ -13,7 +13,10 @@ data class HomeUiState(
     val shiftState: ShiftState = ShiftState.Disconnected,
     val trips: List<Trip> = emptyList(),
     val totalMinor: Long = 0L,
+    /** Seconds since the shift started. */
     val elapsedSec: Long = 0L,
+    /** Seconds since the current trip started (0 when not on a trip). */
+    val tripElapsedSec: Long = 0L,
     val summary: DailySummary? = null,
     val finishSheet: FinishSheetState? = null,
     val needsNotificationPermission: Boolean = false,

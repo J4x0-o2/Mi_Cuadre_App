@@ -111,4 +111,21 @@ class FormattersTest {
     fun `durationMMSS clamps negatives to zero`() {
         assertEquals("00:00", Formatters.durationMMSS(-5L))
     }
+
+    @Test
+    fun `durationHMSS drops the hour padding`() {
+        assertEquals("0:00:00", Formatters.durationHMSS(0L))
+        assertEquals("1:05:09", Formatters.durationHMSS(3_600L + 5 * 60L + 9L))
+        assertEquals("12:00:01", Formatters.durationHMSS(12 * 3_600L + 1L))
+        assertEquals("0:00:00", Formatters.durationHMSS(-3L))
+    }
+
+    @Test
+    fun `tripTimer is MM_SS under an hour and H_MM_SS beyond`() {
+        assertEquals("00:00", Formatters.tripTimer(0L))
+        assertEquals("04:32", Formatters.tripTimer(4 * 60L + 32L))
+        assertEquals("59:59", Formatters.tripTimer(3_599L))
+        assertEquals("1:00:00", Formatters.tripTimer(3_600L))
+        assertEquals("1:02:03", Formatters.tripTimer(3_723L))
+    }
 }

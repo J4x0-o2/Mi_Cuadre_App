@@ -1,13 +1,14 @@
 package com.micuadre.app.presentation.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,54 +19,70 @@ import androidx.compose.ui.unit.dp
 import com.micuadre.app.R
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
-import com.micuadre.app.domain.model.Trip
+import com.micuadre.app.presentation.home.TripRowModel
+import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.util.Formatters
 
+/** "Carreras de hoy" row: 42dp platform badge, platform + "HH:mm · N min", amount + payment. */
 @Composable
 fun TripRow(
-    trip: Trip,
+    model: TripRowModel,
     modifier: Modifier = Modifier
 ) {
-    val platformLabel = when (trip.platform) {
+    val platformLabel = when (model.platform) {
         Platform.INDRIVER -> stringResource(R.string.indriver)
         Platform.DIDI -> stringResource(R.string.didi)
-        Platform.OTHER -> trip.platformOtherLabel ?: stringResource(R.string.other)
+        Platform.OTHER -> model.otherLabel ?: stringResource(R.string.other)
     }
-    val paymentLabel = when (trip.paymentMethod) {
+    val paymentLabel = when (model.payment) {
         PaymentMethod.CASH -> stringResource(R.string.cash)
         PaymentMethod.TRANSFER -> stringResource(R.string.transfer)
         null -> "—"
     }
-    val durationSec = trip.durationMs / 1000L
 
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .cardSurface(RoundedCornerShape(22.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .size(42.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center
         ) {
-            Column(modifier = Modifier.padding(end = 12.dp)) {
-                Text(
-                    text = platformLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "$paymentLabel · ${Formatters.durationMMSS(durationSec)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
             Text(
-                text = trip.amountMinor?.let { Formatters.money(it) } ?: "—",
+                text = model.badge,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = platformLabel,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = model.detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = model.amountMinor?.let { Formatters.moneyNoDecimals(it) } ?: "—",
+                style = MiCuadreTheme.typography.moneySmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = paymentLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
     }

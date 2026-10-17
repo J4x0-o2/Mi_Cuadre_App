@@ -11,12 +11,11 @@ import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.GetLastUsedPlatformUseCase
-import com.micuadre.app.presentation.finish.FinishSheetState
+import com.micuadre.app.presentation.home.Elapsed
 import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
 import com.micuadre.app.service.ShiftError
 import com.micuadre.app.service.ShiftServiceController
 import com.micuadre.app.util.Clock
-import com.micuadre.app.util.TimeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,7 +40,7 @@ class MainViewModel @Inject constructor(
     val ui: StateFlow<HomeUiState> = _ui.asStateFlow()
 
     private var tickerJob: Job? = null
-    private var tickerSinceMs: Long? = null
+    private var tickerKey: Pair<Long, Long?>? = null
     private var messageSeq = 0L
     private val finishSheets = FinishSheetCoordinator(
         ui = _ui,
@@ -77,20 +76,20 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    /** (Re)starts the elapsed-time ticker only when the shift start changes. */
+    /** (Re)starts the elapsed-time ticker only when the shift or trip start changes. */
     private fun syncTicker(state: ShiftState) {
-        val since = when (state) {
-            is ShiftState.Connected -> state.connectedSinceMs
-            is ShiftState.OnTrip -> state.connectedSinceMs
+        val key = when (state) {
+            is ShiftState.Connected -> state.connectedSinceMs to null
+            is ShiftState.OnTrip -> state.connectedSinceMs to state.tripStartedAtMs
             is ShiftState.Disconnected -> null
         }
-        if (since == null) {
+        if (key == null) {
             stopTicker()
-            tickerSinceMs = null
-            _ui.update { it.copy(elapsedSec = 0L) }
-        } else if (since != tickerSinceMs) {
-            tickerSinceMs = since
-            startTicker(since)
+            tickerKey = null
+            _ui.update { it.copy(elapsedSec = 0L, tripElapsedSec = 0L) }
+        } else if (key != tickerKey) {
+            tickerKey = key
+            startTicker(state)
         }
     }
 
@@ -121,12 +120,12 @@ class MainViewModel @Inject constructor(
         _ui.update { it.copy(pendingMessage = message) }
     }
 
-    private fun startTicker(connectedSinceMs: Long) {
+    private fun startTicker(state: ShiftState) {
         tickerJob?.cancel()
         tickerJob = viewModelScope.launch {
             while (true) {
-                val elapsed = TimeUtils.elapsedSeconds(connectedSinceMs, clock.nowMs())
-                _ui.update { it.copy(elapsedSec = elapsed) }
+                val elapsed = Elapsed.of(state, clock.nowMs())
+                _ui.update { it.copy(elapsedSec = elapsed.shiftSec, tripElapsedSec = elapsed.tripSec) }
                 delay(1_000L)
             }
         }
