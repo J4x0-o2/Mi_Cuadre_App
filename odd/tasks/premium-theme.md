@@ -71,5 +71,16 @@ amounts and timers.
 
 - T3 done (route: delegated writer). RED: ThemeSelectionTest failed to compile (colorSchemeFor, extendedColorsFor undefined). GREEN: testDebugUnitTest + assembleDebug pass. enableEdgeToEdge was already in MainActivity (activity-compose 1.9.3). Commit: a84ea5d.
 
+- Review T1-T3: medium risk, consent granted, lens review-reliability, APPROVED and
+  acknowledged (review-6a41c1be016ccea8, authority burned). Reviewed boundary: 88e277f.
+  Advisory findings triaged:
+  - variable-font weights below API 26: not applicable (minSdk 29).
+  - removed public API (`useDarkTheme`, old color vals/resources): no remaining callers
+    (rg over app/src), build green.
+  - follow-ups for the screen redesign: verify system bar icon contrast on device in both
+    modes; a Compose/Robolectric test for theme wiring; fonts only checked by file type.
+  - design gap: dark `outline` #2A3430 is 1.50:1 on background, decorative only; inputs
+    that need a visible border use primary instead (as in the mockup).
+
 ## Next step
-Hand back to parent: review, then next feature (screen redesign).
+Push branch + PR (user decision), then screen redesign feature.
