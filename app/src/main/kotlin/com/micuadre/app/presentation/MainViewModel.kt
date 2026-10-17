@@ -43,8 +43,12 @@ class MainViewModel @Inject constructor(
     private var tickerJob: Job? = null
     private var tickerSinceMs: Long? = null
     private var messageSeq = 0L
-    private val pendingFinish = PendingFinishRequest()
-    private var pendingFinishExpiry: Job? = null
+    private val finishSheets = FinishSheetCoordinator(
+        ui = _ui,
+        scope = viewModelScope,
+        lastUsedPlatform = { getLastUsedPlatform() },
+        nowMs = clock::nowMs
+    )
     private val connectCoordinator = ConnectCoordinator(startShift = controller::connect)
 
     init {
@@ -68,7 +72,7 @@ class MainViewModel @Inject constructor(
                     )
                 }
                 syncTicker(snapshot.shiftState)
-                applyPendingFinish(snapshot.shiftState)
+                finishSheets.onShiftState(snapshot.shiftState)
             }
         }
     }
@@ -161,49 +165,13 @@ class MainViewModel @Inject constructor(
         controller.startTrip()
     }
 
-    /** Entry from outside the app (notification action). Consumed once; see [PendingFinishRequest]. */
-    fun onLaunchRequest(request: LaunchRequest) {
-        when (request) {
-            LaunchRequest.OPEN_FINISH_SHEET -> {
-                pendingFinish.request()
-                pendingFinishExpiry?.cancel()
-                pendingFinishExpiry = viewModelScope.launch {
-                    delay(PENDING_FINISH_TIMEOUT_MS)
-                    pendingFinish.expire()
-                }
-                applyPendingFinish(_ui.value.shiftState)
-            }
-        }
-    }
+    /** Entry from outside the app (notification action). Consumed once; see [FinishSheetCoordinator]. */
+    fun onLaunchRequest(request: LaunchRequest) = finishSheets.onLaunchRequest(request)
 
-    private fun applyPendingFinish(state: ShiftState) {
-        if (pendingFinish.onState(state) == PendingFinishRequest.Decision.OpenSheet) {
-            pendingFinishExpiry?.cancel()
-            viewModelScope.launch { openFinishSheet() }
-        }
-    }
-
-    fun onFinishTripTapped() {
-        viewModelScope.launch { openFinishSheet() }
-    }
-
-    /** Opens the finish sheet for the current trip with the last used platform preselected. */
-    private suspend fun openFinishSheet() {
-        if (_ui.value.finishSheet != null) return
-        val state = _ui.value.shiftState as? ShiftState.OnTrip ?: return
-        val selection = getLastUsedPlatform()
-        _ui.update {
-            it.copy(
-                finishSheet = FinishSheetState(
-                    tripStartedAtMs = state.tripStartedAtMs,
-                    tripEndedAtMs = clock.nowMs(),
-                    initialSelection = selection
-                )
-            )
-        }
-    }
+    fun onFinishTripTapped() = finishSheets.onFinishTapped()
 
     fun onFinishTripDismissed() {
+        finishSheets.onDismissed()
         _ui.update { it.copy(finishSheet = null, pendingMessage = null) }
     }
 
@@ -213,6 +181,7 @@ class MainViewModel @Inject constructor(
         amountMinor: Long,
         paymentMethod: PaymentMethod
     ) {
+        finishSheets.onDismissed()
         controller.finishTrip(platform, platformOtherLabel, amountMinor, paymentMethod)
         _ui.update { it.copy(finishSheet = null, pendingMessage = null) }
     }
@@ -228,11 +197,6 @@ class MainViewModel @Inject constructor(
     suspend fun fetchDailySummary(): DailySummary? {
         val session = repository.activeSession() ?: return null
         return getDailySummary(session.id)
-    }
-
-    private companion object {
-        /** How long a notification request waits for the shift state to be restored. */
-        const val PENDING_FINISH_TIMEOUT_MS = 3_000L
     }
 
     override fun onCleared() {

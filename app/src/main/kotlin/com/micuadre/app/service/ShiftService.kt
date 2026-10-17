@@ -65,6 +65,10 @@ class ShiftService : Service() {
     /** Trip start timestamp for the active trip (OnTrip only). */
     private var activeTripStartMs: Long? = null
 
+    private var rehydrated = false
+    private var connectPending = false
+    private var startCommandSeen = false
+
     override fun onCreate() {
         super.onCreate()
         notificationFactory = NotificationFactory(applicationContext)
@@ -97,39 +101,77 @@ class ShiftService : Service() {
                 startInForeground(restored)
             } catch (t: Throwable) {
                 Log.e(TAG, "Rehydration failed; staying Disconnected", t)
+            } finally {
+                rehydrated = true
+                stopIfIdle()
             }
+        }
+    }
+
+    /** Releases an idle service (and its foreground notification) once nothing is left to do. */
+    private fun stopIfIdle() {
+        val stop = ServiceStartPolicy.shouldStopWhenIdle(
+            state = _currentState.value,
+            rehydrated = rehydrated,
+            connectPending = connectPending,
+            startCommandSeen = startCommandSeen
+        )
+        if (stop) {
+            stopObservingTotals()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action ?: return START_NOT_STICKY
-        when (action) {
+        startCommandSeen = true
+        if (intent == null) {
+            // System restart: rehydration decides whether there is anything to run.
+            stopIfIdle()
+            return START_NOT_STICKY
+        }
+        // Delivered via startForegroundService / getForegroundService: satisfy startForeground
+        // up front so no early-return path below can leave the requirement unmet.
+        if (ServiceStartPolicy.requiresForeground(hasIntent = true)) {
+            startInForeground(_currentState.value)
+        }
+        when (intent.action) {
             ShiftServiceController.ACTION_CONNECT -> handleConnect()
             ShiftServiceController.ACTION_DISCONNECT -> handleDisconnect()
             ShiftServiceController.ACTION_START_TRIP -> handleStartTrip()
             ShiftServiceController.ACTION_FINISH_TRIP -> handleFinishTrip(intent)
             ShiftServiceController.ACTION_END_SHIFT -> handleEndShift()
+            else -> stopIfIdle()
         }
         return START_STICKY
     }
 
     private fun handleConnect() {
         if (_currentState.value !is ShiftState.Disconnected) return
+        connectPending = true
         scope.launch {
-            val now = clock.nowMs()
-            val sessionId = activeSessionId ?: startShift(startedAt = now).also { activeSessionId = it }
-            observeDayTotals(sessionId)
-            val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Connect)
-            _currentState.value = next
-            controller.publishState(next)
-            startInForeground(next)
+            try {
+                val now = clock.nowMs()
+                val sessionId = activeSessionId ?: startShift(startedAt = now).also { activeSessionId = it }
+                observeDayTotals(sessionId)
+                val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Connect)
+                _currentState.value = next
+                controller.publishState(next)
+                startInForeground(next)
+            } finally {
+                connectPending = false
+                stopIfIdle()
+            }
         }
     }
 
     private fun handleDisconnect() {
-        if (_currentState.value !is ShiftState.Connected) return
+        if (_currentState.value !is ShiftState.Connected) {
+            stopIfIdle()
+            return
+        }
         val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Disconnect)
         _currentState.value = next
         controller.publishState(next)
@@ -143,7 +185,10 @@ class ShiftService : Service() {
     }
 
     private fun handleStartTrip() {
-        if (_currentState.value !is ShiftState.Connected) return
+        if (_currentState.value !is ShiftState.Connected) {
+            stopIfIdle()
+            return
+        }
         val now = clock.nowMs()
         scope.launch {
             val sessionId = activeSessionId ?: return@launch
@@ -160,9 +205,12 @@ class ShiftService : Service() {
     }
 
     private fun handleFinishTrip(intent: Intent) {
-        if (_currentState.value !is ShiftState.OnTrip) return
-        val sessionId = activeSessionId ?: return
-        val tripStart = activeTripStartMs ?: return
+        val sessionId = activeSessionId
+        val tripStart = activeTripStartMs
+        if (_currentState.value !is ShiftState.OnTrip || sessionId == null || tripStart == null) {
+            stopIfIdle()
+            return
+        }
 
         val platformName = intent.getStringExtra(ShiftServiceController.EXTRA_PLATFORM)
         val platformOther = intent.getStringExtra(ShiftServiceController.EXTRA_PLATFORM_OTHER)
