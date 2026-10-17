@@ -85,13 +85,29 @@ container/onContainer with gold dot).
 
 ## Delivery
 - Branch `feat/screen-redesign` stacked on `feat/premium-theme` (3ff16eb, PR pending).
-- Forecast ~1200-1600 authored lines: exceeds the ~400 budget -> ask-on-risk chain strategy
-  question asked to the user.
+- Forecast ~1200-1600 authored lines: exceeds the ~400 budget.
+- Chain strategy (user, 2026-10-17): feature-branch-chain. Integration branch
+  `feat/screen-redesign` (base 2fa066e); slice PRs target it; it merges into `main` at the end.
+  - Slice 1 `feat/screen-redesign-finish-flow`: T1, T2 (960d0ea, 370a73b + docs).
+  - Slice 2 `feat/screen-redesign-home-trip`: T2.1, T3, T4.
+  - Slice 3 `feat/screen-redesign-summary`: T5.
 
 ## Progress
 - Branch created from 3ff16eb.
 - T1 done (960d0ea), route: delegated writer. RED: 14 failing (AmountInput, FinishSheetSubtitle, GetLastUsedPlatform) against stubs; GREEN after implementation. Platform picker step retired (PlatformPickerSheet deleted).
 - T2 done (370a73b), route: delegated writer. RED: 9 failing (ShiftNotificationModel, LaunchRequests); GREEN after implementation. testDebugUnitTest and assembleDebug green.
 
+- Review (hook-issued candidate from 647b603, included theme + T1-T2): medium, consent
+  granted, lens review-reliability, APPROVED and acknowledged (review-6ac1ef0fb3eb23f7).
+  Triage: "no notification re-post on Connected->OnTrip" is a false positive
+  (`handleStartTrip` calls `updateNotification`). Real follow-ups -> T2.1.
+- [ ] T2.1 Hardening from review: (a) every service start command that can arrive via
+      `getForegroundService` (notification "Iniciar carrera") must satisfy `startForeground`
+      even on early-return paths (e.g. not Connected, restarted service); (b)
+      `openFinishSheet` re-entrancy: re-check `finishSheet == null` and OnTrip inside the state
+      update after the suspend lookup, and don't reopen if dismissed meanwhile; (c) ViewModel
+      wiring test for pending finish request (request + OnTrip -> sheet; expiry -> null).
+      Route: delegated writer.
+
 ## Next step
-T3 Home redesign, then T4 On-trip, T5 Summary (delegated writer). Device check pending for T1/T2: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app.
+T2.1 hardening, T3 Home redesign, then T4 On-trip, T5 Summary (delegated writer). Device check pending for T1/T2: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app.
