@@ -130,5 +130,15 @@ container/onContainer with gold dot).
 - T5 done (4dccbce), route: delegated writer. RED: 9 of 10 ShiftSummaryModelTest failing against a stub (time range, connected h:mm:ss, cash/transfer split, bars relative to max, Otra grouped by label, empties hidden); GREEN after implementation. DailySummary now carries session start/end and trips; summary is a full-screen Dialog (usePlatformDefaultWidth=false, back dismisses).
 - T5.1 done (47862b5), route: delegated writer. Robolectric 4.14.1 + hilt-android-testing, real Hilt-injected ShiftService with an in-memory repository (@BindValue) whose Room lookup can be held in flight, so the fresh-instance race is exercised. Characterization tests; RED shown by mutation (removing the Room fallbacks / startForeground fails 4 of 6). `requiresForeground` removed; startInForeground is unconditional for every delivered intent.
 
+- Review slice 3 (base 9724125, T5-T5.1): medium, consent granted, lens review-reliability,
+  APPROVED and acknowledged (review-ae39b850e92d2ed2). Reviewed boundary: 3dad84e.
+  Advisory follow-ups: repository summary mapping untested; "Conectado" includes paused time
+  (product decision pending); missing session falls back to epoch 0; "Hoy" label ambiguous
+  for shifts crossing midnight.
+- Emulator crash 2026-10-17 (user): Room identity hash mismatch (expected 353a45a9..., found
+  5cf6b655...). No entity/schema change on any branch since c97c317 (only exportSchema and a
+  DAO query), so the emulator holds a database created by an older pre-baseline build with
+  the same version 1. Fix: clear the debug app's data/uninstall. Not a code regression.
+
 ## Next step
-Review slice 3, then integrate feat/screen-redesign into main. Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
+Device check after clearing app data, then integrate feat/screen-redesign into main. Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
