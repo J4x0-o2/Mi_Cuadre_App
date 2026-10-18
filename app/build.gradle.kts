@@ -63,29 +63,18 @@ android {
         getByName("test") {
             java.srcDirs("src/test/kotlin")
         }
+        getByName("debug") {
+            assets.srcDir("$projectDir/schemas")
+        }
     }
 }
 
-// Room's MigrationTestHelper reads the exported schemas from the assets Robolectric sees, which are
-// the merged assets of the variant under test. Copy them in right before each unit-test run (instead
-// of declaring them as a source set) so they are available to debug and release unit tests without
-// being packaged into the APK: they are removed again once the tests finish.
-afterEvaluate {
-    listOf("Debug", "Release").forEach { variant ->
-        val mergedAssets = tasks.named("merge${variant}Assets")
-        val copySchemas = tasks.register<Copy>("copy${variant}SchemasForUnitTests") {
-            dependsOn(mergedAssets)
-            from(layout.projectDirectory.dir("schemas"))
-            into(mergedAssets.map { (it.outputs.files.singleFile) })
-        }
-        val removeSchemas = tasks.register<Delete>("remove${variant}SchemasAfterUnitTests") {
-            delete(mergedAssets.map { it.outputs.files.singleFile.resolve("com.micuadre.app.data.local.MiCuadreDatabase") })
-        }
-        tasks.named("test${variant}UnitTest") {
-            dependsOn(copySchemas)
-            finalizedBy(removeSchemas)
-        }
-        tasks.named("package${variant}UnitTestForUnitTest") { dependsOn(copySchemas) }
+// Room's MigrationTestHelper reads the exported schemas from the assets Robolectric sees. Ship them
+// in the debug source set only (~10 KB, debug APK) and disable the release unit-test variant so no
+// test run ever needs them elsewhere. The release APK stays free of schemas.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) { builder ->
+        builder.enableUnitTest = false
     }
 }
 
@@ -96,6 +85,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.datastore.preferences)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)

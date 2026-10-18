@@ -56,7 +56,8 @@ private val RingStroke = 10.dp
 @Composable
 fun OnTripView(
     ui: HomeUiState,
-    onFinishTrip: () -> Unit
+    onFinishTrip: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val breakdown = remember(ui.trips) { DayBreakdown.from(ui.trips) }
     val startedAt = (ui.shiftState as? ShiftState.OnTrip)?.tripStartedAtMs
@@ -68,7 +69,7 @@ fun OnTripView(
             .padding(horizontal = 20.dp)
             .padding(top = 16.dp, bottom = 24.dp)
     ) {
-        ScreenHeader(status = HeaderStatus.ON_TRIP)
+        ScreenHeader(status = HeaderStatus.ON_TRIP, onSettingsClick = onOpenSettings)
         Column(
             modifier = Modifier
                 .weight(1f)
