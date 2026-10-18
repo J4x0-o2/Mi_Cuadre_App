@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation
 
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -47,8 +49,6 @@ class HomeSnapshotFlowTest {
         states.emit(ShiftState.Disconnected)
 
         assertEquals(ShiftState.Disconnected, seen.last().shiftState)
-        assertTrue(seen.last().trips.isEmpty())
-        assertEquals(0L, seen.last().totalMinor)
         assertTrue(seen.any { it.shiftState is ShiftState.OnTrip })
         job.cancel()
     }
@@ -84,6 +84,79 @@ class HomeSnapshotFlowTest {
         assertEquals(0L, result.totalMinor)
     }
 
+    @Test
+    fun `paused shift keeps the open session trips and total`() = runTest {
+        val states = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
+        val result = homeSnapshots(
+            states,
+            activeSessionId = { 7L },
+            observeTrips = { MutableStateFlow(listOf(trip(1, 100L), trip(2, 250L))) }
+        ).firstSnapshot()
+
+        assertEquals(2, result.trips.size)
+        assertEquals(350L, result.totalMinor)
+        assertTrue(result.hasOpenShift)
+    }
+
+    @Test
+    fun `disconnected without an open session is empty`() = runTest {
+        val states = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
+        val result = homeSnapshots(
+            states,
+            activeSessionId = { null },
+            observeTrips = { error("must not be called") }
+        ).firstSnapshot()
+
+        assertTrue(result.trips.isEmpty())
+        assertEquals(0L, result.totalMinor)
+        assertFalse(result.hasOpenShift)
+    }
+
     private suspend fun Flow<HomeSnapshot>.firstSnapshot(): HomeSnapshot =
         first()
+
+    @Test
+    fun `snapshots carry the connected intervals of the session`() = runTest {
+        val interval = ConnectedInterval(id = 1L, sessionId = 7L, startedAt = 1_000L, endedAt = null)
+        val intervals = MutableStateFlow(listOf(interval))
+
+        val snapshot = homeSnapshots(
+            shiftState = MutableStateFlow<ShiftState>(ShiftState.Connected(connectedSinceMs = 10L)),
+            activeSessionId = { 7L },
+            observeTrips = { MutableStateFlow(emptyList()) },
+            observeIntervals = { intervals }
+        ).first()
+
+        assertEquals(listOf(interval), snapshot.connectedIntervals)
+    }
+
+    @Test
+    fun `a new interval emission produces a new snapshot`() = runTest {
+        val intervals = MutableStateFlow(emptyList<ConnectedInterval>())
+        val seen = mutableListOf<HomeSnapshot>()
+
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            homeSnapshots(
+                shiftState = MutableStateFlow<ShiftState>(ShiftState.Connected(connectedSinceMs = 10L)),
+                activeSessionId = { 7L },
+                observeTrips = { MutableStateFlow(emptyList()) },
+                observeIntervals = { intervals }
+            ).toList(seen)
+        }
+        intervals.value = listOf(ConnectedInterval(id = 1L, sessionId = 7L, startedAt = 1_000L, endedAt = 2_000L))
+
+        assertEquals(1, seen.last().connectedIntervals.size)
+        job.cancel()
+    }
+
+    @Test
+    fun `without an open session there are no intervals`() = runTest {
+        val snapshot = homeSnapshots(
+            shiftState = MutableStateFlow<ShiftState>(ShiftState.Disconnected),
+            activeSessionId = { null },
+            observeTrips = { MutableStateFlow(emptyList()) }
+        ).first()
+
+        assertTrue(snapshot.connectedIntervals.isEmpty())
+    }
 }

@@ -81,4 +81,16 @@ object Formatters {
         val secs = s % 60
         return "%02d:%02d".format(minutes, secs)
     }
+
+    /** Formats a duration in seconds as `h:mm:ss` (hours unpadded). Negatives clamp to 0. */
+    fun durationHMSS(seconds: Long): String {
+        val s = if (seconds < 0) 0 else seconds
+        return "%d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60)
+    }
+
+    /** Trip timer: `MM:SS` under an hour, `h:mm:ss` from one hour on. */
+    fun tripTimer(seconds: Long): String {
+        val s = if (seconds < 0) 0 else seconds
+        return if (s >= 3600) durationHMSS(s) else "%02d:%02d".format(s / 60, s % 60)
+    }
 }
