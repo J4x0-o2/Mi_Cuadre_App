@@ -1,8 +1,6 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
+    <!-- System bars are transparent: MainActivity calls enableEdgeToEdge(). -->
     <style name="Theme.MiCuadre" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor" tools:targetApi="35">#0F172A</item>
-        <item name="android:navigationBarColor" tools:targetApi="35">#FAFAFA</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="35">false</item>
-        <item name="android:windowLightNavigationBar" tools:targetApi="35">true</item>
+        <item name="android:windowBackground">@color/window_background</item>
     </style>
 </resources>
