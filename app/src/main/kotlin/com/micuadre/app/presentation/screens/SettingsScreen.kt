@@ -18,9 +18,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +49,21 @@ fun SettingsScreen(
     val selected by viewModel.themeMode.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { innerPadding ->
+    val snackbarHostState = remember { SnackbarHostState() }
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val messageText = message?.let { stringResource(it.textRes) }
+    LaunchedEffect(message?.id) {
+        val current = message
+        if (current != null && messageText != null) {
+            snackbarHostState.showSnackbar(messageText)
+            viewModel.onMessageShown(current.id)
+        }
+    }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

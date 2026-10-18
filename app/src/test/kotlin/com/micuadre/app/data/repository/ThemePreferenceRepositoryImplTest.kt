@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import java.io.IOException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -66,5 +70,27 @@ class ThemePreferenceRepositoryImplTest {
     fun valueSurvivesANewRepositoryOverTheSameStore() = runBlocking {
         repository.setThemeMode(ThemeMode.SCHEDULED)
         assertEquals(ThemeMode.SCHEDULED, ThemePreferenceRepositoryImpl(dataStore).themeMode.first())
+    }
+
+    @Test
+    fun readIoErrorFallsBackToSystem() = runBlocking {
+        val failing = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow { throw IOException("corrupt") }
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences) =
+                throw IOException("unused")
+        }
+        assertEquals(ThemeMode.SYSTEM, ThemePreferenceRepositoryImpl(failing).themeMode.first())
+    }
+
+    @Test
+    fun nonIoReadErrorsAreNotSwallowed() {
+        val failing = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flow { throw IllegalStateException("bug") }
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences) =
+                throw IOException("unused")
+        }
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { ThemePreferenceRepositoryImpl(failing).themeMode.first() }
+        }
     }
 }

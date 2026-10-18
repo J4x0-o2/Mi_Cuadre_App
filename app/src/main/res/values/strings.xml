@@ -73,6 +73,7 @@
     <string name="settings_title">Ajustes</string>
     <string name="settings_open_cd">Ajustes</string>
     <string name="settings_back_cd">Volver</string>
+    <string name="settings_save_error">No se pudo guardar el ajuste. Intentá de nuevo.</string>
     <string name="settings_appearance">Apariencia</string>
     <string name="theme_system">Según el sistema</string>
     <string name="theme_system_desc">Usa el modo del teléfono</string>
