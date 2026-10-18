@@ -73,6 +73,20 @@ container/onContainer with gold dot).
 - [x] T4.2 Preselect the payment method of the last finished trip (cash default). Route: delegated writer.
 - [x] T4.3 Trip rows show start and end time ("HH:mm – HH:mm · N min"). Route: delegated writer.
 - [x] T5 Shift summary redesign (metrics + per-platform bars). Route: delegated writer.
+- [ ] T6 Summary as in-activity screen (bug from emulator, Desktop Issues "Ajuste.png"):
+      the full-screen Dialog draws "Listo" under the gesture navigation bar and leaves a dark
+      status bar strip in light mode. Render the summary as a full-screen state inside the
+      activity (insets, system bars and theme like the other screens), BackHandler for back,
+      "Turno cerrado" in Sora bold per spec, better vertical balance on tall screens.
+      Route: delegated writer (slice 4).
+- [ ] T7 "Conectado" excludes pauses (user decision 2026-10-17: only real connected time).
+      Persist connected intervals (connect/disconnect) per session in a new Room table;
+      DB version 1 -> 2 with a real `Migration` (no destructive fallback), schema 2 exported,
+      migration test (Room `MigrationTestHelper`, Robolectric). Summary and Home "Conectado"
+      sum intervals; an open interval counts up to now. Route: delegated writer (slice 4).
+- [ ] T8 Summary review follow-ups: repository summary mapping test; missing session must not
+      render epoch 1970 (neutral placeholder); shifts crossing midnight show the dates
+      instead of an ambiguous "Hoy · 22:00 – 02:00". Route: delegated writer (slice 4).
 
 ## Follow-ups carried from premium-theme review
 - Verify system bar icon contrast on a device in both modes.
@@ -93,7 +107,8 @@ container/onContainer with gold dot).
   `feat/screen-redesign` (base 2fa066e); slice PRs target it; it merges into `main` at the end.
   - Slice 1 `feat/screen-redesign-finish-flow`: T1, T2 (960d0ea, 370a73b + docs).
   - Slice 2 `feat/screen-redesign-home-trip`: T2.1, T3, T4.
-  - Slice 3 `feat/screen-redesign-summary`: T5.
+  - Slice 3 `feat/screen-redesign-summary`: T5, T5.1.
+  - Slice 4 `feat/screen-redesign-summary-fixes`: T6, T7, T8.
 
 ## Progress
 - Branch created from 3ff16eb.
