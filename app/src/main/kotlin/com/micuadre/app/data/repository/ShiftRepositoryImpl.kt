@@ -75,7 +75,7 @@ class ShiftRepositoryImpl @Inject constructor(
             tripCount = count,
             totalDurationMs = totalDurationMs,
             avgDurationMs = avg,
-            startedAt = session?.startedAt ?: 0L,
+            startedAt = session?.startedAt,
             endedAt = session?.endedAt,
             trips = trips.map { it.toDomain() },
             connectedIntervals = intervalDao.listBySession(sessionId).map { it.toDomain() }

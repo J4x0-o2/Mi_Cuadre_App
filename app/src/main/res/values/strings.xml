@@ -39,6 +39,9 @@
 
     <string name="summary_closed">Turno cerrado</string>
     <string name="summary_range">Hoy · %1$s – %2$s</string>
+    <string name="summary_range_day">%1$s · %2$s – %3$s</string>
+    <string name="summary_range_span">%1$s %2$s – %3$s %4$s</string>
+    <string name="summary_range_unknown">Horario no disponible</string>
     <string name="summary_earned">Ganaste</string>
     <string name="summary_by_platform">Por plataforma</string>
     <string name="summary_done">Listo</string>

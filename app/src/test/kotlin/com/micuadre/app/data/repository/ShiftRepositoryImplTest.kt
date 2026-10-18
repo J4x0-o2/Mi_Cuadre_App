@@ -4,11 +4,15 @@ import android.app.Application
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.data.local.MiCuadreDatabase
+import com.micuadre.app.domain.model.PaymentMethod
+import com.micuadre.app.domain.model.Platform
+import com.micuadre.app.domain.model.Trip
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -94,6 +98,70 @@ class ShiftRepositoryImplTest {
 
         assertEquals(listOf(T0), repository.observeConnectedIntervals(first).first().map { it.startedAt })
         assertEquals(listOf(T0 + HOUR), repository.observeConnectedIntervals(second).first().map { it.startedAt })
+    }
+
+    @Test
+    fun `summary maps the session boundaries, trips, totals and intervals`() = runBlocking {
+        val session = repository.createSession(startedAt = T0)
+        repository.openConnectedInterval(session, startedAt = T0)
+        repository.closeConnectedInterval(session, endedAt = T0 + HOUR)
+        repository.openConnectedInterval(session, startedAt = T0 + 2 * HOUR)
+        assertTrue(
+            repository.finishTrip(
+                session, Platform.DIDI, null, T0 + 10 * MINUTE, T0 + 30 * MINUTE, 10_000L, PaymentMethod.CASH
+            )
+        )
+        assertTrue(
+            repository.finishTrip(
+                session, Platform.OTHER, " Uber ", T0 + 40 * MINUTE, T0 + 50 * MINUTE, 5_000L, PaymentMethod.TRANSFER
+            )
+        )
+        repository.endSession(session, endedAt = T0 + 3 * HOUR)
+
+        val summary = repository.summary(session)
+
+        assertEquals(T0, summary.startedAt)
+        assertEquals(T0 + 3 * HOUR, summary.endedAt)
+        assertEquals(15_000L, summary.totalAmountMinor)
+        assertEquals(2, summary.tripCount)
+        assertEquals(30 * MINUTE, summary.totalDurationMs)
+        assertEquals(15 * MINUTE, summary.avgDurationMs)
+        assertEquals(
+            listOf(Platform.OTHER to "Uber", Platform.DIDI to null),
+            summary.trips.map { it.platform to it.platformOtherLabel }
+        )
+        assertEquals(
+            listOf<Pair<Long, Long?>>(T0 to T0 + HOUR, T0 + 2 * HOUR to T0 + 3 * HOUR),
+            summary.connectedIntervals.map { it.startedAt to it.endedAt }
+        )
+    }
+
+    @Test
+    fun `summary of an open session has no end and counts an unfinished trip as zero duration`() = runBlocking {
+        val session = repository.createSession(startedAt = T0)
+        repository.insertTrip(
+            Trip(
+                sessionId = session, platform = Platform.INDRIVER, platformOtherLabel = null,
+                startedAt = T0, endedAt = null, amountMinor = null, paymentMethod = null, id = 0L
+            )
+        )
+
+        val summary = repository.summary(session)
+
+        assertNull(summary.endedAt)
+        assertEquals(1, summary.tripCount)
+        assertEquals(0L, summary.totalAmountMinor)
+        assertEquals(0L, summary.totalDurationMs)
+    }
+
+    @Test
+    fun `summary of a session that does not exist has no start instead of epoch zero`() = runBlocking {
+        val summary = repository.summary(sessionId = 999L)
+
+        assertNull(summary.startedAt)
+        assertNull(summary.endedAt)
+        assertEquals(0, summary.tripCount)
+        assertTrue(summary.connectedIntervals.isEmpty())
     }
 
     private companion object {

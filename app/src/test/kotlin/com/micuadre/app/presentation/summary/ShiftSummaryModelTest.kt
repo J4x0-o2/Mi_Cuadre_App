@@ -33,7 +33,7 @@ class ShiftSummaryModelTest {
 
     private fun summary(
         trips: List<Trip>,
-        startedAt: Long = t0,
+        startedAt: Long? = t0,
         endedAt: Long? = t0 + 2 * hour + 5 * minute + 7_000L,
         intervals: List<ConnectedInterval> = emptyList()
     ) = DailySummary(
@@ -51,18 +51,17 @@ class ShiftSummaryModelTest {
         ConnectedInterval(sessionId = 1L, startedAt = start, endedAt = end)
 
     @Test
-    fun `shift time range uses session start and end`() {
-        val model = ShiftSummaryModel.from(summary(emptyList()), utc)
+    fun `range uses session start and end`() {
+        val model = ShiftSummaryModel.from(summary(emptyList()), utc, nowMs = t0 + 3 * hour)
 
-        assertEquals("08:00", model.startTime)
-        assertEquals("10:05", model.endTime)
+        assertEquals(SummaryRange.Today("08:00", "10:05"), model.range)
     }
 
     @Test
-    fun `end time falls back to start when the session has no end`() {
-        val model = ShiftSummaryModel.from(summary(emptyList(), endedAt = null), utc)
+    fun `a session that no longer exists shows no range instead of 1970`() {
+        val model = ShiftSummaryModel.from(summary(emptyList(), startedAt = null, endedAt = null), utc, nowMs = t0)
 
-        assertEquals("08:00", model.endTime)
+        assertEquals(SummaryRange.Unknown, model.range)
     }
 
     @Test

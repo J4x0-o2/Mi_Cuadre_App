@@ -5,7 +5,6 @@ import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.presentation.home.DayBreakdown
-import com.micuadre.app.presentation.home.clockTime
 import com.micuadre.app.util.Formatters
 import java.time.ZoneId
 
@@ -20,8 +19,7 @@ data class PlatformBar(
 
 /** Everything the shift summary screen shows, already derived and formatted. */
 data class ShiftSummaryModel(
-    val startTime: String,
-    val endTime: String,
+    val range: SummaryRange,
     val totalMinor: Long,
     val connectedText: String,
     val tripCount: Int,
@@ -30,14 +28,19 @@ data class ShiftSummaryModel(
     val bars: List<PlatformBar>
 ) {
     companion object {
-        fun from(summary: DailySummary, zone: ZoneId = ZoneId.systemDefault()): ShiftSummaryModel {
+        fun from(
+            summary: DailySummary,
+            zone: ZoneId = ZoneId.systemDefault(),
+            nowMs: Long = System.currentTimeMillis()
+        ): ShiftSummaryModel {
             val finished = summary.trips.filter { it.endedAt != null }
             val day = DayBreakdown.from(finished)
-            val end = summary.endedAt ?: summary.startedAt
-            val connectedSec = ConnectedTime.totalSeconds(summary.connectedIntervals, nowMs = end)
+            val connectedSec = ConnectedTime.totalSeconds(
+                summary.connectedIntervals,
+                nowMs = summary.endedAt ?: nowMs
+            )
             return ShiftSummaryModel(
-                startTime = clockTime(summary.startedAt, zone),
-                endTime = clockTime(end, zone),
+                range = SummaryRange.of(summary.startedAt, summary.endedAt, nowMs, zone),
                 totalMinor = day.totalMinor,
                 connectedText = Formatters.durationHMSS(connectedSec),
                 tripCount = day.tripCount,

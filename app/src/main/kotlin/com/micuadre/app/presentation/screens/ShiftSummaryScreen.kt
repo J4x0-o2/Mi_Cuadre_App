@@ -42,6 +42,7 @@ import com.micuadre.app.presentation.components.SectionLabel
 import com.micuadre.app.presentation.components.cardSurface
 import com.micuadre.app.presentation.summary.PlatformBar
 import com.micuadre.app.presentation.summary.ShiftSummaryModel
+import com.micuadre.app.presentation.summary.SummaryRange
 import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.util.Formatters
 
@@ -109,7 +110,7 @@ private fun SummaryHeader(model: ShiftSummaryModel) {
         textAlign = TextAlign.Center
     )
     Text(
-        text = stringResource(R.string.summary_range, model.startTime, model.endTime),
+        text = rangeText(model.range),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center
@@ -123,6 +124,17 @@ private fun SummaryHeader(model: ShiftSummaryModel) {
         style = MiCuadreTheme.typography.moneyLarge.copy(fontSize = 50.sp, lineHeight = 58.sp),
         color = MaterialTheme.colorScheme.primary,
         textAlign = TextAlign.Center
+    )
+}
+
+@Composable
+private fun rangeText(range: SummaryRange): String = when (range) {
+    SummaryRange.Unknown -> stringResource(R.string.summary_range_unknown)
+    is SummaryRange.Today -> stringResource(R.string.summary_range, range.start, range.end)
+    is SummaryRange.SameDay -> stringResource(R.string.summary_range_day, range.date, range.start, range.end)
+    is SummaryRange.Span -> stringResource(
+        R.string.summary_range_span,
+        range.startDate, range.startTime, range.endDate, range.endTime
     )
 }
 
