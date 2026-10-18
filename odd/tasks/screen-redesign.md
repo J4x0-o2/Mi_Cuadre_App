@@ -73,18 +73,18 @@ container/onContainer with gold dot).
 - [x] T4.2 Preselect the payment method of the last finished trip (cash default). Route: delegated writer.
 - [x] T4.3 Trip rows show start and end time ("HH:mm – HH:mm · N min"). Route: delegated writer.
 - [x] T5 Shift summary redesign (metrics + per-platform bars). Route: delegated writer.
-- [ ] T6 Summary as in-activity screen (bug from emulator, Desktop Issues "Ajuste.png"):
+- [x] T6 Summary as in-activity screen (bug from emulator, Desktop Issues "Ajuste.png"):
       the full-screen Dialog draws "Listo" under the gesture navigation bar and leaves a dark
       status bar strip in light mode. Render the summary as a full-screen state inside the
       activity (insets, system bars and theme like the other screens), BackHandler for back,
       "Turno cerrado" in Sora bold per spec, better vertical balance on tall screens.
       Route: delegated writer (slice 4).
-- [ ] T7 "Conectado" excludes pauses (user decision 2026-10-17: only real connected time).
+- [x] T7 "Conectado" excludes pauses (user decision 2026-10-17: only real connected time).
       Persist connected intervals (connect/disconnect) per session in a new Room table;
       DB version 1 -> 2 with a real `Migration` (no destructive fallback), schema 2 exported,
       migration test (Room `MigrationTestHelper`, Robolectric). Summary and Home "Conectado"
       sum intervals; an open interval counts up to now. Route: delegated writer (slice 4).
-- [ ] T8 Summary review follow-ups: repository summary mapping test; missing session must not
+- [x] T8 Summary review follow-ups: repository summary mapping test; missing session must not
       render epoch 1970 (neutral placeholder); shifts crossing midnight show the dates
       instead of an ambiguous "Hoy · 22:00 – 02:00". Route: delegated writer (slice 4).
 
@@ -155,5 +155,10 @@ container/onContainer with gold dot).
   DAO query), so the emulator holds a database created by an older pre-baseline build with
   the same version 1. Fix: clear the debug app's data/uninstall. Not a code regression.
 
+- T6 done (c45b109), route: delegated writer. Layout only (no unit-testable logic): summary is now `ShiftSummaryScreen` rendered inside the Home Scaffold (insets/edge-to-edge/theme), `BackHandler` = "Listo", title in headlineLarge (Sora bold), content spread with SpaceEvenly over a min-height scroll column, "Listo" pinned above the nav bar. assembleDebug green.
+- T7 done (d79b80e), route: delegated writer. RED: 7 ConnectedTimeTest (stub), 3 ShiftSummaryModelTest, 1 HomeModelsTest, 2 HomeSnapshotFlowTest, 2 ShiftServiceTest (interval open/close), 2 MigrationTest (backfill removed); GREEN after implementation. Room 1 -> 2 with `MIGRATION_1_2` (creates `connected_intervals`, backfills one interval per session), no destructive fallback, schema 2.json exported. Service opens an interval on connect (idempotent) and closes it on disconnect; `endSession` closes any open interval. Rehydrate leaves the open interval untouched. Debug source set carries `schemas/` as assets so MigrationTestHelper works under Robolectric.
+- T8 done (6c88c02), route: delegated writer. RED: 8 failing (SummaryRange + model range) against a stub; GREEN after implementation. Repository summary mapping covered by Robolectric in-memory Room tests (characterization). Missing session -> `startedAt = null` -> "Horario no disponible"; midnight-crossing shifts show "17 oct 22:00 – 18 oct 02:00".
+- Full suite 206 tests green, assembleDebug green.
+
 ## Next step
-Device check after clearing app data, then integrate feat/screen-redesign into main. Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
+Review slice 4, then integrate feat/screen-redesign into main. Device check pending after clearing app data (also summary insets in light/dark and Conectado with a pause). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
