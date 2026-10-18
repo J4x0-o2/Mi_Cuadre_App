@@ -166,5 +166,10 @@ container/onContainer with gold dot).
 - Full suite 206 tests green, assembleDebug green.
 - T8.1 done (24b998d build(test), 9e4baad fix(intervals)), route: delegated writer. RED: MigrationTest backfill (open interval left open), 2 ShiftServiceTest (rehydrate opens interval, disconnect on fresh service), and 4 MigrationTest failing under testReleaseUnitTest (schemas debug-only); GREEN after implementation. 208 tests green in debug and release, assembleDebug green.
 
+- Review slice 4 (base 50f5d7f, T6-T8): medium, consent granted, lens review-reliability,
+  APPROVED and acknowledged (review-0bf809aafa1eeb26). Its three warnings were fixed in T8.1.
+  T8.1 assessment (base babff72): medium, review_due=false (`under_budget`, 103 lines),
+  pending in the slice per policy. Parent spot check: testDebugUnitTest green.
+
 ## Next step
-Review slice 4, then integrate feat/screen-redesign into main. Device check pending after clearing app data (also summary insets in light/dark and Conectado with a pause). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
+Slice 4 pushed for PR into feat/screen-redesign. Device check, then integrate feat/screen-redesign into main. Device check pending after clearing app data (also summary insets in light/dark and Conectado with a pause). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
