@@ -42,6 +42,9 @@ primaryContainer). Back via BackHandler / top bar. Insets via Scaffold.
 - [x] T2 Live wiring: MainActivity/MiCuadreTheme use the resolved mode; automatic mode
       re-evaluates at the next boundary (no per-second polling). Route: delegated writer.
 - [x] T3 Settings screen + navigation from the Home header + strings. Route: delegated writer.
+- [x] T4 Review fixes: robust Room-schema test setup (debug assets + release unit tests disabled),
+      settings write-failure handling, read-failure fallback test, re-arm schedule on time zone /
+      clock change. Route: delegated writer.
 
 ## Acceptance criteria
 - Default is "Según el sistema"; choice survives app restart; automatic mode flips at 18:00
@@ -60,6 +63,7 @@ primaryContainer). Back via BackHandler / top bar. Insets via Scaffold.
 - T1 done (3f7ca01, delegated writer): ThemeMode, ThemeSchedule resolver, DataStore repo + Hilt; RED 14/14 failing (stubs) -> GREEN; repo tests over temp-file DataStore; 226 tests green.
 - T2 done (1d1d09b, delegated writer): themeStates ticker (flatMapLatest + delay to next 06:00/18:00, no polling, re-armed on resume via WhileSubscribed(0)), ThemeViewModel, edge-to-edge bars + window background follow resolved mode; RED 3/3 -> GREEN; 229 green.
 - T3 done (ef579e3, delegated writer): SettingsScreen, SettingsViewModel, header gear (44dp), strings; navigation = saved boolean in MainActivity (smaller than navigation-compose); RED 3/3 -> GREEN; 232 green, assembleDebug green.
+- T4 done (delegated writer): build 6dde412 (debug-assets schemas, release unit test disabled, copy/delete hack removed; release APK has no schemas); settings write failure a474fa3 (RED 2/6 -> GREEN, UiMessage snackbar, read-failure tests added as characterization, already green); clock change TIME_CHANGED/TIMEZONE_CHANGED re-arm (RED 2/5 -> GREEN, 770849a).
 
 ## Next step
 Review, push, device check.
