@@ -18,12 +18,16 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -52,6 +56,7 @@ class ShiftService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var totalsJob: Job? = null
+    private val intervalLock = Mutex()
     private var dayTotals = DayTotals.EMPTY
 
     private val _currentState = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
@@ -158,6 +163,8 @@ class ShiftService : Service() {
                     ?: repository.activeSession()?.id
                     ?: startShift(startedAt = now)
                 activeSessionId = sessionId
+                // Idempotent: an interval left open (service restarted while connected) is kept.
+                intervalLock.withLock { repository.openConnectedInterval(sessionId, startedAt = now) }
                 observeDayTotals(sessionId)
                 val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.Connect)
                 _currentState.value = next
@@ -181,10 +188,24 @@ class ShiftService : Service() {
         stopObservingTotals()
         // Keep the service alive but remove the foreground notification.
         stopForeground(STOP_FOREGROUND_REMOVE)
-        // The service is no longer needed when disconnected; let it die so
-        // we don't hold an empty notification slot. The controller's state
-        // survives process scope (singleton), so the UI remains accurate.
-        stopSelf()
+        val sessionId = activeSessionId
+        val now = clock.nowMs()
+        scope.launch {
+            try {
+                // Finish the write before the service can be destroyed (which cancels the scope).
+                if (sessionId != null) {
+                    withContext(NonCancellable) {
+                        intervalLock.withLock { repository.closeConnectedInterval(sessionId, endedAt = now) }
+                    }
+                }
+            } finally {
+                // The service is no longer needed when disconnected; let it die so
+                // we don't hold an empty notification slot. The controller's state
+                // survives process scope (singleton), so the UI remains accurate. A
+                // reconnect that arrived meanwhile keeps it alive (connectPending).
+                stopIfIdle()
+            }
+        }
     }
 
     private fun handleStartTrip() {

@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation
 
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
@@ -15,7 +16,9 @@ data class HomeUiState(
     val totalMinor: Long = 0L,
     /** A session is open, including a paused (Disconnected) one. */
     val hasOpenShift: Boolean = false,
-    /** Seconds since the shift started. */
+    /** Connected intervals of the open session; pauses are not counted as connected. */
+    val connectedIntervals: List<ConnectedInterval> = emptyList(),
+    /** Seconds of real connected time today. */
     val elapsedSec: Long = 0L,
     /** Seconds since the current trip started (0 when not on a trip). */
     val tripElapsedSec: Long = 0L,

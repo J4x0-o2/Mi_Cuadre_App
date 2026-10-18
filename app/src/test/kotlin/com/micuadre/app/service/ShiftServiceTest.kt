@@ -7,6 +7,7 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.di.ClockModule
 import com.micuadre.app.di.RepositoryModule
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
@@ -59,9 +60,11 @@ class ShiftServiceTest {
     @JvmField
     val shiftRepository: ShiftRepository = repository
 
+    private val fakeClock = FakeClock(now = NOW)
+
     @BindValue
     @JvmField
-    val clock: Clock = FakeClock(now = NOW)
+    val clock: Clock = fakeClock
 
     private val context: Context get() = ApplicationProvider.getApplicationContext<Application>()
 
@@ -170,6 +173,47 @@ class ShiftServiceTest {
     }
 
     @Test
+    fun `connect on a new session opens one connected interval at the connect time`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertEquals(listOf(ConnectedInterval(1L, 100L, NOW, null)), repository.intervals)
+    }
+
+    @Test
+    fun `disconnect closes the open interval and a reconnect opens a second one`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        fakeClock.now = NOW + HOUR
+        controller.deliver(ShiftServiceController.ACTION_DISCONNECT)
+
+        assertEquals(listOf(NOW to NOW + HOUR), repository.intervals.map { it.startedAt to it.endedAt })
+
+        // The paused shift is resumed by a fresh service instance, 30 min later.
+        fakeClock.now = NOW + HOUR + 30 * MINUTE
+        val resumed = newServiceWithSlowRoom()
+        resumed.deliverDuringRehydration(ShiftServiceController.ACTION_CONNECT)
+
+        assertEquals(1, repository.createdSessions)
+        assertEquals(
+            listOf<Pair<Long, Long?>>(NOW to NOW + HOUR, NOW + HOUR + 30 * MINUTE to null),
+            repository.intervals.map { it.startedAt to it.endedAt }
+        )
+    }
+
+    @Test
+    fun `rehydrating a connected session keeps its interval open and adds none`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.intervals += ConnectedInterval(1L, 7L, NOW - HOUR, null)
+
+        val controller = newService()
+        controller.deliver(null)
+
+        assertTrue(controller.get().controller.state.value is ShiftState.Connected)
+        assertEquals(listOf(ConnectedInterval(1L, 7L, NOW - HOUR, null)), repository.intervals)
+    }
+
+    @Test
     fun `a system restart without an intent is not forced into the foreground`() {
         val controller = newService()
         controller.get().onStartCommand(null, 0, 1)
@@ -180,6 +224,7 @@ class ShiftServiceTest {
 
     private companion object {
         const val HOUR = 3_600_000L
+        const val MINUTE = 60_000L
         // 2026-01-01T08:00:00Z: a plausible wall-clock epoch.
         const val NOW = 1_767_254_400_000L
     }
@@ -215,6 +260,22 @@ class InMemoryShiftRepository : ShiftRepository {
         yield()
         gate?.await()
         return sessions.lastOrNull { it.endedAt == null }
+    }
+
+    val intervals = mutableListOf<ConnectedInterval>()
+
+    override suspend fun openConnectedInterval(sessionId: Long, startedAt: Long) {
+        yield()
+        if (intervals.none { it.sessionId == sessionId && it.endedAt == null }) {
+            intervals += ConnectedInterval(intervals.size + 1L, sessionId, startedAt, endedAt = null)
+        }
+    }
+
+    override suspend fun closeConnectedInterval(sessionId: Long, endedAt: Long) {
+        yield()
+        intervals.replaceAll {
+            if (it.sessionId == sessionId && it.endedAt == null) it.copy(endedAt = endedAt) else it
+        }
     }
 
     override fun observeTrips(sessionId: Long): Flow<List<Trip>> = flowOf(emptyList())

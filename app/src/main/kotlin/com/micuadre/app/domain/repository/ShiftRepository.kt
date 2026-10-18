@@ -1,11 +1,13 @@
 package com.micuadre.app.domain.repository
 
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Session
 import com.micuadre.app.domain.model.Trip
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * Repository contract for shift + trip persistence.
@@ -34,6 +36,18 @@ interface ShiftRepository {
 
     /** Most recently finished trip across all sessions, or null if none. */
     suspend fun lastFinishedTrip(): Trip? = null
+
+    /**
+     * Opens a connected interval for [sessionId] starting at [startedAt], unless the session
+     * already has an open one (idempotent). Defaults to a no-op for repositories without intervals.
+     */
+    suspend fun openConnectedInterval(sessionId: Long, startedAt: Long) {}
+
+    /** Closes the session's open connected interval, if any, at [endedAt]. */
+    suspend fun closeConnectedInterval(sessionId: Long, endedAt: Long) {}
+
+    /** Streams the session's connected intervals, oldest first. */
+    fun observeConnectedIntervals(sessionId: Long): Flow<List<ConnectedInterval>> = flowOf(emptyList())
 
     /** Inserts a trip row. */
     suspend fun insertTrip(trip: Trip): Long

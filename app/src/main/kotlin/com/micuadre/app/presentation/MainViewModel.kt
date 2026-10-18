@@ -61,14 +61,16 @@ class MainViewModel @Inject constructor(
             homeSnapshots(
                 shiftState = observeShiftState(),
                 activeSessionId = { repository.activeSession()?.id },
-                observeTrips = repository::observeTrips
+                observeTrips = repository::observeTrips,
+                observeIntervals = repository::observeConnectedIntervals
             ).collect { snapshot ->
                 _ui.update {
                     it.copy(
                         shiftState = snapshot.shiftState,
                         trips = snapshot.trips,
                         totalMinor = snapshot.totalMinor,
-                        hasOpenShift = snapshot.hasOpenShift
+                        hasOpenShift = snapshot.hasOpenShift,
+                        connectedIntervals = snapshot.connectedIntervals
                     )
                 }
                 syncTicker(snapshot.shiftState)
@@ -125,7 +127,7 @@ class MainViewModel @Inject constructor(
         tickerJob?.cancel()
         tickerJob = viewModelScope.launch {
             while (true) {
-                val elapsed = Elapsed.of(state, clock.nowMs())
+                val elapsed = Elapsed.of(state, clock.nowMs(), _ui.value.connectedIntervals)
                 _ui.update { it.copy(elapsedSec = elapsed.shiftSec, tripElapsedSec = elapsed.tripSec) }
                 delay(1_000L)
             }

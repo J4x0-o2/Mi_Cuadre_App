@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation.summary
 
+import com.micuadre.app.domain.model.ConnectedTime
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Trip
@@ -33,7 +34,7 @@ data class ShiftSummaryModel(
             val finished = summary.trips.filter { it.endedAt != null }
             val day = DayBreakdown.from(finished)
             val end = summary.endedAt ?: summary.startedAt
-            val connectedSec = ((end - summary.startedAt) / 1000L).coerceAtLeast(0L)
+            val connectedSec = ConnectedTime.totalSeconds(summary.connectedIntervals, nowMs = end)
             return ShiftSummaryModel(
                 startTime = clockTime(summary.startedAt, zone),
                 endTime = clockTime(end, zone),

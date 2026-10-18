@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation.home
 
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
@@ -11,6 +12,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomeModelsTest {
+
+    // 2026-01-01T08:00:00Z
+    private val T0 = 1_767_254_400_000L
 
     private fun trip(
         id: Long = 1,
@@ -133,6 +137,37 @@ class HomeModelsTest {
     }
 
     // ---- ring ----
+
+    @Test
+    fun `connected seconds come from the intervals so pauses are excluded`() {
+        val intervals = listOf(
+            ConnectedInterval(sessionId = 1L, startedAt = T0, endedAt = T0 + 600_000L),
+            ConnectedInterval(sessionId = 1L, startedAt = T0 + 1_200_000L, endedAt = null)
+        )
+        val state = ShiftState.Connected(connectedSinceMs = T0 + 1_200_000L)
+
+        val e = Elapsed.of(state, nowMs = T0 + 1_500_000L, intervals = intervals)
+
+        assertEquals(600L + 300L, e.shiftSec)
+    }
+
+    @Test
+    fun `on a trip the trip seconds are unaffected by the intervals`() {
+        val intervals = listOf(ConnectedInterval(sessionId = 1L, startedAt = T0, endedAt = null))
+        val state = ShiftState.OnTrip(connectedSinceMs = T0, tripStartedAtMs = T0 + 60_000L)
+
+        val e = Elapsed.of(state, nowMs = T0 + 120_000L, intervals = intervals)
+
+        assertEquals(120L, e.shiftSec)
+        assertEquals(60L, e.tripSec)
+    }
+
+    @Test
+    fun `without intervals the shift seconds fall back to the connected since time`() {
+        val e = Elapsed.of(ShiftState.Connected(connectedSinceMs = T0), nowMs = T0 + 30_000L)
+
+        assertEquals(30L, e.shiftSec)
+    }
 
     @Test
     fun `ring shows a visible sliver at the start of a trip`() {

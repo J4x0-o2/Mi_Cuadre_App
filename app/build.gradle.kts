@@ -63,6 +63,11 @@ android {
         getByName("test") {
             java.srcDirs("src/test/kotlin")
         }
+        // Exported Room schemas feed MigrationTestHelper under Robolectric, which only sees the
+        // merged assets of the variant under test. Debug-only: release builds do not ship them.
+        getByName("debug") {
+            assets.srcDirs("$projectDir/schemas")
+        }
     }
 }
 

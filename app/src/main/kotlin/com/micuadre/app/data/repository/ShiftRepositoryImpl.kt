@@ -1,9 +1,12 @@
 package com.micuadre.app.data.repository
 
+import com.micuadre.app.data.local.dao.ConnectedIntervalDao
 import com.micuadre.app.data.local.dao.SessionDao
 import com.micuadre.app.data.local.dao.TripDao
+import com.micuadre.app.data.local.entity.ConnectedIntervalEntity
 import com.micuadre.app.data.local.entity.SessionEntity
 import com.micuadre.app.data.local.entity.TripEntity
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
@@ -18,7 +21,8 @@ import javax.inject.Singleton
 @Singleton
 class ShiftRepositoryImpl @Inject constructor(
     private val sessionDao: SessionDao,
-    private val tripDao: TripDao
+    private val tripDao: TripDao,
+    private val intervalDao: ConnectedIntervalDao
 ) : ShiftRepository {
 
     override suspend fun createSession(startedAt: Long): Long =
@@ -26,7 +30,20 @@ class ShiftRepositoryImpl @Inject constructor(
 
     override suspend fun endSession(sessionId: Long, endedAt: Long) {
         sessionDao.endSession(sessionId, endedAt)
+        // An ended session never keeps an open interval.
+        intervalDao.closeOpen(sessionId, endedAt)
     }
+
+    override suspend fun openConnectedInterval(sessionId: Long, startedAt: Long) {
+        intervalDao.openIfNone(sessionId, startedAt)
+    }
+
+    override suspend fun closeConnectedInterval(sessionId: Long, endedAt: Long) {
+        intervalDao.closeOpen(sessionId, endedAt)
+    }
+
+    override fun observeConnectedIntervals(sessionId: Long): Flow<List<ConnectedInterval>> =
+        intervalDao.observeBySession(sessionId).map { list -> list.map { it.toDomain() } }
 
     override suspend fun activeSession(): Session? =
         sessionDao.activeSession()?.toDomain()
@@ -60,7 +77,8 @@ class ShiftRepositoryImpl @Inject constructor(
             avgDurationMs = avg,
             startedAt = session?.startedAt ?: 0L,
             endedAt = session?.endedAt,
-            trips = trips.map { it.toDomain() }
+            trips = trips.map { it.toDomain() },
+            connectedIntervals = intervalDao.listBySession(sessionId).map { it.toDomain() }
         )
     }
 
@@ -92,6 +110,9 @@ class ShiftRepositoryImpl @Inject constructor(
         tripDao.insert(entity)
         return true
     }
+
+    private fun ConnectedIntervalEntity.toDomain() =
+        ConnectedInterval(id = id, sessionId = sessionId, startedAt = startedAt, endedAt = endedAt)
 
     private fun SessionEntity.toDomain() = Session(id = id, startedAt = startedAt, endedAt = endedAt)
 

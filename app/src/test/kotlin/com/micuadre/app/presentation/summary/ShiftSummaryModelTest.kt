@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation.summary
 
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
@@ -33,7 +34,8 @@ class ShiftSummaryModelTest {
     private fun summary(
         trips: List<Trip>,
         startedAt: Long = t0,
-        endedAt: Long? = t0 + 2 * hour + 5 * minute + 7_000L
+        endedAt: Long? = t0 + 2 * hour + 5 * minute + 7_000L,
+        intervals: List<ConnectedInterval> = emptyList()
     ) = DailySummary(
         totalAmountMinor = trips.sumOf { it.amountMinor ?: 0L },
         tripCount = trips.size,
@@ -41,8 +43,12 @@ class ShiftSummaryModelTest {
         avgDurationMs = 0L,
         startedAt = startedAt,
         endedAt = endedAt,
-        trips = trips
+        trips = trips,
+        connectedIntervals = intervals
     )
+
+    private fun interval(start: Long, end: Long?) =
+        ConnectedInterval(sessionId = 1L, startedAt = start, endedAt = end)
 
     @Test
     fun `shift time range uses session start and end`() {
@@ -60,15 +66,32 @@ class ShiftSummaryModelTest {
     }
 
     @Test
-    fun `connected duration is the whole shift as h mm ss`() {
-        val model = ShiftSummaryModel.from(summary(emptyList()), utc)
+    fun `connected time sums the intervals and leaves the pauses out`() {
+        val intervals = listOf(
+            interval(t0, t0 + hour),
+            interval(t0 + 90 * minute, t0 + 2 * hour)
+        )
 
-        assertEquals("2:05:07", model.connectedText)
+        val model = ShiftSummaryModel.from(summary(emptyList(), intervals = intervals), utc)
+
+        assertEquals("1:30:00", model.connectedText)
     }
 
     @Test
-    fun `connected duration never goes negative`() {
-        val model = ShiftSummaryModel.from(summary(emptyList(), endedAt = t0 - hour), utc)
+    fun `a still open interval counts up to the end of the shift`() {
+        val intervals = listOf(interval(t0, t0 + hour), interval(t0 + 2 * hour, null))
+
+        val model = ShiftSummaryModel.from(
+            summary(emptyList(), endedAt = t0 + 2 * hour + 5 * minute, intervals = intervals),
+            utc
+        )
+
+        assertEquals("1:05:00", model.connectedText)
+    }
+
+    @Test
+    fun `a shift without intervals shows zero connected time`() {
+        val model = ShiftSummaryModel.from(summary(emptyList()), utc)
 
         assertEquals("0:00:00", model.connectedText)
     }

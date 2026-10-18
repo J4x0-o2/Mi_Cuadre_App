@@ -1,5 +1,7 @@
 package com.micuadre.app.presentation.home
 
+import com.micuadre.app.domain.model.ConnectedInterval
+import com.micuadre.app.domain.model.ConnectedTime
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
@@ -74,16 +76,29 @@ object PlatformBadge {
     }
 }
 
-/** Seconds since the shift started and since the current trip started (0 when not on a trip). */
+/**
+ * Seconds connected today (real connected time when [ConnectedInterval]s are known, otherwise
+ * since the current connection) and since the current trip started (0 when not on a trip).
+ */
 data class Elapsed(val shiftSec: Long, val tripSec: Long) {
     companion object {
-        fun of(state: ShiftState, nowMs: Long): Elapsed = when (state) {
-            is ShiftState.Disconnected -> Elapsed(0L, 0L)
-            is ShiftState.Connected -> Elapsed(TimeUtils.elapsedSeconds(state.connectedSinceMs, nowMs), 0L)
-            is ShiftState.OnTrip -> Elapsed(
-                TimeUtils.elapsedSeconds(state.connectedSinceMs, nowMs),
-                TimeUtils.elapsedSeconds(state.tripStartedAtMs, nowMs)
-            )
+        fun of(
+            state: ShiftState,
+            nowMs: Long,
+            intervals: List<ConnectedInterval> = emptyList()
+        ): Elapsed {
+            fun shiftSec(connectedSinceMs: Long): Long =
+                if (intervals.isEmpty()) TimeUtils.elapsedSeconds(connectedSinceMs, nowMs)
+                else ConnectedTime.totalSeconds(intervals, nowMs)
+
+            return when (state) {
+                is ShiftState.Disconnected -> Elapsed(0L, 0L)
+                is ShiftState.Connected -> Elapsed(shiftSec(state.connectedSinceMs), 0L)
+                is ShiftState.OnTrip -> Elapsed(
+                    shiftSec(state.connectedSinceMs),
+                    TimeUtils.elapsedSeconds(state.tripStartedAtMs, nowMs)
+                )
+            }
         }
     }
 }
