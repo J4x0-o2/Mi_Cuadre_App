@@ -3,6 +3,7 @@ package com.micuadre.app.presentation.theme
 import com.micuadre.app.domain.model.ThemeMode
 import com.micuadre.app.util.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -72,5 +73,42 @@ class ThemeStateTest {
             listOf(ThemeUiState(ThemeMode.SCHEDULED, ms(10)), ThemeUiState(ThemeMode.LIGHT, ms(11))),
             seen
         )
+    }
+
+    @Test
+    fun clockChangeReArmsTheScheduleFromAFreshReading() = runTest {
+        val zoneNow = zone
+        var nowMs = ms(10)
+        val clock = object : Clock { override fun nowMs() = nowMs }
+        val changes = MutableSharedFlow<Unit>()
+        val seen = mutableListOf<ThemeUiState>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            themeStates(MutableStateFlow(ThemeMode.SCHEDULED), clock, { zoneNow }, changes).toList(seen)
+        }
+        assertEquals(listOf(ms(10)), seen.map { it.nowMs })
+        // The user moves the clock to 17:59:59.999 and the next switch must be 1 ms away.
+        nowMs = ms(18) - 1
+        changes.emit(Unit)
+        assertEquals(listOf(ms(10), ms(18) - 1), seen.map { it.nowMs })
+        nowMs = ms(18)
+        advanceTimeBy(2L)
+        assertEquals(listOf(ms(10), ms(18) - 1, ms(18)), seen.map { it.nowMs })
+        job.cancel()
+    }
+
+    @Test
+    fun clockChangeDoesNotDuplicateTheTickerOfAnOldArming() = runTest {
+        val nowMs = ms(10)
+        val clock = object : Clock { override fun nowMs() = nowMs + currentTime }
+        val changes = MutableSharedFlow<Unit>()
+        val seen = mutableListOf<ThemeUiState>()
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            themeStates(MutableStateFlow(ThemeMode.SCHEDULED), clock, { zone }, changes).toList(seen)
+        }
+        changes.emit(Unit)
+        changes.emit(Unit)
+        advanceTimeBy(8 * hour + 1) // crosses 18:00 once
+        job.cancel()
+        assertEquals(1, seen.count { it.nowMs >= ms(18) })
     }
 }

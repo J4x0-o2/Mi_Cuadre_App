@@ -1,10 +1,12 @@
 package com.micuadre.app.presentation.theme
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micuadre.app.domain.repository.ThemePreferenceRepository
 import com.micuadre.app.util.Clock
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -19,10 +21,11 @@ import javax.inject.Inject
 @HiltViewModel
 class ThemeViewModel @Inject constructor(
     repository: ThemePreferenceRepository,
-    clock: Clock
+    clock: Clock,
+    @ApplicationContext context: Context
 ) : ViewModel() {
 
     val state: StateFlow<ThemeUiState?> =
-        themeStates(repository.themeMode, clock, ZoneId::systemDefault)
+        themeStates(repository.themeMode, clock, ZoneId::systemDefault, clockChanges(context))
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(0), null)
 }
