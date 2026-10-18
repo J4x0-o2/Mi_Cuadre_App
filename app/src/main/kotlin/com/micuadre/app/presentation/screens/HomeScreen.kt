@@ -98,7 +98,13 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            when (state.shiftState) {
+            val summary = state.summary
+            if (summary != null) {
+                ShiftSummaryScreen(
+                    summary = summary,
+                    onClose = { viewModel.onSummaryDismissed() }
+                )
+            } else when (state.shiftState) {
                 is ShiftState.Disconnected -> DisconnectedView(
                     ui = state,
                     onConnect = { viewModel.onConnectTapped(notificationPermissionState(context)) },
@@ -130,13 +136,6 @@ fun HomeScreen(
                     paymentMethod = method
                 )
             }
-        )
-    }
-
-    state.summary?.let { summary ->
-        ShiftSummaryDialog(
-            summary = summary,
-            onClose = { viewModel.onSummaryDismissed() }
         )
     }
 }

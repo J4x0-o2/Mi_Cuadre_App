@@ -1,8 +1,10 @@
 package com.micuadre.app.presentation.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -11,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,8 +34,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.micuadre.app.R
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.Platform
@@ -46,50 +46,44 @@ import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.util.Formatters
 
 /**
- * Full-screen shift summary. A Dialog without the platform default width keeps the app
- * single-screen and gives back-press dismissal for free.
+ * Full-screen shift summary rendered inside the activity content (not a Dialog), so it inherits
+ * the edge-to-edge window, the host Scaffold insets and the theme like every other screen.
+ * Back does the same as "Listo".
  */
 @Composable
-fun ShiftSummaryDialog(
+fun ShiftSummaryScreen(
     summary: DailySummary,
     onClose: () -> Unit
 ) {
     val model = remember(summary) { ShiftSummaryModel.from(summary) }
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false
-        )
+    BackHandler(onBack = onClose)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 20.dp)
+            .padding(top = 16.dp, bottom = 24.dp)
     ) {
-        Box(
+        // Short screens scroll; tall ones spread the content over the available height.
+        BoxWithConstraints(
             modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .systemBarsPadding()
+                .weight(1f)
+                .fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 16.dp, bottom = 24.dp)
+                    .fillMaxWidth()
+                    .heightIn(min = maxHeight)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceEvenly
             ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    SummaryHeader(model)
-                    MetricsGrid(model)
-                    PlatformSection(model.bars)
-                }
-                DoneButton(onClick = onClose, modifier = Modifier.padding(top = 16.dp))
+                SummaryHeader(model)
+                MetricsGrid(model)
+                PlatformSection(model.bars)
             }
         }
+        DoneButton(onClick = onClose, modifier = Modifier.padding(top = 16.dp))
     }
 }
 
@@ -97,7 +91,6 @@ fun ShiftSummaryDialog(
 private fun SummaryHeader(model: ShiftSummaryModel) {
     Box(
         modifier = Modifier
-            .padding(top = 16.dp)
             .size(72.dp)
             .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
         contentAlignment = Alignment.Center
@@ -111,7 +104,7 @@ private fun SummaryHeader(model: ShiftSummaryModel) {
     }
     Text(
         text = stringResource(R.string.summary_closed),
-        style = MaterialTheme.typography.headlineMedium,
+        style = MaterialTheme.typography.headlineLarge,
         color = MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center
     )
