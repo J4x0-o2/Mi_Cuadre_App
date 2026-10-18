@@ -63,11 +63,29 @@ android {
         getByName("test") {
             java.srcDirs("src/test/kotlin")
         }
-        // Exported Room schemas feed MigrationTestHelper under Robolectric, which only sees the
-        // merged assets of the variant under test. Debug-only: release builds do not ship them.
-        getByName("debug") {
-            assets.srcDirs("$projectDir/schemas")
+    }
+}
+
+// Room's MigrationTestHelper reads the exported schemas from the assets Robolectric sees, which are
+// the merged assets of the variant under test. Copy them in right before each unit-test run (instead
+// of declaring them as a source set) so they are available to debug and release unit tests without
+// being packaged into the APK: they are removed again once the tests finish.
+afterEvaluate {
+    listOf("Debug", "Release").forEach { variant ->
+        val mergedAssets = tasks.named("merge${variant}Assets")
+        val copySchemas = tasks.register<Copy>("copy${variant}SchemasForUnitTests") {
+            dependsOn(mergedAssets)
+            from(layout.projectDirectory.dir("schemas"))
+            into(mergedAssets.map { (it.outputs.files.singleFile) })
         }
+        val removeSchemas = tasks.register<Delete>("remove${variant}SchemasAfterUnitTests") {
+            delete(mergedAssets.map { it.outputs.files.singleFile.resolve("com.micuadre.app.data.local.MiCuadreDatabase") })
+        }
+        tasks.named("test${variant}UnitTest") {
+            dependsOn(copySchemas)
+            finalizedBy(removeSchemas)
+        }
+        tasks.named("package${variant}UnitTestForUnitTest") { dependsOn(copySchemas) }
     }
 }
 
