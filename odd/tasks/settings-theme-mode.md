@@ -37,11 +37,11 @@ primaryContainer). Back via BackHandler / top bar. Insets via Scaffold.
 - Conventional Commits, no AI attribution trailers. Untracked `.idea/vcs.xml`: never commit.
 
 ## Tasks
-- [ ] T1 Theme mode domain + resolver + DataStore repository (Hilt) with tests.
+- [x] T1 Theme mode domain + resolver + DataStore repository (Hilt) with tests.
       Route: delegated writer.
-- [ ] T2 Live wiring: MainActivity/MiCuadreTheme use the resolved mode; automatic mode
+- [x] T2 Live wiring: MainActivity/MiCuadreTheme use the resolved mode; automatic mode
       re-evaluates at the next boundary (no per-second polling). Route: delegated writer.
-- [ ] T3 Settings screen + navigation from the Home header + strings. Route: delegated writer.
+- [x] T3 Settings screen + navigation from the Home header + strings. Route: delegated writer.
 
 ## Acceptance criteria
 - Default is "Según el sistema"; choice survives app restart; automatic mode flips at 18:00
@@ -57,6 +57,9 @@ primaryContainer). Back via BackHandler / top bar. Insets via Scaffold.
 
 ## Progress
 - Branch created.
+- T1 done (3f7ca01, delegated writer): ThemeMode, ThemeSchedule resolver, DataStore repo + Hilt; RED 14/14 failing (stubs) -> GREEN; repo tests over temp-file DataStore; 226 tests green.
+- T2 done (1d1d09b, delegated writer): themeStates ticker (flatMapLatest + delay to next 06:00/18:00, no polling, re-armed on resume via WhileSubscribed(0)), ThemeViewModel, edge-to-edge bars + window background follow resolved mode; RED 3/3 -> GREEN; 229 green.
+- T3 done (ef579e3, delegated writer): SettingsScreen, SettingsViewModel, header gear (44dp), strings; navigation = saved boolean in MainActivity (smaller than navigation-compose); RED 3/3 -> GREEN; 232 green, assembleDebug green.
 
 ## Next step
-T1-T3 via one delegated writer.
+Review, push, device check.
