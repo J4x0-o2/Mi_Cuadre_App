@@ -137,6 +137,11 @@ container/onContainer with gold dot).
   APPROVED and acknowledged (review-fcbf244403827a1c). Reviewed boundary: ad3f0fe.
   Triage: "unsynchronized service flags" not applicable (service scope is
   `Dispatchers.Main.immediate`, all reads/writes on main). Real follow-ups -> T5.1.
+- [x] T8.1 Fixes from review of T6-T8 ("Conectado excludes pauses"): (a) migration closes the
+      backfilled interval of open sessions and rehydrate reopens one when restoring a connected
+      shift; (b) disconnect on a fresh service resolves the session from Room and closes the
+      interval; (c) Room schemas available to every unit-test variant (debug and release).
+      Route: delegated writer.
 - [x] T5.1 Service tests (Robolectric `ServiceController` or equivalent): reconnect after a
       pause resumes the open Room session (no second session); End Shift on a fresh service
       instance ends the open session; every delivered start intent calls `startForeground`.
@@ -159,6 +164,7 @@ container/onContainer with gold dot).
 - T7 done (d79b80e), route: delegated writer. RED: 7 ConnectedTimeTest (stub), 3 ShiftSummaryModelTest, 1 HomeModelsTest, 2 HomeSnapshotFlowTest, 2 ShiftServiceTest (interval open/close), 2 MigrationTest (backfill removed); GREEN after implementation. Room 1 -> 2 with `MIGRATION_1_2` (creates `connected_intervals`, backfills one interval per session), no destructive fallback, schema 2.json exported. Service opens an interval on connect (idempotent) and closes it on disconnect; `endSession` closes any open interval. Rehydrate leaves the open interval untouched. Debug source set carries `schemas/` as assets so MigrationTestHelper works under Robolectric.
 - T8 done (6c88c02), route: delegated writer. RED: 8 failing (SummaryRange + model range) against a stub; GREEN after implementation. Repository summary mapping covered by Robolectric in-memory Room tests (characterization). Missing session -> `startedAt = null` -> "Horario no disponible"; midnight-crossing shifts show "17 oct 22:00 – 18 oct 02:00".
 - Full suite 206 tests green, assembleDebug green.
+- T8.1 done (24b998d build(test), 9e4baad fix(intervals)), route: delegated writer. RED: MigrationTest backfill (open interval left open), 2 ShiftServiceTest (rehydrate opens interval, disconnect on fresh service), and 4 MigrationTest failing under testReleaseUnitTest (schemas debug-only); GREEN after implementation. 208 tests green in debug and release, assembleDebug green.
 
 ## Next step
 Review slice 4, then integrate feat/screen-redesign into main. Device check pending after clearing app data (also summary insets in light/dark and Conectado with a pause). Device check pending for T1-T4: keyboard autofocus in the sheet, notification chronometer, Terminar carrera deep link, Iniciar carrera without opening the app, Home/on-trip layouts in dark and light.
