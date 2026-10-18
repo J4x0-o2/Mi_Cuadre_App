@@ -69,4 +69,17 @@
 
     <string name="amount_required">Ingresá el monto</string>
     <string name="other_platform_required">Indicá cuál</string>
+
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_open_cd">Ajustes</string>
+    <string name="settings_back_cd">Volver</string>
+    <string name="settings_appearance">Apariencia</string>
+    <string name="theme_system">Según el sistema</string>
+    <string name="theme_system_desc">Usa el modo del teléfono</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_light_desc">Siempre con fondo claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="theme_dark_desc">Siempre con fondo oscuro</string>
+    <string name="theme_scheduled">Automático por horario</string>
+    <string name="theme_scheduled_desc">Oscuro de 18:00 a 06:00</string>
 </resources>

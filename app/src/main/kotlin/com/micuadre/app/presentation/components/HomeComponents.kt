@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,10 +45,11 @@ fun Modifier.cardSurface(shape: Shape): Modifier = this
 /** Status shown at the right of the header. */
 enum class HeaderStatus { IN_SHIFT, ON_TRIP }
 
-/** 40dp emerald logo + app name on the left, optional status pill on the right. */
+/** 40dp emerald logo + app name on the left, optional status pill and settings button on the right. */
 @Composable
 fun ScreenHeader(
     status: HeaderStatus?,
+    onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val logoDescription = stringResource(R.string.logo_description)
@@ -90,6 +92,18 @@ fun ScreenHeader(
                 dot = MiCuadreTheme.colors.gold
             )
             null -> Unit
+        }
+        if (onSettingsClick != null) {
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier.padding(start = 8.dp).size(44.dp)
+            ) {
+                Icon(
+                    imageVector = SettingsIcon,
+                    contentDescription = stringResource(R.string.settings_open_cd),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -13,12 +13,16 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.micuadre.app.domain.model.ThemeSchedule
 import com.micuadre.app.presentation.LaunchRouting
 import com.micuadre.app.presentation.MainViewModel
 import com.micuadre.app.presentation.screens.HomeScreen
+import com.micuadre.app.presentation.screens.SettingsScreen
 import com.micuadre.app.presentation.theme.ThemeViewModel
 import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.ui.theme.colorSchemeFor
@@ -47,7 +51,13 @@ class MainActivity : ComponentActivity() {
                 )
                 ApplyWindowTheme(darkTheme)
                 MiCuadreTheme(darkTheme = darkTheme) {
-                    HomeScreen(viewModel = viewModel)
+                    // Single-level navigation: one saved flag is enough, no NavHost needed.
+                    var showSettings by rememberSaveable { mutableStateOf(false) }
+                    if (showSettings) {
+                        SettingsScreen(onBack = { showSettings = false })
+                    } else {
+                        HomeScreen(onOpenSettings = { showSettings = true }, viewModel = viewModel)
+                    }
                 }
             }
         }

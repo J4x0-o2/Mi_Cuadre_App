@@ -63,6 +63,7 @@ private val ScreenPadding = 20.dp
 
 @Composable
 fun HomeScreen(
+    onOpenSettings: () -> Unit,
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
@@ -108,17 +109,20 @@ fun HomeScreen(
                 is ShiftState.Disconnected -> DisconnectedView(
                     ui = state,
                     onConnect = { viewModel.onConnectTapped(notificationPermissionState(context)) },
-                    onEndShift = { viewModel.onEndShiftTapped() }
+                    onEndShift = { viewModel.onEndShiftTapped() },
+                    onOpenSettings = onOpenSettings
                 )
                 is ShiftState.Connected -> ConnectedView(
                     ui = state,
                     onNewTrip = { viewModel.onNewTripTapped() },
                     onDisconnect = { viewModel.onDisconnectTapped() },
-                    onEndShift = { viewModel.onEndShiftTapped() }
+                    onEndShift = { viewModel.onEndShiftTapped() },
+                    onOpenSettings = onOpenSettings
                 )
                 is ShiftState.OnTrip -> OnTripView(
                     ui = state,
-                    onFinishTrip = { viewModel.onFinishTripTapped() }
+                    onFinishTrip = { viewModel.onFinishTripTapped() },
+                    onOpenSettings = onOpenSettings
                 )
             }
         }
@@ -157,7 +161,8 @@ private fun notificationPermissionState(context: Context): NotificationPermissio
 private fun DisconnectedView(
     ui: HomeUiState,
     onConnect: () -> Unit,
-    onEndShift: () -> Unit
+    onEndShift: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val actions = HomeActions.secondary(ui.shiftState, ui.hasOpenShift)
     val paused = ui.hasOpenShift
@@ -168,7 +173,7 @@ private fun DisconnectedView(
             .padding(horizontal = ScreenPadding)
             .padding(top = 16.dp, bottom = 24.dp)
     ) {
-        ScreenHeader(status = null)
+        ScreenHeader(status = null, onSettingsClick = onOpenSettings)
         if (paused) {
             Column(
                 modifier = Modifier
@@ -234,7 +239,8 @@ private fun ConnectedView(
     ui: HomeUiState,
     onNewTrip: () -> Unit,
     onDisconnect: () -> Unit,
-    onEndShift: () -> Unit
+    onEndShift: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val actions = HomeActions.secondary(ui.shiftState, ui.hasOpenShift)
     val breakdown = remember(ui.trips) { DayBreakdown.from(ui.trips) }
@@ -248,7 +254,7 @@ private fun ConnectedView(
             .padding(horizontal = ScreenPadding)
             .padding(top = 16.dp)
     ) {
-        ScreenHeader(status = HeaderStatus.IN_SHIFT)
+        ScreenHeader(status = HeaderStatus.IN_SHIFT, onSettingsClick = onOpenSettings)
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
