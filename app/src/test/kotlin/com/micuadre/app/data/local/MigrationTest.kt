@@ -12,6 +12,7 @@ import org.robolectric.annotation.Config
 
 /** Runs the real [MIGRATION_1_2] against the exported schemas 1 and 2. */
 @RunWith(RobolectricTestRunner::class)
+// The exported schemas are copied into the unit-test assets of every variant by build.gradle.kts.
 @Config(sdk = [34])
 class MigrationTest {
 
@@ -45,10 +46,11 @@ class MigrationTest {
     }
 
     @Test
-    fun `1 to 2 backfills one interval per session spanning the whole session`() {
+    fun `1 to 2 backfills one interval per session and closes the one of an open session`() {
+        val before = System.currentTimeMillis() / 1000 * 1000 // SQL clock has second resolution
         helper.createDatabase(DB_NAME, 1).apply {
             execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
-            // An open (paused or running) session keeps an open interval.
+            // An open session (paused or running, v1 cannot tell) must not keep an open interval.
             execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (2, $START_2, NULL)")
             close()
         }
@@ -66,7 +68,10 @@ class MigrationTest {
             assertTrue(it.moveToNext())
             assertEquals(2L, it.getLong(0))
             assertEquals(START_2, it.getLong(1))
-            assertTrue(it.isNull(2))
+            // Closed at migration time, never left open.
+            assertTrue(!it.isNull(2))
+            val closedAt = it.getLong(2)
+            assertTrue("closed at $closedAt, before=$before", closedAt in before..System.currentTimeMillis())
         }
     }
 

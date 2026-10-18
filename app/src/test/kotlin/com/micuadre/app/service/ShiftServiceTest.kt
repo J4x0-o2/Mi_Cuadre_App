@@ -214,6 +214,32 @@ class ShiftServiceTest {
     }
 
     @Test
+    fun `rehydrating an open session with no open interval opens one so connected time keeps counting`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+
+        val controller = newService()
+        controller.deliver(null)
+
+        assertTrue(controller.get().controller.state.value is ShiftState.Connected)
+        assertEquals(listOf(ConnectedInterval(1L, 7L, NOW, null)), repository.intervals)
+    }
+
+    @Test
+    fun `disconnect on a fresh service while Room is in flight closes the open interval`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.intervals += ConnectedInterval(1L, 7L, NOW - HOUR, null)
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverDuringRehydration(ShiftServiceController.ACTION_DISCONNECT)
+
+        assertEquals(
+            listOf<Pair<Long, Long?>>(NOW - HOUR to NOW),
+            repository.intervals.map { it.startedAt to it.endedAt }
+        )
+        assertTrue(controller.get().controller.state.value is ShiftState.Disconnected)
+    }
+
+    @Test
     fun `a system restart without an intent is not forced into the foreground`() {
         val controller = newService()
         controller.get().onStartCommand(null, 0, 1)

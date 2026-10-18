@@ -7,6 +7,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * 1 -> 2: adds `connected_intervals` (real connected time per session, pauses excluded) and
  * backfills one interval per existing session spanning the whole session, so old shifts keep
  * the "Conectado" value they used to show.
+ *
+ * v1 cannot tell whether an open session is connected or paused, so the backfilled interval of
+ * an open session is closed at migration time (never earlier than the session start) instead of
+ * being left open. The service reopens one when it restores a connected shift (see rehydration).
  */
 val MIGRATION_1_2: Migration = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -25,7 +29,9 @@ val MIGRATION_1_2: Migration = object : Migration(1, 2) {
         )
         db.execSQL(
             "INSERT INTO connected_intervals (sessionId, startedAt, endedAt) " +
-                "SELECT id, startedAt, endedAt FROM sessions"
+                "SELECT id, startedAt, " +
+                "COALESCE(endedAt, MAX(startedAt, CAST(strftime('%s','now') AS INTEGER) * 1000)) " +
+                "FROM sessions"
         )
     }
 }

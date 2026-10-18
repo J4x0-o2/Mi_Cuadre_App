@@ -74,6 +74,9 @@ class ShiftService : Service() {
     private var connectPending = false
     private var startCommandSeen = false
 
+    /** A disconnect arrived before rehydration finished: the restored shift must stay paused. */
+    private var disconnectedBeforeRehydration = false
+
     override fun onCreate() {
         super.onCreate()
         notificationFactory = NotificationFactory(applicationContext)
@@ -95,6 +98,7 @@ class ShiftService : Service() {
                 val restored = result.state
                 if (restored is ShiftState.Disconnected) return@launch
                 if (_currentState.value !is ShiftState.Disconnected) return@launch
+                if (disconnectedBeforeRehydration) return@launch
 
                 _currentState.value = restored
                 activeSessionId = result.sessionId
@@ -104,6 +108,10 @@ class ShiftService : Service() {
                 }
                 controller.publishState(restored)
                 startInForeground(restored)
+                // Connected time keeps counting: an interval may be missing (migrated open session).
+                intervalLock.withLock {
+                    repository.openConnectedInterval(result.sessionId, startedAt = clock.nowMs())
+                }
             } catch (t: Throwable) {
                 Log.e(TAG, "Rehydration failed; staying Disconnected", t)
             } finally {
@@ -178,6 +186,24 @@ class ShiftService : Service() {
     }
 
     private fun handleDisconnect() {
+        if (_currentState.value is ShiftState.Disconnected) {
+            // Fresh instance whose rehydration may still be in flight: the shift can be open in Room.
+            if (!rehydrated) disconnectedBeforeRehydration = true
+            val now = clock.nowMs()
+            scope.launch {
+                try {
+                    val sessionId = activeSessionId ?: repository.activeSession()?.id
+                    if (sessionId != null) {
+                        withContext(NonCancellable) {
+                            intervalLock.withLock { repository.closeConnectedInterval(sessionId, endedAt = now) }
+                        }
+                    }
+                } finally {
+                    stopIfIdle()
+                }
+            }
+            return
+        }
         if (_currentState.value !is ShiftState.Connected) {
             stopIfIdle()
             return
