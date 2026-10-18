@@ -65,5 +65,10 @@ primaryContainer). Back via BackHandler / top bar. Insets via Scaffold.
 - T3 done (ef579e3, delegated writer): SettingsScreen, SettingsViewModel, header gear (44dp), strings; navigation = saved boolean in MainActivity (smaller than navigation-compose); RED 3/3 -> GREEN; 232 green, assembleDebug green.
 - T4 done (delegated writer): build 6dde412 (debug-assets schemas, release unit test disabled, copy/delete hack removed; release APK has no schemas); settings write failure a474fa3 (RED 2/6 -> GREEN, UiMessage snackbar, read-failure tests added as characterization, already green); clock change TIME_CHANGED/TIMEZONE_CHANGED re-arm (RED 2/5 -> GREEN, 770849a).
 
+- Review T1-T3 (base 4c7ae7f): medium, consent granted, lens review-reliability, APPROVED and
+  acknowledged (review-d71f218956953536). Follow-ups fixed in T4. T4 assessment (base 74a6c27):
+  medium, review_due=false (`under_budget`, 241 lines). Parent spot check:
+  `testDebugUnitTest assembleDebug` in one invocation green (was failing before T4).
+
 ## Next step
-Review, push, device check.
+Pushed. User: confirm copy for Claro/Oscuro descriptions, device check, PR.
