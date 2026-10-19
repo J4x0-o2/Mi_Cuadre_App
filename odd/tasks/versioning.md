@@ -46,4 +46,6 @@ Out of scope: release signing, Play Store, CI.
 
 ## Progress
 - 2026-10-18: doc created.
-- 2026-10-18: T1 + T2 done. Next: review, merge, tag v0.2.0 (tag push = user decision).
+- 2026-10-18: T1 + T2 done. Review: medium, granted, reliability APPROVED + acknowledged
+  (review-72bcfbbc7ac172b3). Advisory: unbounded major can overflow versionCode; 60 s rate
+  threshold boundary. User authorized merge + tag v0.2.0.
