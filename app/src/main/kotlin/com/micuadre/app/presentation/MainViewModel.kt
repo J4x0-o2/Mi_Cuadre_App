@@ -6,12 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.micuadre.app.R
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
+import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.GetLastUsedPlatformUseCase
 import com.micuadre.app.presentation.home.Elapsed
+import com.micuadre.app.domain.usecase.ObservePeriodSummaryUseCase
 import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
 import com.micuadre.app.service.ShiftError
 import com.micuadre.app.service.ShiftServiceController
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.ZoneId
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,7 +36,9 @@ class MainViewModel @Inject constructor(
     private val getDailySummary: GetDailySummaryUseCase,
     private val getLastUsedPlatform: GetLastUsedPlatformUseCase,
     private val repository: ShiftRepository,
-    private val clock: Clock
+    private val observePeriodSummary: ObservePeriodSummaryUseCase,
+    private val clock: Clock,
+    zone: ZoneId
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(HomeUiState())
@@ -47,6 +52,13 @@ class MainViewModel @Inject constructor(
         scope = viewModelScope,
         lastUsedPlatform = { getLastUsedPlatform() },
         nowMs = clock::nowMs
+    )
+    private val periodSummaries = PeriodSummaryCoordinator(
+        ui = _ui,
+        scope = viewModelScope,
+        clock = clock,
+        zone = zone,
+        observe = observePeriodSummary::invoke
     )
     private val connectCoordinator = ConnectCoordinator(startShift = controller::connect)
 
@@ -187,6 +199,10 @@ class MainViewModel @Inject constructor(
         controller.finishTrip(platform, platformOtherLabel, amountMinor, paymentMethod)
         _ui.update { it.copy(finishSheet = null, pendingMessage = null) }
     }
+
+    fun onPeriodTapped(period: Period) = periodSummaries.onPeriodTapped(period)
+
+    fun onPeriodSheetDismissed() = periodSummaries.onPeriodSheetDismissed()
 
     fun onEndShiftTapped() {
         controller.endShift()

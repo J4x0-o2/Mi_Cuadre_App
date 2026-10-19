@@ -88,6 +88,30 @@ object Formatters {
         return "%d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60)
     }
 
+    /** Formats a duration in seconds as `h:mm` (hours unpadded, seconds dropped). Negatives clamp to 0. */
+    fun durationHMM(seconds: Long): String {
+        val s = if (seconds < 0) 0 else seconds
+        return "%d:%02d".format(s / 3600, (s % 3600) / 60)
+    }
+
+    /**
+     * Short money for tight tiles: `$ 950`, `$ 38k`, `$ 38,5k`, `$ 1,2M` (one decimal at most,
+     * truncated toward zero so a figure is never overstated). Negatives clamp to `$ 0`.
+     */
+    fun moneyCompact(minor: Long): String {
+        val pesos = (minor / 100).coerceAtLeast(0L)
+        return when {
+            pesos < 1_000L -> "$ $pesos"
+            pesos < 1_000_000L -> "$ ${abbreviate(pesos, 1_000L)}k"
+            else -> "$ ${abbreviate(pesos, 1_000_000L)}M"
+        }
+    }
+
+    private fun abbreviate(value: Long, unit: Long): String {
+        val tenths = value * 10 / unit
+        return if (tenths % 10 == 0L) (tenths / 10).toString() else "${tenths / 10},${tenths % 10}"
+    }
+
     /** Trip timer: `MM:SS` under an hour, `h:mm:ss` from one hour on. */
     fun tripTimer(seconds: Long): String {
         val s = if (seconds < 0) 0 else seconds

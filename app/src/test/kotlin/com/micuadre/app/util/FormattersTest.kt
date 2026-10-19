@@ -121,6 +121,24 @@ class FormattersTest {
     }
 
     @Test
+    fun `durationHMM is hours and padded minutes without seconds`() {
+        assertEquals("0:00", Formatters.durationHMM(0L))
+        assertEquals("0:59", Formatters.durationHMM(59 * 60L + 59L))
+        assertEquals("1:05", Formatters.durationHMM(3_600L + 5 * 60L + 9L))
+        assertEquals("12:00", Formatters.durationHMM(12 * 3_600L))
+        assertEquals("0:00", Formatters.durationHMM(-3L))
+    }
+
+    @Test
+    fun `moneyCompact keeps small amounts and abbreviates thousands and millions`() {
+        assertEquals("$ 950", Formatters.moneyCompact(95_000L))
+        assertEquals("$ 38k", Formatters.moneyCompact(3_800_000L))
+        assertEquals("$ 38,5k", Formatters.moneyCompact(3_850_000L))
+        assertEquals("$ 1,2M", Formatters.moneyCompact(120_000_000L))
+        assertEquals("$ 0", Formatters.moneyCompact(0L))
+    }
+
+    @Test
     fun `tripTimer is MM_SS under an hour and H_MM_SS beyond`() {
         assertEquals("00:00", Formatters.tripTimer(0L))
         assertEquals("04:32", Formatters.tripTimer(4 * 60L + 32L))

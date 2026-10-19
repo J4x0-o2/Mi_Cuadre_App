@@ -9,8 +9,12 @@ import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.usecase.ObservePeriodSummaryUseCase
 import com.micuadre.app.util.FakeClock
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -20,6 +24,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** Period queries of the real [ShiftRepositoryImpl] and [ObservePeriodSummaryUseCase] over in-memory Room. */
 @RunWith(RobolectricTestRunner::class)
@@ -85,12 +90,25 @@ class ShiftRepositoryPeriodTest {
     @Test
     fun `observation re-emits when a trip is finished`() = runBlocking {
         val session = repository.createSession(ms("2026-10-18", "08:00"))
-        val flow = repository.observeSessionActivity(ms("2026-10-18"), ms("2026-10-19"))
-        assertEquals(0, flow.first().single().trips.size)
+        val seen = CopyOnWriteArrayList<Int>()
+        val firstEmission = CompletableDeferred<Unit>()
+        val secondEmission = CompletableDeferred<Unit>()
+        val collector = launch(Dispatchers.IO) {
+            repository.observeSessionActivity(ms("2026-10-18"), ms("2026-10-19")).collect {
+                seen.add(it.single().trips.size)
+                when (seen.size) {
+                    1 -> firstEmission.complete(Unit)
+                    2 -> secondEmission.complete(Unit)
+                }
+            }
+        }
+        withTimeout(5_000L) { firstEmission.await() }
 
         finishedTrip(session, "09:00", 5_000, PaymentMethod.TRANSFER)
+        withTimeout(5_000L) { secondEmission.await() }
+        collector.cancel()
 
-        assertEquals(1, flow.first().single().trips.size)
+        assertEquals(listOf(0, 1), seen.take(2))
     }
 
     @Test

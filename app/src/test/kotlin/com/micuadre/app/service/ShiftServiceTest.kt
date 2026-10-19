@@ -22,6 +22,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import dagger.hilt.android.testing.UninstallModules
+import java.time.ZoneId
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -65,6 +66,11 @@ class ShiftServiceTest {
     @BindValue
     @JvmField
     val clock: Clock = fakeClock
+
+    // ClockModule is uninstalled, so the time zone it provides must be bound here too.
+    @BindValue
+    @JvmField
+    val zone: ZoneId = ZoneId.of("UTC")
 
     private val context: Context get() = ApplicationProvider.getApplicationContext<Application>()
 
