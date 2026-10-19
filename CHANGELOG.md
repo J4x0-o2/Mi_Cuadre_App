@@ -13,6 +13,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The versi
   sheet, and delete (past trips keep their platform name and totals).
 
 ### Changed
+- New app icon: a white wallet with coins on black, as an adaptive vector icon with a monochrome
+  layer for themed icons (Android 13+). Legacy per-density bitmaps removed (minSdk 29).
 - Database v3: platforms live in their own table; free-text "Otra" labels were migrated into
   platforms and removed from the finish-trip sheet.
 
