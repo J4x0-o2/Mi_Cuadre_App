@@ -24,6 +24,9 @@ data class TodaySummaryModel(
     companion object {
         private const val SECONDS_PER_HOUR = 3_600L
 
+        /** Below one minute the tile reads "0:00"; a rate extrapolated from seconds is noise. */
+        private const val MIN_SECONDS_FOR_RATE = 60L
+
         /** Nothing recorded yet; shown while the summary loads. */
         val EMPTY = TodaySummaryModel(0L, 0L, 0L, 0, 0L, null, 0)
 
@@ -67,7 +70,7 @@ data class TodaySummaryModel(
             transferMinor = transferMinor,
             tripCount = tripCount,
             connectedSeconds = connectedSeconds,
-            perHourMinor = if (connectedSeconds > 0L) {
+            perHourMinor = if (connectedSeconds >= MIN_SECONDS_FOR_RATE) {
                 (totalMinor * SECONDS_PER_HOUR + connectedSeconds / 2) / connectedSeconds
             } else {
                 null

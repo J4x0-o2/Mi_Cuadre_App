@@ -1,9 +1,25 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+}
+
+// Single version source: version.properties (MAJOR.MINOR.PATCH). versionCode is derived as
+// major*10000 + minor*100 + patch; keep in sync with util/AppVersion.kt (covered by a unit test).
+val appVersionName: String = Properties()
+    .apply { rootProject.file("version.properties").inputStream().use { load(it) } }
+    .getProperty("VERSION_NAME")?.trim().orEmpty()
+val appVersionCode: Int = run {
+    val m = Regex("""(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)""").matchEntire(appVersionName)
+    val parts = m?.destructured?.toList()?.map { it.toInt() }
+    require(parts != null && parts[1] <= 99 && parts[2] <= 99) {
+        "version.properties: VERSION_NAME must be MAJOR.MINOR.PATCH with minor and patch in 0..99, got '$appVersionName'"
+    }
+    parts[0] * 10_000 + parts[1] * 100 + parts[2]
 }
 
 android {
@@ -14,8 +30,8 @@ android {
         applicationId = "com.micuadre.app"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -45,6 +61,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         unitTests {
