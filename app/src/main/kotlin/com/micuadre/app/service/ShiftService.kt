@@ -262,11 +262,7 @@ class ShiftService : Service() {
             return
         }
 
-        val platformId = if (intent.hasExtra(ShiftServiceController.EXTRA_PLATFORM_ID)) {
-            intent.getLongExtra(ShiftServiceController.EXTRA_PLATFORM_ID, 0L)
-        } else {
-            null
-        }
+        val platformId = ShiftServiceController.platformIdFrom(intent)
         val amountMinor = intent.getLongExtra(ShiftServiceController.EXTRA_AMOUNT_MINOR, 0L)
         val paymentName = intent.getStringExtra(ShiftServiceController.EXTRA_PAYMENT_METHOD)
 

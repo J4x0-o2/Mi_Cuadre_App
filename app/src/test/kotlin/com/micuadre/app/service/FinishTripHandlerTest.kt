@@ -1,5 +1,6 @@
 package com.micuadre.app.service
 
+import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Trip
@@ -84,6 +85,7 @@ private class HandlerFakeRepository(
     private val saves: Boolean,
     private val failure: Throwable? = null
 ) : ShiftRepository {
+    override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     var finishCalls = 0
 
     override suspend fun createSession(startedAt: Long): Long = 1L

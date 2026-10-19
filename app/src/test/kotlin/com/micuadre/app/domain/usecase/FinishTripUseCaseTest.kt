@@ -1,7 +1,10 @@
 package com.micuadre.app.domain.usecase
 
+import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.repository.ShiftRepository
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -98,6 +101,7 @@ private data class FinishCall(
 private class FakeShiftRepository(
     private val finishTripResult: Boolean
 ) : ShiftRepository {
+    override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     val finishCalls = mutableListOf<FinishCall>()
 
     override suspend fun createSession(startedAt: Long): Long = 1L

@@ -1,5 +1,6 @@
 package com.micuadre.app.domain.usecase
 
+import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Session
 import com.micuadre.app.domain.model.ShiftState
@@ -136,6 +137,7 @@ private class FakeRehydrateRepository(
     private val activeSessionResult: Session?,
     private val inProgressTripResult: Trip? = null
 ) : ShiftRepository {
+    override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
 
     override suspend fun createSession(startedAt: Long): Long = 1L
 

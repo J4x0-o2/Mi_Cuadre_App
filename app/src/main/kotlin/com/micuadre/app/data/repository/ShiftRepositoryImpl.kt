@@ -68,9 +68,6 @@ class ShiftRepositoryImpl @Inject constructor(
     override fun observeVisiblePlatforms(): Flow<List<Platform>> =
         platformDao.observeVisible().map { list -> list.map { it.toDomain() } }
 
-    override fun observeActivePlatforms(): Flow<List<Platform>> =
-        platformDao.observeActive().map { list -> list.map { it.toDomain() } }
-
     override fun observeSessionActivity(fromMs: Long, toMs: Long): Flow<List<SessionActivity>> =
         combine(sessionDao.observeActivityStartedBetween(fromMs, toMs), platformDao.observeAll()) { rows, platforms ->
             val names = platforms.nameById()
@@ -124,19 +121,15 @@ class ShiftRepositoryImpl @Inject constructor(
     ): Boolean {
         if (amountMinor <= 0L) return false
         if (endedAt <= startedAt) return false
-        val platform = platformDao.byId(platformId)
-        if (platform == null || platform.deletedAt != null) return false
-
-        val entity = TripEntity(
+        // The platform check lives in the insert itself, so it cannot go stale before the write.
+        return tripDao.insertIfPlatformActive(
             sessionId = sessionId,
             platformId = platformId,
             startedAt = startedAt,
             endedAt = endedAt,
             amountMinor = amountMinor,
             paymentMethod = paymentMethod.name
-        )
-        tripDao.insert(entity)
-        return true
+        ) > 0L
     }
 
     private fun ConnectedIntervalEntity.toDomain() =

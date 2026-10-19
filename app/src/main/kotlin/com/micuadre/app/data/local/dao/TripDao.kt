@@ -12,6 +12,25 @@ interface TripDao {
     @Insert
     suspend fun insert(entity: TripEntity): Long
 
+    /**
+     * Inserts the trip only while [platformId] exists and is not deleted, in a single statement so
+     * a concurrent delete cannot slip in between the check and the insert. Returns the new row id,
+     * or -1 when nothing was inserted.
+     */
+    @Query(
+        "INSERT INTO trips (sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+            "SELECT :sessionId, :platformId, :startedAt, :endedAt, :amountMinor, :paymentMethod " +
+            "WHERE EXISTS (SELECT 1 FROM platforms WHERE id = :platformId AND deletedAt IS NULL)"
+    )
+    suspend fun insertIfPlatformActive(
+        sessionId: Long,
+        platformId: Long,
+        startedAt: Long,
+        endedAt: Long,
+        amountMinor: Long,
+        paymentMethod: String
+    ): Long
+
     @Query("SELECT * FROM trips WHERE sessionId = :sessionId ORDER BY startedAt DESC")
     fun observeBySession(sessionId: Long): Flow<List<TripEntity>>
 

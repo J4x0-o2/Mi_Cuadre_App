@@ -39,6 +39,12 @@ class ShiftServiceController @Inject constructor(
         const val EXTRA_PLATFORM_ID = "extra_platform_id"
         const val EXTRA_AMOUNT_MINOR = "extra_amount_minor"
         const val EXTRA_PAYMENT_METHOD = "extra_payment_method"
+
+        /** Platform id carried by a finish-trip intent, or null when absent, mistyped or not positive. */
+        fun platformIdFrom(intent: Intent): Long? {
+            val id = intent.extras?.get(EXTRA_PLATFORM_ID) as? Long ?: return null
+            return id.takeIf { it > 0L }
+        }
     }
 
     private val _state = MutableStateFlow<ShiftState>(ShiftState.Disconnected)

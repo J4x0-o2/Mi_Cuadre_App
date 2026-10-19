@@ -189,18 +189,6 @@ class ShiftRepositoryImplTest {
     }
 
     @Test
-    fun `active platforms keep hidden ones but exclude deleted ones`() = runBlocking {
-        addPlatform("InDriver")
-        addPlatform("Hidden", visible = false)
-        addPlatform("Gone", deletedAt = T0)
-
-        val active = repository.observeActivePlatforms().first()
-
-        assertEquals(listOf("InDriver" to true, "Hidden" to false), active.map { it.name to it.visible })
-        assertTrue(active.none { it.isDeleted })
-    }
-
-    @Test
     fun `finishing a trip stores it against the platform`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")

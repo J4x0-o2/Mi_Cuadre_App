@@ -61,10 +61,7 @@ interface ShiftRepository {
      * Streams the platforms offered when finishing a trip: not deleted and visible, in creation
      * order.
      */
-    fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
-
-    /** Streams the platforms managed in Settings: not deleted (hidden ones included), in creation order. */
-    fun observeActivePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
+    fun observeVisiblePlatforms(): Flow<List<Platform>>
 
     /** Inserts a trip row. */
     suspend fun insertTrip(trip: Trip): Long
