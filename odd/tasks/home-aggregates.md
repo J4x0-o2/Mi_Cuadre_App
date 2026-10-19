@@ -47,9 +47,14 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
       Review: medium, granted, reliability APPROVED + acknowledged (review-e4bdc41fb30b1610).
       Advisory -> T3: sheet state unconsumed, paused night shift shows zeros today,
       clock/zone jumps not detected until midnight.
-- [ ] T3 Period bottom sheet (Semana/Mes tabs, bars, stats) + T2 advisories: paused shift
+- [x] T3 Period bottom sheet (Semana/Mes tabs, bars, stats) + T2 advisories: paused shift
       started yesterday shows its own shift totals; re-arm date ticker on time/zone change.
-      Route: delegated writer.
+      Route: delegated writer. Evidence: c28eb7c; RED = compile failures on new API;
+      testDebugUnitTest + assembleDebug green (parent re-ran tests: green).
+      Review: medium, granted, reliability APPROVED + acknowledged (review-c9d916406f66d73f).
+      Advisory follow-ups (non-blocking): ofOpenShift passes nowMs=0 (safe while paused, fragile),
+      open-shift wiring in HomeScreen untested, zone read from two sources (use case Provider vs
+      coordinator supplier).
 
 ## Acceptance criteria
 - Night shift 20:00-02:00 counts entirely for its start day.
@@ -67,4 +72,6 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
 ## Progress
 - 2026-10-18: doc created; branch created.
 - 2026-10-18: T1 done (92959eb), reviewed boundary = docs commit after it.
-- 2026-10-18: T2 done (b1a3376), reviewed. Next: T3.
+- 2026-10-18: T2 done (b1a3376), reviewed.
+- 2026-10-18: T3 done (c28eb7c), reviewed. All tasks done. Pending: on-device check by the user,
+  then merge feat/home-aggregates into main (user decision).
