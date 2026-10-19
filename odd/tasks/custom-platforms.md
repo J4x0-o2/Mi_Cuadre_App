@@ -43,8 +43,14 @@ Out of scope: drag reordering, per-platform colors, Sheets sync, history screen.
       Review: medium, granted, reliability APPROVED + acknowledged (review-b257a97fb6216920).
       Advisory -> T2: finishTrip platform check not atomic; intent platform-id parsing untested;
       silent empty default for observeVisiblePlatforms in the interface.
-- [ ] T2 Settings "Plataformas": list with visible toggle, create, rename, delete (confirm dialog,
+- [x] T2 Settings "Plataformas": list with visible toggle, create, rename, delete (confirm dialog,
       note that past trips are kept), validation messages. Route: delegated writer.
+      Evidence: 5645a1d (T1 advisories: atomic INSERT..SELECT WHERE EXISTS, intent id parsing tests,
+      abstract observeVisiblePlatforms) + f5ce607 (PlatformRepository, PlatformsScreen, enum nav).
+      RED = compile failures on new API (atomic finish had no behavioural RED); 386 tests green;
+      assembleDebug green (parent re-ran). Review: medium, granted, reliability APPROVED +
+      acknowledged (review-2beb31e08b19dc50). Advisory: SQLite failure path untested; stale
+      dialog settle in PlatformsViewModel:104-118 (WARNING).
 
 ## Acceptance criteria
 - Upgrading a v2 DB keeps every trip, total and name (OTHER labels become platforms).
@@ -61,4 +67,6 @@ Out of scope: drag reordering, per-platform colors, Sheets sync, history screen.
 
 ## Progress
 - 2026-10-19: doc created.
-- 2026-10-19: T1 done (a0e8c0f), reviewed. Next: T2.
+- 2026-10-19: T1 done (a0e8c0f), reviewed.
+- 2026-10-19: T2 done (5645a1d, f5ce607), reviewed. Next: user checks on emulator (v2->v3
+  migration on real data), then merge decision.
