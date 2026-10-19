@@ -26,8 +26,12 @@ Out of scope: release signing, Play Store, CI.
 - Conventional Commits, no AI attribution. Never commit `.codegraph/` or `.idea/`.
 
 ## Tasks
-- [ ] T1 Version source + derived versionCode + BuildConfig + Settings "ACERCA DE" + CHANGELOG.
-      Route: delegated writer (2+ non-trivial files).
+- [x] T1 Version source + derived versionCode + BuildConfig + Settings "ACERCA DE" + CHANGELOG.
+      Route: delegated writer (2+ non-trivial files). Evidence: ea03750; RED = AppVersionTest
+      compile failure; testDebugUnitTest + assembleDebug green; merged manifest 200 / 0.2.0;
+      invalid 0.100.0 fails the build.
+- [x] T2 Fix: "Por hora" showed $ 514,2k with "Conectado 0:00" (rate from <60 s), found while
+      taking screenshots. Route: inline (1 file + test). RED observed (new test failed), GREEN.
 
 ## Acceptance criteria
 - Changing only `version.properties` changes versionName/versionCode; Settings shows "Versión 0.2.0";
@@ -41,4 +45,5 @@ Out of scope: release signing, Play Store, CI.
 - Branch `feat/versioning` from `main` (84d84a0). Forecast ~150-250 lines -> single PR/merge.
 
 ## Progress
-- 2026-10-18: doc created. Next: T1.
+- 2026-10-18: doc created.
+- 2026-10-18: T1 + T2 done. Next: review, merge, tag v0.2.0 (tag push = user decision).
