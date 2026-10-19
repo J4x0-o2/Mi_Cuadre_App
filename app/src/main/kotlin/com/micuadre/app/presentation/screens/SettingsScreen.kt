@@ -2,17 +2,20 @@ package com.micuadre.app.presentation.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -44,9 +48,11 @@ import com.micuadre.app.presentation.settings.ThemeOptions
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenPlatforms: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val selected by viewModel.themeMode.collectAsStateWithLifecycle()
+    val platformCounts by viewModel.platformCounts.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -106,6 +112,22 @@ fun SettingsScreen(
                 }
             }
             SectionLabel(
+                text = stringResource(R.string.settings_platforms),
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
+            )
+            PlatformsRow(
+                summary = platformCounts?.let { counts ->
+                    if (counts.total == 0) {
+                        stringResource(R.string.settings_platforms_none)
+                    } else {
+                        pluralStringResource(
+                            R.plurals.settings_platforms_summary, counts.visible, counts.visible, counts.total
+                        )
+                    }
+                },
+                onClick = onOpenPlatforms
+            )
+            SectionLabel(
                 text = stringResource(R.string.settings_about),
                 modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
             )
@@ -129,6 +151,41 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PlatformsRow(summary: String?, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .cardSurface(MaterialTheme.shapes.large)
+            .clip(MaterialTheme.shapes.large)
+            .clickable(role = Role.Button, onClick = onClick)
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.settings_platforms_manage),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (summary != null) {
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

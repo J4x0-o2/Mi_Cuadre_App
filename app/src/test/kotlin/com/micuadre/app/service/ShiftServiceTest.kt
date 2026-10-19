@@ -7,10 +7,10 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.di.ClockModule
 import com.micuadre.app.di.RepositoryModule
+import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Session
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
@@ -264,6 +264,7 @@ class ShiftServiceTest {
 
 /** In-memory [ShiftRepository] that suspends once per call, like a Room query hopping threads. */
 class InMemoryShiftRepository : ShiftRepository {
+    override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     val sessions = mutableListOf<Session>()
     var createdSessions = 0
     val endedSessions = mutableListOf<Pair<Long, Long>>()
@@ -324,8 +325,7 @@ class InMemoryShiftRepository : ShiftRepository {
 
     override suspend fun finishTrip(
         sessionId: Long,
-        platform: Platform,
-        platformOtherLabel: String?,
+        platformId: Long,
         startedAt: Long,
         endedAt: Long,
         amountMinor: Long,

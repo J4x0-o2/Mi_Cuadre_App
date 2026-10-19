@@ -1,7 +1,7 @@
 package com.micuadre.app.domain.usecase
 
-import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
+import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Session
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
@@ -53,7 +53,7 @@ class RehydrateShiftStateUseCaseTest {
     @Test
     fun `legacy session with an open trip is also closed and not resumed`() = runTest {
         val legacyTrip = Trip(
-            id = 2L, sessionId = 7L, platform = Platform.DIDI, platformOtherLabel = null,
+            id = 2L, sessionId = 7L, platformId = 2L, platformName = "Didi",
             startedAt = LEGACY_START + 1_000L, endedAt = null, amountMinor = null, paymentMethod = null
         )
         val repo = FakeRehydrateRepository(
@@ -111,8 +111,7 @@ class RehydrateShiftStateUseCaseTest {
         val inProgress = Trip(
             id = 1L,
             sessionId = 5L,
-            platform = Platform.INDRIVER,
-            platformOtherLabel = null,
+            platformId = 1L, platformName = "InDriver",
             startedAt = TRIP_START,
             endedAt = null,
             amountMinor = null,
@@ -138,6 +137,7 @@ private class FakeRehydrateRepository(
     private val activeSessionResult: Session?,
     private val inProgressTripResult: Trip? = null
 ) : ShiftRepository {
+    override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
 
     override suspend fun createSession(startedAt: Long): Long = 1L
 
@@ -162,8 +162,7 @@ private class FakeRehydrateRepository(
 
     override suspend fun finishTrip(
         sessionId: Long,
-        platform: Platform,
-        platformOtherLabel: String?,
+        platformId: Long,
         startedAt: Long,
         endedAt: Long,
         amountMinor: Long,

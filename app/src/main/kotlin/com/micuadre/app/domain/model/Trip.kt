@@ -9,8 +9,9 @@ package com.micuadre.app.domain.model
 data class Trip(
     val id: Long,
     val sessionId: Long,
-    val platform: Platform,
-    val platformOtherLabel: String?,
+    val platformId: Long,
+    /** Current name of the platform, also for platforms deleted after the trip. */
+    val platformName: String,
     val startedAt: Long,
     val endedAt: Long?,
     val amountMinor: Long?,

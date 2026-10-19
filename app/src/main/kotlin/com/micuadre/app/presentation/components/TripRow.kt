@@ -18,7 +18,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.micuadre.app.R
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.presentation.home.TripRowModel
 import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.util.Formatters
@@ -29,11 +28,6 @@ fun TripRow(
     model: TripRowModel,
     modifier: Modifier = Modifier
 ) {
-    val platformLabel = when (model.platform) {
-        Platform.INDRIVER -> stringResource(R.string.indriver)
-        Platform.DIDI -> stringResource(R.string.didi)
-        Platform.OTHER -> model.otherLabel ?: stringResource(R.string.other)
-    }
     val paymentLabel = when (model.payment) {
         PaymentMethod.CASH -> stringResource(R.string.cash)
         PaymentMethod.TRANSFER -> stringResource(R.string.transfer)
@@ -62,7 +56,7 @@ fun TripRow(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = platformLabel,
+                text = model.platformName,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )

@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micuadre.app.R
 import com.micuadre.app.domain.model.DailySummary
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.presentation.components.MetricTile
 import com.micuadre.app.presentation.components.SectionLabel
 import com.micuadre.app.presentation.components.cardSurface
@@ -191,18 +190,13 @@ private fun PlatformSection(bars: List<PlatformBar>) {
 
 @Composable
 private fun PlatformBarRow(bar: PlatformBar) {
-    val name = when (bar.platform) {
-        Platform.INDRIVER -> stringResource(R.string.indriver)
-        Platform.DIDI -> stringResource(R.string.didi)
-        Platform.OTHER -> bar.otherLabel ?: stringResource(R.string.other)
-    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = name,
+                text = bar.name,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,

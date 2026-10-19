@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
 /**
  * Room row for a single trip (carrera).
  *
- * Foreign key cascades on delete: deleting a session removes its trips.
+ * Deleting a session cascades to its trips; the platform reference does not cascade.
  */
 @Entity(
     tableName = "trips",
@@ -18,16 +18,21 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["sessionId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        // No cascade: a platform row that trips point at can never be hard deleted.
+        ForeignKey(
+            entity = PlatformEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["platformId"]
         )
     ],
-    indices = [Index("sessionId")]
+    indices = [Index("sessionId"), Index("platformId")]
 )
 data class TripEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
     val sessionId: Long,
-    val platform: String,
-    val platformOtherLabel: String?,
+    val platformId: Long,
     val startedAt: Long,
     val endedAt: Long?,
     val amountMinor: Long?,

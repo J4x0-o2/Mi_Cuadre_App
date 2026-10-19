@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.micuadre.app.BuildConfig
 import com.micuadre.app.R
+import com.micuadre.app.domain.model.PlatformCounts
 import com.micuadre.app.domain.model.ThemeMode
+import com.micuadre.app.domain.repository.PlatformRepository
 import com.micuadre.app.domain.repository.ThemePreferenceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.micuadre.app.presentation.UiMessage
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -22,11 +25,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: ThemePreferenceRepository
+    private val repository: ThemePreferenceRepository,
+    platforms: PlatformRepository
 ) : ViewModel() {
 
     val themeMode: StateFlow<ThemeMode> = repository.themeMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.SYSTEM)
+
+    /** Visible-of-total platform counts for the Platforms row; null until the first load. */
+    val platformCounts: StateFlow<PlatformCounts?> = platforms.observeActive()
+        .map { PlatformCounts.of(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Installed version for the "About" section, e.g. "0.2.0" or "0.2.0 (debug)". */
     val versionLabel: String = AppVersion.label(BuildConfig.VERSION_NAME, BuildConfig.BUILD_TYPE)

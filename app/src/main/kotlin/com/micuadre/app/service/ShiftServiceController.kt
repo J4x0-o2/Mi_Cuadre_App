@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.core.content.ContextCompat
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -37,10 +36,15 @@ class ShiftServiceController @Inject constructor(
         const val ACTION_FINISH_TRIP = "com.micuadre.app.action.FINISH_TRIP"
         const val ACTION_END_SHIFT = "com.micuadre.app.action.END_SHIFT"
 
-        const val EXTRA_PLATFORM = "extra_platform"
-        const val EXTRA_PLATFORM_OTHER = "extra_platform_other"
+        const val EXTRA_PLATFORM_ID = "extra_platform_id"
         const val EXTRA_AMOUNT_MINOR = "extra_amount_minor"
         const val EXTRA_PAYMENT_METHOD = "extra_payment_method"
+
+        /** Platform id carried by a finish-trip intent, or null when absent, mistyped or not positive. */
+        fun platformIdFrom(intent: Intent): Long? {
+            val id = intent.extras?.get(EXTRA_PLATFORM_ID) as? Long ?: return null
+            return id.takeIf { it > 0L }
+        }
     }
 
     private val _state = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
@@ -74,14 +78,12 @@ class ShiftServiceController @Inject constructor(
     fun startTrip() = sendAction(ACTION_START_TRIP)
 
     fun finishTrip(
-        platform: Platform,
-        platformOther: String?,
+        platformId: Long,
         amountMinor: Long,
         method: PaymentMethod
     ) {
         val extras = Bundle().apply {
-            putString(EXTRA_PLATFORM, platform.name)
-            putString(EXTRA_PLATFORM_OTHER, platformOther)
+            putLong(EXTRA_PLATFORM_ID, platformId)
             putLong(EXTRA_AMOUNT_MINOR, amountMinor)
             putString(EXTRA_PAYMENT_METHOD, method.name)
         }

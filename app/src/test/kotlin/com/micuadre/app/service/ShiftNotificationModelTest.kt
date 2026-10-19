@@ -1,7 +1,6 @@
 package com.micuadre.app.service
 
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
 import org.junit.Assert.assertEquals
@@ -74,7 +73,7 @@ class ShiftNotificationModelTest {
     @Test
     fun `day totals sum amounts and count finished trips`() {
         fun trip(id: Long, amount: Long?, ended: Long?) = Trip(
-            id = id, sessionId = 1L, platform = Platform.DIDI, platformOtherLabel = null,
+            id = id, sessionId = 1L, platformId = 2L, platformName = "Didi",
             startedAt = 1L, endedAt = ended, amountMinor = amount, paymentMethod = PaymentMethod.CASH
         )
 

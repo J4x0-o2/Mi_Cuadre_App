@@ -1,8 +1,8 @@
 package com.micuadre.app.service
 
+import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.FinishTripUseCase
@@ -17,16 +17,14 @@ class FinishTripHandlerTest {
     private fun handler(repo: HandlerFakeRepository) = FinishTripHandler(FinishTripUseCase(repo))
 
     private suspend fun FinishTripHandler.run(
-        platform: String? = "DIDI",
-        other: String? = null,
+        platformId: Long? = 2L,
         amount: Long = 5_000L,
         payment: String? = "CASH"
     ) = handle(
         sessionId = 1L,
         tripStartedAt = 1_000L,
         endedAt = 2_000L,
-        platformName = platform,
-        platformOtherLabel = other,
+        platformId = platformId,
         amountMinor = amount,
         paymentName = payment
     )
@@ -39,16 +37,24 @@ class FinishTripHandlerTest {
     }
 
     @Test
-    fun `unknown platform is rejected without touching storage`() = runTest {
+    fun `unknown or deleted platform is rejected by the repository so the trip stays open`() = runTest {
+        val repo = HandlerFakeRepository(saves = false)
+        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platformId = 99L))
+        assertEquals(1, repo.finishCalls)
+    }
+
+    @Test
+    fun `non-positive platform id is rejected without touching storage`() = runTest {
         val repo = HandlerFakeRepository(saves = true)
-        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platform = "NOPE"))
+        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platformId = 0L))
+        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platformId = -3L))
         assertEquals(0, repo.finishCalls)
     }
 
     @Test
     fun `missing platform or payment is rejected`() = runTest {
         val repo = HandlerFakeRepository(saves = true)
-        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platform = null))
+        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platformId = null))
         assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(payment = null))
         assertEquals(0, repo.finishCalls)
     }
@@ -57,13 +63,6 @@ class FinishTripHandlerTest {
     fun `non-positive amount is rejected`() = runTest {
         val repo = HandlerFakeRepository(saves = true)
         assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(amount = 0L))
-        assertEquals(0, repo.finishCalls)
-    }
-
-    @Test
-    fun `OTHER platform with blank label is rejected by the use case`() = runTest {
-        val repo = HandlerFakeRepository(saves = true)
-        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platform = "OTHER", other = " "))
         assertEquals(0, repo.finishCalls)
     }
 
@@ -86,6 +85,7 @@ private class HandlerFakeRepository(
     private val saves: Boolean,
     private val failure: Throwable? = null
 ) : ShiftRepository {
+    override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     var finishCalls = 0
 
     override suspend fun createSession(startedAt: Long): Long = 1L
@@ -97,8 +97,7 @@ private class HandlerFakeRepository(
     override suspend fun totalMinor(sessionId: Long) = 0L
     override suspend fun finishTrip(
         sessionId: Long,
-        platform: Platform,
-        platformOtherLabel: String?,
+        platformId: Long,
         startedAt: Long,
         endedAt: Long,
         amountMinor: Long,

@@ -57,6 +57,12 @@ interface ShiftRepository {
      */
     fun observeSessionActivity(fromMs: Long, toMs: Long): Flow<List<SessionActivity>> = flowOf(emptyList())
 
+    /**
+     * Streams the platforms offered when finishing a trip: not deleted and visible, in creation
+     * order.
+     */
+    fun observeVisiblePlatforms(): Flow<List<Platform>>
+
     /** Inserts a trip row. */
     suspend fun insertTrip(trip: Trip): Long
 
@@ -67,13 +73,13 @@ interface ShiftRepository {
     suspend fun totalMinor(sessionId: Long): Long
 
     /**
-     * Validates and persists a finished trip.
-     * Returns true on success, false on validation failure.
+     * Validates and persists a finished trip on [platformId].
+     * Returns true on success, false on validation failure (including a platform that does not
+     * exist or was deleted).
      */
     suspend fun finishTrip(
         sessionId: Long,
-        platform: Platform,
-        platformOtherLabel: String?,
+        platformId: Long,
         startedAt: Long,
         endedAt: Long,
         amountMinor: Long,

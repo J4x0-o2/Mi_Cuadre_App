@@ -262,8 +262,7 @@ class ShiftService : Service() {
             return
         }
 
-        val platformName = intent.getStringExtra(ShiftServiceController.EXTRA_PLATFORM)
-        val platformOther = intent.getStringExtra(ShiftServiceController.EXTRA_PLATFORM_OTHER)
+        val platformId = ShiftServiceController.platformIdFrom(intent)
         val amountMinor = intent.getLongExtra(ShiftServiceController.EXTRA_AMOUNT_MINOR, 0L)
         val paymentName = intent.getStringExtra(ShiftServiceController.EXTRA_PAYMENT_METHOD)
 
@@ -273,8 +272,7 @@ class ShiftService : Service() {
                 sessionId = sessionId,
                 tripStartedAt = tripStart,
                 endedAt = now,
-                platformName = platformName,
-                platformOtherLabel = platformOther,
+                platformId = platformId,
                 amountMinor = amountMinor,
                 paymentName = paymentName
             )

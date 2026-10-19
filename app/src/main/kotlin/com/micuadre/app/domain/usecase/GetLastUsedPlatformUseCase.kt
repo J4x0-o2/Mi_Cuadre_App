@@ -1,33 +1,28 @@
 package com.micuadre.app.domain.usecase
 
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PlatformSelection
 import com.micuadre.app.domain.repository.ShiftRepository
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 /**
  * Selection to preselect in the finish-trip sheet: platform and payment method of the most
- * recent finished trip. Falls back to InDriver (also when its "Otra" label is lost) and to
+ * recent finished trip. The platform falls back to the first visible one when the last used
+ * platform is hidden or deleted (null when none is visible); the payment method falls back to
  * cash when there is no previous trip or it has no payment method.
  */
 class GetLastUsedPlatformUseCase @Inject constructor(
     private val repository: ShiftRepository
 ) {
     suspend operator fun invoke(): PlatformSelection {
-        val last = repository.lastFinishedTrip() ?: return DEFAULT
-        val payment = last.paymentMethod ?: DEFAULT.paymentMethod
-        return when (last.platform) {
-            Platform.OTHER -> {
-                val label = last.platformOtherLabel?.trim()
-                if (label.isNullOrEmpty()) DEFAULT.copy(paymentMethod = payment)
-                else PlatformSelection(Platform.OTHER, label, payment)
-            }
-            else -> PlatformSelection(last.platform, paymentMethod = payment)
-        }
-    }
-
-    private companion object {
-        val DEFAULT = PlatformSelection(Platform.INDRIVER, paymentMethod = PaymentMethod.CASH)
+        val visible = repository.observeVisiblePlatforms().first()
+        val last = repository.lastFinishedTrip()
+        val platformId = last?.platformId?.takeIf { id -> visible.any { it.id == id } }
+            ?: visible.firstOrNull()?.id
+        return PlatformSelection(
+            platformId = platformId,
+            paymentMethod = last?.paymentMethod ?: PaymentMethod.CASH
+        )
     }
 }

@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation
 
+import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PlatformSelection
 import com.micuadre.app.domain.model.ShiftState
@@ -21,12 +22,14 @@ class FinishSheetCoordinatorTest {
 
     private val connected = ShiftState.Connected(connectedSinceMs = 1_000L)
     private val onTrip = ShiftState.OnTrip(connectedSinceMs = 1_000L, tripStartedAtMs = 5_000L)
-    private val selection = PlatformSelection(Platform.DIDI)
+    private val selection = PlatformSelection(platformId = 2L)
+    private val platforms = listOf(Platform(1L, "InDriver"), Platform(2L, "Didi"))
 
     private class Fixture(
         scope: TestScope,
         initial: ShiftState,
-        val lookup: suspend () -> PlatformSelection
+        val lookup: suspend () -> PlatformSelection,
+        val platforms: List<Platform>
     ) {
         val ui = MutableStateFlow(HomeUiState(shiftState = initial))
         var lookups = 0
@@ -34,6 +37,7 @@ class FinishSheetCoordinatorTest {
             ui = ui,
             scope = scope,
             lastUsedPlatform = { lookups++; lookup() },
+            visiblePlatforms = { platforms },
             nowMs = { 9_000L }
         )
 
@@ -45,7 +49,7 @@ class FinishSheetCoordinatorTest {
     }
 
     private fun TestScope.fixture(initial: ShiftState, lookup: suspend () -> PlatformSelection = { selection }) =
-        Fixture(this, initial, lookup)
+        Fixture(this, initial, lookup, platforms)
 
     @Test
     fun `request while on a trip opens the populated sheet`() = runTest {
@@ -59,6 +63,21 @@ class FinishSheetCoordinatorTest {
         assertEquals(5_000L, sheet!!.tripStartedAtMs)
         assertEquals(9_000L, sheet.tripEndedAtMs)
         assertEquals(selection, sheet.initialSelection)
+        assertEquals(platforms, sheet.platforms)
+    }
+
+    @Test
+    fun `sheet opens with an empty platform list when none is visible`() = runTest {
+        val f = Fixture(this, onTrip, { PlatformSelection() }, emptyList())
+
+        f.coordinator.onFinishTapped()
+        advanceUntilIdle()
+
+        val sheet = f.ui.value.finishSheet
+        assertNotNull(sheet)
+        assertEquals(emptyList<Platform>(), sheet!!.platforms)
+        assertNull(sheet.initialSelection.platformId)
+        assertEquals(PaymentMethod.CASH, sheet.initialSelection.paymentMethod)
     }
 
     @Test

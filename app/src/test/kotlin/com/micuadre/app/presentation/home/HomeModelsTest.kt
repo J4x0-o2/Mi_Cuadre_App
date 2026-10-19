@@ -2,7 +2,6 @@ package com.micuadre.app.presentation.home
 
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
 import java.time.ZoneOffset
@@ -18,13 +17,13 @@ class HomeModelsTest {
 
     private fun trip(
         id: Long = 1,
-        platform: Platform = Platform.DIDI,
-        label: String? = null,
+        platformId: Long = 2L,
+        platformName: String = "Didi",
         start: Long = 0L,
         end: Long? = 600_000L,
         amount: Long? = 100_00L,
         payment: PaymentMethod? = PaymentMethod.CASH
-    ) = Trip(id, 1L, platform, label, start, end, amount, payment)
+    ) = Trip(id, 1L, platformId, platformName, start, end, amount, payment)
 
     // ---- day breakdown ----
 
@@ -86,14 +85,14 @@ class HomeModelsTest {
     }
 
     @Test
-    fun `row carries platform label payment and amount`() {
+    fun `row carries platform name badge payment and amount`() {
         val row = TripRowModel.from(
-            trip(platform = Platform.OTHER, label = "Uber", amount = 9_000, payment = PaymentMethod.TRANSFER),
+            trip(platformId = 7L, platformName = "Uber", amount = 9_000, payment = PaymentMethod.TRANSFER),
             ZoneOffset.UTC
         )
 
-        assertEquals(Platform.OTHER, row.platform)
-        assertEquals("Uber", row.otherLabel)
+        assertEquals("Uber", row.platformName)
+        assertEquals("U", row.badge)
         assertEquals(PaymentMethod.TRANSFER, row.payment)
         assertEquals(9_000L, row.amountMinor)
     }
@@ -101,12 +100,17 @@ class HomeModelsTest {
     // ---- badge ----
 
     @Test
-    fun `badge text per platform`() {
-        assertEquals("iD", PlatformBadge.text(Platform.INDRIVER, null))
-        assertEquals("D", PlatformBadge.text(Platform.DIDI, null))
-        assertEquals("U", PlatformBadge.text(Platform.OTHER, " uber "))
-        assertEquals("O", PlatformBadge.text(Platform.OTHER, null))
-        assertEquals("O", PlatformBadge.text(Platform.OTHER, "  "))
+    fun `badge is the uppercase initial of the platform name`() {
+        assertEquals("I", PlatformBadge.text("InDriver"))
+        assertEquals("D", PlatformBadge.text("Didi"))
+        assertEquals("U", PlatformBadge.text(" uber "))
+        assertEquals("Ñ", PlatformBadge.text("ñandú"))
+    }
+
+    @Test
+    fun `badge falls back to a question mark for a blank name`() {
+        assertEquals("?", PlatformBadge.text(""))
+        assertEquals("?", PlatformBadge.text("   "))
     }
 
     // ---- elapsed ----

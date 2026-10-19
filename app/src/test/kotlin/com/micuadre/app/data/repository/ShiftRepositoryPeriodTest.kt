@@ -4,9 +4,9 @@ import android.app.Application
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.data.local.MiCuadreDatabase
+import com.micuadre.app.data.local.entity.PlatformEntity
 import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.usecase.ObservePeriodSummaryUseCase
 import com.micuadre.app.util.FakeClock
 import kotlinx.coroutines.CompletableDeferred
@@ -34,6 +34,7 @@ class ShiftRepositoryPeriodTest {
     private val zone = ZoneId.of("America/Bogota")
     private lateinit var db: MiCuadreDatabase
     private lateinit var repository: ShiftRepositoryImpl
+    private var didiId = 0L
 
     private fun ms(date: String, time: String = "00:00"): Long =
         LocalDateTime.parse("${date}T$time").atZone(zone).toInstant().toEpochMilli()
@@ -44,7 +45,10 @@ class ShiftRepositoryPeriodTest {
             ApplicationProvider.getApplicationContext<Application>(),
             MiCuadreDatabase::class.java
         ).allowMainThreadQueries().build()
-        repository = ShiftRepositoryImpl(db.sessionDao(), db.tripDao(), db.connectedIntervalDao())
+        repository = ShiftRepositoryImpl(db.sessionDao(), db.tripDao(), db.connectedIntervalDao(), db.platformDao())
+        didiId = runBlocking {
+            db.platformDao().insert(PlatformEntity(name = "Didi", visible = true, createdAt = 0L))
+        }
     }
 
     @After
@@ -54,7 +58,7 @@ class ShiftRepositoryPeriodTest {
 
     private suspend fun finishedTrip(session: Long, at: String, amount: Long, method: PaymentMethod) {
         repository.finishTrip(
-            session, Platform.DIDI, null, ms("2026-10-18", at), ms("2026-10-18", at) + 60_000L, amount, method
+            session, didiId, ms("2026-10-18", at), ms("2026-10-18", at) + 60_000L, amount, method
         )
     }
 

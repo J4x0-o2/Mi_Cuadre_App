@@ -1,7 +1,6 @@
 package com.micuadre.app.service
 
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.usecase.FinishTripUseCase
 import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
@@ -28,20 +27,17 @@ class FinishTripHandler @Inject constructor(
         sessionId: Long,
         tripStartedAt: Long,
         endedAt: Long,
-        platformName: String?,
-        platformOtherLabel: String?,
+        platformId: Long?,
         amountMinor: Long,
         paymentName: String?
     ): Outcome {
-        val platform = platformName?.let { runCatching { Platform.valueOf(it) }.getOrNull() }
         val payment = paymentName?.let { runCatching { PaymentMethod.valueOf(it) }.getOrNull() }
-        if (platform == null || payment == null || amountMinor <= 0L) return Outcome.Rejected
+        if (platformId == null || platformId <= 0L || payment == null || amountMinor <= 0L) return Outcome.Rejected
 
         val result = try {
             finishTrip(
                 sessionId = sessionId,
-                platform = platform,
-                platformOtherLabel = platformOtherLabel,
+                platformId = platformId,
                 startedAt = tripStartedAt,
                 endedAt = endedAt,
                 amountMinor = amountMinor,

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version lives in
 `version.properties`; the Android `versionCode` is derived from it as `major*10000 + minor*100 + patch`.
 
+## [Unreleased]
+
+### Added
+- User-defined platforms managed from Settings: create, rename, show or hide in the finish-trip
+  sheet, and delete (past trips keep their platform name and totals).
+
+### Changed
+- Database v3: platforms live in their own table; free-text "Otra" labels were migrated into
+  platforms and removed from the finish-trip sheet.
+
 ## [0.2.0] - 2026-10-18
 
 ### Added
