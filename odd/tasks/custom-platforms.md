@@ -35,9 +35,14 @@ Out of scope: drag reordering, per-platform colors, Sheets sync, history screen.
   attribution. Never commit `.codegraph/` or `.idea/`.
 
 ## Tasks
-- [ ] T1 Data model switch end to end: platforms table + DAO + repository, migration 2->3 with
+- [x] T1 Data model switch end to end: platforms table + DAO + repository, migration 2->3 with
       tests, Trip/finish flow/use cases/service extras/sheet/trip rows/summary bars on platform id
       + name. Route: delegated writer (many non-trivial files).
+      Evidence: a0e8c0f (single commit: layers can't compile separately); RED = 227 compile
+      errors; 346 tests green incl. 13 MigrationTest; assembleDebug green. Parent read MIGRATION_2_3.
+      Review: medium, granted, reliability APPROVED + acknowledged (review-b257a97fb6216920).
+      Advisory -> T2: finishTrip platform check not atomic; intent platform-id parsing untested;
+      silent empty default for observeVisiblePlatforms in the interface.
 - [ ] T2 Settings "Plataformas": list with visible toggle, create, rename, delete (confirm dialog,
       note that past trips are kept), validation messages. Route: delegated writer.
 
@@ -55,4 +60,5 @@ Out of scope: drag reordering, per-platform colors, Sheets sync, history screen.
   Strategy ask-on-risk -> feature-branch-chain (same as previous features); slices = T1, T2.
 
 ## Progress
-- 2026-10-19: doc created. Next: T1.
+- 2026-10-19: doc created.
+- 2026-10-19: T1 done (a0e8c0f), reviewed. Next: T2.
