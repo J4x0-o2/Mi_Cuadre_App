@@ -23,4 +23,7 @@ interface SessionDao {
 
     @Query("SELECT * FROM sessions ORDER BY startedAt DESC")
     fun observeAll(): Flow<List<SessionEntity>>
+
+    @Query("SELECT * FROM sessions WHERE startedAt >= :fromMs AND startedAt < :toMs ORDER BY startedAt ASC")
+    fun observeStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionEntity>>
 }

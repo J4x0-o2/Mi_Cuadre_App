@@ -25,4 +25,11 @@ interface ConnectedIntervalDao {
 
     @Query("SELECT * FROM connected_intervals WHERE sessionId = :sessionId ORDER BY startedAt ASC")
     fun observeBySession(sessionId: Long): Flow<List<ConnectedIntervalEntity>>
+
+    /** Intervals of every session that started in [[fromMs], [toMs]), for period aggregates. */
+    @Query(
+        "SELECT i.* FROM connected_intervals i INNER JOIN sessions s ON s.id = i.sessionId " +
+            "WHERE s.startedAt >= :fromMs AND s.startedAt < :toMs"
+    )
+    fun observeBySessionStartedBetween(fromMs: Long, toMs: Long): Flow<List<ConnectedIntervalEntity>>
 }

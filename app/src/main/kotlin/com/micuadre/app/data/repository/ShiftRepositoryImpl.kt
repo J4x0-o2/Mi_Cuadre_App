@@ -11,9 +11,11 @@ import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Session
+import com.micuadre.app.domain.model.SessionActivity
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.repository.ShiftRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -56,6 +58,23 @@ class ShiftRepositoryImpl @Inject constructor(
 
     override suspend fun lastFinishedTrip(): Trip? =
         tripDao.lastFinished()?.toDomain()
+
+    override fun observeSessionActivity(fromMs: Long, toMs: Long): Flow<List<SessionActivity>> =
+        combine(
+            sessionDao.observeStartedBetween(fromMs, toMs),
+            tripDao.observeBySessionStartedBetween(fromMs, toMs),
+            intervalDao.observeBySessionStartedBetween(fromMs, toMs)
+        ) { sessions, trips, intervals ->
+            val tripsBySession = trips.groupBy { it.sessionId }
+            val intervalsBySession = intervals.groupBy { it.sessionId }
+            sessions.map { session ->
+                SessionActivity(
+                    session = session.toDomain(),
+                    trips = tripsBySession[session.id].orEmpty().map { it.toDomain() },
+                    intervals = intervalsBySession[session.id].orEmpty().map { it.toDomain() }
+                )
+            }
+        }
 
     override suspend fun insertTrip(trip: Trip): Long =
         tripDao.insert(trip.toEntity())
