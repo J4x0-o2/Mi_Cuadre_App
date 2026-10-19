@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version lives in
 `version.properties`; the Android `versionCode` is derived from it as `major*10000 + minor*100 + patch`.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-19
 
 ### Added
 - User-defined platforms managed from Settings: create, rename, show or hide in the finish-trip
