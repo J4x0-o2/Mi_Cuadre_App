@@ -70,3 +70,5 @@ Out of scope: drag reordering, per-platform colors, Sheets sync, history screen.
 - 2026-10-19: T1 done (a0e8c0f), reviewed.
 - 2026-10-19: T2 done (5645a1d, f5ce607), reviewed. Next: user checks on emulator (v2->v3
   migration on real data), then merge decision.
+- 2026-10-19: installed on emulator: real v2 data migrated to v3 (2 trips, names and totals intact,
+  foreign_key_check empty); user validated everything. Merged into main.
