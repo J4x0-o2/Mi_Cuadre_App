@@ -27,6 +27,20 @@ interface PlatformDao {
     @Query("SELECT * FROM platforms ORDER BY id")
     suspend fun listAll(): List<PlatformEntity>
 
+    /** Non-deleted platforms (hidden ones included), used for the duplicate-name check. */
+    @Query("SELECT * FROM platforms WHERE deletedAt IS NULL ORDER BY id")
+    suspend fun listActive(): List<PlatformEntity>
+
+    /** Returns the number of rows changed: 0 when the platform is unknown or deleted. */
+    @Query("UPDATE platforms SET name = :name WHERE id = :id AND deletedAt IS NULL")
+    suspend fun rename(id: Long, name: String): Int
+
+    @Query("UPDATE platforms SET visible = :visible WHERE id = :id AND deletedAt IS NULL")
+    suspend fun setVisible(id: Long, visible: Boolean): Int
+
+    @Query("UPDATE platforms SET deletedAt = :deletedAt WHERE id = :id AND deletedAt IS NULL")
+    suspend fun softDelete(id: Long, deletedAt: Long): Int
+
     @Query("SELECT * FROM platforms WHERE id = :id")
     suspend fun byId(id: Long): PlatformEntity?
 }

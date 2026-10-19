@@ -22,12 +22,15 @@ import com.micuadre.app.domain.model.ThemeSchedule
 import com.micuadre.app.presentation.LaunchRouting
 import com.micuadre.app.presentation.MainViewModel
 import com.micuadre.app.presentation.screens.HomeScreen
+import com.micuadre.app.presentation.screens.PlatformsScreen
 import com.micuadre.app.presentation.screens.SettingsScreen
 import com.micuadre.app.presentation.theme.ThemeViewModel
 import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.ui.theme.colorSchemeFor
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.ZoneId
+
+private enum class AppScreen { Home, Settings, Platforms }
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -51,12 +54,16 @@ class MainActivity : ComponentActivity() {
                 )
                 ApplyWindowTheme(darkTheme)
                 MiCuadreTheme(darkTheme = darkTheme) {
-                    // Single-level navigation: one saved flag is enough, no NavHost needed.
-                    var showSettings by rememberSaveable { mutableStateOf(false) }
-                    if (showSettings) {
-                        SettingsScreen(onBack = { showSettings = false })
-                    } else {
-                        HomeScreen(onOpenSettings = { showSettings = true }, viewModel = viewModel)
+                    // Three fixed screens in a chain: one saved value is enough, no NavHost needed.
+                    var screen by rememberSaveable { mutableStateOf(AppScreen.Home) }
+                    when (screen) {
+                        AppScreen.Home ->
+                            HomeScreen(onOpenSettings = { screen = AppScreen.Settings }, viewModel = viewModel)
+                        AppScreen.Settings -> SettingsScreen(
+                            onBack = { screen = AppScreen.Home },
+                            onOpenPlatforms = { screen = AppScreen.Platforms }
+                        )
+                        AppScreen.Platforms -> PlatformsScreen(onBack = { screen = AppScreen.Settings })
                     }
                 }
             }

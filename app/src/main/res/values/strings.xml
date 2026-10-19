@@ -90,6 +90,34 @@
     <string name="settings_appearance">Apariencia</string>
     <string name="settings_about">Acerca de</string>
     <string name="settings_version">Versión</string>
+    <string name="settings_platforms">Plataformas</string>
+    <string name="settings_platforms_manage">Administrar plataformas</string>
+    <string name="settings_platforms_none">Sin plataformas</string>
+    <plurals name="settings_platforms_summary">
+        <item quantity="one">%1$d activa de %2$d</item>
+        <item quantity="other">%1$d activas de %2$d</item>
+    </plurals>
+
+    <string name="platforms_title">Plataformas</string>
+    <string name="platforms_hint">Elegí cuáles aparecen al terminar una carrera.</string>
+    <string name="platforms_none_visible">Ninguna plataforma va a aparecer al terminar una carrera.</string>
+    <string name="platforms_empty">Todavía no tenés plataformas. Agregá la primera.</string>
+    <string name="platforms_add">Agregar plataforma</string>
+    <string name="platforms_visible_cd">%1$s: visible al terminar una carrera</string>
+    <string name="platforms_rename_cd">Renombrar %1$s</string>
+    <string name="platforms_delete_cd">Eliminar %1$s</string>
+    <string name="platforms_name_label">Nombre</string>
+    <string name="platforms_add_title">Nueva plataforma</string>
+    <string name="platforms_rename_title">Renombrar plataforma</string>
+    <string name="platforms_save">Guardar</string>
+    <string name="platforms_cancel">Cancelar</string>
+    <string name="platforms_delete_title">¿Eliminar %1$s?</string>
+    <string name="platforms_delete_message">Las carreras que ya registraste con esta plataforma se conservan con su nombre.</string>
+    <string name="platforms_delete_confirm">Eliminar</string>
+    <string name="platforms_error_blank">Escribí un nombre</string>
+    <string name="platforms_error_duplicate">Ya existe una plataforma con ese nombre</string>
+    <string name="platforms_error_too_long">Usá hasta %1$d caracteres</string>
+    <string name="platforms_save_error">No se pudo guardar el cambio. Intentá de nuevo.</string>
     <string name="theme_system">Según el sistema</string>
     <string name="theme_system_desc">Usa el modo del teléfono</string>
     <string name="theme_light">Claro</string>
