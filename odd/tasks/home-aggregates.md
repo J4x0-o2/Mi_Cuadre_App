@@ -40,10 +40,16 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
       Review: medium, granted, 1 lens (reliability) APPROVED + acknowledged
       (lineage review-9b3d10f034865df7). Advisory: stale range across midnight, re-emit test
       not observing, DST untested, non-atomic combine -> first two folded into T2.
-- [ ] T2 Home: TOTAL DEL TURNO when connected, RESUMEN DE HOY when disconnected, week/month
+- [x] T2 Home: TOTAL DEL TURNO when connected, RESUMEN DE HOY when disconnected, week/month
       buttons with amounts; midnight rollover + live connected ticker; fix re-emit test.
+      Route: delegated writer. Evidence: b1a3376; RED = compile failures on new API;
+      testDebugUnitTest + assembleDebug green (parent re-ran tests: green).
+      Review: medium, granted, reliability APPROVED + acknowledged (review-e4bdc41fb30b1610).
+      Advisory -> T3: sheet state unconsumed, paused night shift shows zeros today,
+      clock/zone jumps not detected until midnight.
+- [ ] T3 Period bottom sheet (Semana/Mes tabs, bars, stats) + T2 advisories: paused shift
+      started yesterday shows its own shift totals; re-arm date ticker on time/zone change.
       Route: delegated writer.
-- [ ] T3 Period bottom sheet (Semana/Mes tabs, bars, stats). Route: delegated writer.
 
 ## Acceptance criteria
 - Night shift 20:00-02:00 counts entirely for its start day.
@@ -60,4 +66,5 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
 
 ## Progress
 - 2026-10-18: doc created; branch created.
-- 2026-10-18: T1 done (92959eb), reviewed boundary = docs commit after it. Next: T2.
+- 2026-10-18: T1 done (92959eb), reviewed boundary = docs commit after it.
+- 2026-10-18: T2 done (b1a3376), reviewed. Next: T3.
