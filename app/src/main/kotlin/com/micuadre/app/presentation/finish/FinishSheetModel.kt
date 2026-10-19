@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation.finish
 
+import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PlatformSelection
 import java.time.Instant
 import java.time.ZoneId
@@ -10,7 +11,9 @@ import java.util.concurrent.TimeUnit
 data class FinishSheetState(
     val tripStartedAtMs: Long,
     val tripEndedAtMs: Long,
-    val initialSelection: PlatformSelection
+    val initialSelection: PlatformSelection,
+    /** Visible platforms to choose from, in creation order; empty when the user must enable one. */
+    val platforms: List<Platform> = emptyList()
 )
 
 /** Builds the "HH:mm – HH:mm · N min" subtitle under the sheet title. */

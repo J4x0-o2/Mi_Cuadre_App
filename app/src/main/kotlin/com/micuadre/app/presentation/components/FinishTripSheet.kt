@@ -6,8 +6,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -26,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -51,7 +53,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.micuadre.app.R
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.presentation.finish.AmountInput
 import com.micuadre.app.presentation.finish.FinishSheetState
 import com.micuadre.app.presentation.finish.FinishSheetSubtitle
@@ -61,20 +62,24 @@ import com.micuadre.app.ui.theme.MiCuadreTheme
  * Bottom sheet that closes a trip: amount (autofocused, numeric keyboard),
  * platform (last used preselected) and payment method.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FinishTripSheet(
     state: FinishSheetState,
     onDismiss: () -> Unit,
-    onConfirm: (platform: Platform, otherLabel: String?, amountMinor: Long, paymentMethod: PaymentMethod) -> Unit
+    onConfirm: (platformId: Long, amountMinor: Long, paymentMethod: PaymentMethod) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amountField by remember { mutableStateOf(TextFieldValue("")) }
-    var platform by remember { mutableStateOf(state.initialSelection.platform) }
-    var otherLabel by remember { mutableStateOf(state.initialSelection.otherLabel.orEmpty()) }
+    val platforms = state.platforms
+    var platformId by remember {
+        mutableStateOf(
+            state.initialSelection.platformId?.takeIf { id -> platforms.any { it.id == id } }
+                ?: platforms.firstOrNull()?.id
+        )
+    }
     var payment by remember { mutableStateOf(state.initialSelection.paymentMethod) }
     var showAmountError by remember { mutableStateOf(false) }
-    var showOtherError by remember { mutableStateOf(false) }
 
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -146,41 +151,26 @@ fun FinishTripSheet(
                 text = stringResource(R.string.platform_label),
                 modifier = Modifier.padding(top = 20.dp)
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                PlatformChip(stringResource(R.string.indriver), platform == Platform.INDRIVER, Modifier.weight(1f)) {
-                    platform = Platform.INDRIVER
-                    showOtherError = false
-                }
-                PlatformChip(stringResource(R.string.didi), platform == Platform.DIDI, Modifier.weight(1f)) {
-                    platform = Platform.DIDI
-                    showOtherError = false
-                }
-                PlatformChip(stringResource(R.string.other), platform == Platform.OTHER, Modifier.weight(1f)) {
-                    platform = Platform.OTHER
-                }
-            }
-            if (platform == Platform.OTHER) {
-                OutlinedTextField(
-                    value = otherLabel,
-                    onValueChange = {
-                        otherLabel = it
-                        showOtherError = false
-                    },
-                    label = { Text(stringResource(R.string.other_platform_hint)) },
-                    singleLine = true,
-                    isError = showOtherError,
-                    shape = RoundedCornerShape(16.dp),
+            if (platforms.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.no_active_platforms),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            } else {
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
-                )
-                if (showOtherError) {
-                    ErrorText(stringResource(R.string.other_platform_required))
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    platforms.forEach { platform ->
+                        PlatformChip(platform.name, platformId == platform.id) {
+                            platformId = platform.id
+                        }
+                    }
                 }
             }
 
@@ -199,13 +189,12 @@ fun FinishTripSheet(
             Button(
                 onClick = {
                     val minor = AmountInput.toMinor(amountField.text)
-                    val label = otherLabel.trim()
-                    var invalid = false
-                    if (minor == null) { showAmountError = true; invalid = true }
-                    if (platform == Platform.OTHER && label.isEmpty()) { showOtherError = true; invalid = true }
-                    if (invalid) return@Button
-                    onConfirm(platform, label.takeIf { platform == Platform.OTHER }, minor!!, payment)
+                    val selected = platformId
+                    if (minor == null) { showAmountError = true; return@Button }
+                    if (selected == null) return@Button
+                    onConfirm(selected, minor, payment)
                 },
+                enabled = platformId != null,
                 shape = RoundedCornerShape(22.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -285,6 +274,7 @@ private fun PlatformChip(
     val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
     Box(
         modifier = modifier
+            .defaultMinSize(minWidth = 96.dp)
             .height(52.dp)
             .background(
                 if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
@@ -296,7 +286,9 @@ private fun PlatformChip(
     ) {
         Text(
             text = label,
+            maxLines = 1,
             style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(horizontal = 16.dp),
             color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
         )
     }

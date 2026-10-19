@@ -10,7 +10,6 @@ import com.micuadre.app.di.RepositoryModule
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Session
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
@@ -324,8 +323,7 @@ class InMemoryShiftRepository : ShiftRepository {
 
     override suspend fun finishTrip(
         sessionId: Long,
-        platform: Platform,
-        platformOtherLabel: String?,
+        platformId: Long,
         startedAt: Long,
         endedAt: Long,
         amountMinor: Long,

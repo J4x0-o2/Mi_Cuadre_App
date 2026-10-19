@@ -2,7 +2,6 @@ package com.micuadre.app.presentation.summary
 
 import com.micuadre.app.domain.model.ConnectedTime
 import com.micuadre.app.domain.model.DailySummary
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.presentation.home.DayBreakdown
 import com.micuadre.app.util.Formatters
@@ -10,8 +9,8 @@ import java.time.ZoneId
 
 /** One "Por plataforma" bar. [fraction] is relative to the platform with the highest total. */
 data class PlatformBar(
-    val platform: Platform,
-    val otherLabel: String?,
+    val platformId: Long,
+    val name: String,
     val totalMinor: Long,
     val tripCount: Int,
     val fraction: Float
@@ -51,23 +50,10 @@ data class ShiftSummaryModel(
         }
 
         private fun platformBars(finished: List<Trip>): List<PlatformBar> {
-            // "Otra" trips are grouped by their (case-insensitive) label, other platforms by enum.
-            val groups = finished.groupBy { trip ->
-                if (trip.platform == Platform.OTHER) {
-                    trip.platform to trip.platformOtherLabel?.trim()?.lowercase().orEmpty()
-                } else {
-                    trip.platform to ""
-                }
-            }
-            val totals = groups.map { (_, trips) ->
-                val label = trips.firstNotNullOfOrNull {
-                    it.platformOtherLabel?.trim()?.takeIf { l -> l.isNotEmpty() }
-                }
-                Triple(trips.first().platform, label, trips)
-            }.map { (platform, label, trips) ->
+            val totals = finished.groupBy { it.platformId }.map { (platformId, trips) ->
                 PlatformBar(
-                    platform = platform,
-                    otherLabel = if (platform == Platform.OTHER) label else null,
+                    platformId = platformId,
+                    name = trips.first().platformName,
                     totalMinor = trips.sumOf { it.amountMinor ?: 0L },
                     tripCount = trips.size,
                     fraction = 0f

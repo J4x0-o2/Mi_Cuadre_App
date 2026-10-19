@@ -39,10 +39,7 @@
     <string name="no_trips_yet">Sin carreras todavía</string>
 
     <string name="platform_label">Plataforma</string>
-    <string name="indriver">InDriver</string>
-    <string name="didi">Didi</string>
-    <string name="other">Otra</string>
-    <string name="other_platform_hint">¿Cuál?</string>
+    <string name="no_active_platforms">No tenés plataformas activas. Activá o creá una en Ajustes.</string>
 
     <string name="trip_amount">Valor de la carrera</string>
     <string name="finish_sheet_title">Cerrar carrera</string>
@@ -85,7 +82,6 @@
     <string name="save_trip">Guardar carrera</string>
 
     <string name="amount_required">Ingresá el monto</string>
-    <string name="other_platform_required">Indicá cuál</string>
 
     <string name="settings_title">Ajustes</string>
     <string name="settings_open_cd">Ajustes</string>

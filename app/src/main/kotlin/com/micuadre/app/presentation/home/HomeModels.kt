@@ -3,7 +3,6 @@ package com.micuadre.app.presentation.home
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.ConnectedTime
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.presentation.finish.FinishSheetSubtitle
@@ -51,11 +50,10 @@ data class DayBreakdown(
     }
 }
 
-/** One row of "Carreras de hoy". Platform names are localized by the UI from [platform]. */
+/** One row of "Carreras de hoy". [platformName] is the platform's current name. */
 data class TripRowModel(
     val id: Long,
-    val platform: Platform,
-    val otherLabel: String?,
+    val platformName: String,
     val badge: String,
     /** "HH:mm – HH:mm · N min": start, end and duration (at least one minute). */
     val detail: String,
@@ -67,9 +65,8 @@ data class TripRowModel(
             val end = trip.endedAt ?: trip.startedAt
             return TripRowModel(
                 id = trip.id,
-                platform = trip.platform,
-                otherLabel = trip.platformOtherLabel?.trim()?.takeIf { it.isNotEmpty() },
-                badge = PlatformBadge.text(trip.platform, trip.platformOtherLabel),
+                platformName = trip.platformName,
+                badge = PlatformBadge.text(trip.platformName),
                 detail = FinishSheetSubtitle.format(trip.startedAt, end, zone),
                 amountMinor = trip.amountMinor,
                 payment = trip.paymentMethod
@@ -78,13 +75,10 @@ data class TripRowModel(
     }
 }
 
-/** Short text inside the 42dp platform badge. */
+/** Short text inside the 42dp platform badge: the uppercase initial of the platform name. */
 object PlatformBadge {
-    fun text(platform: Platform, otherLabel: String?): String = when (platform) {
-        Platform.INDRIVER -> "iD"
-        Platform.DIDI -> "D"
-        Platform.OTHER -> otherLabel?.trim()?.firstOrNull()?.uppercaseChar()?.toString() ?: "O"
-    }
+    fun text(platformName: String): String =
+        platformName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 }
 
 /**

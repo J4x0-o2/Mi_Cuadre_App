@@ -3,7 +3,6 @@ package com.micuadre.app.presentation.summary
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Trip
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
@@ -18,15 +17,19 @@ class ShiftSummaryModelTest {
     // 2026-01-01T08:00:00Z
     private val t0 = 1_767_254_400_000L
 
+    private val indriver = 1L
+    private val didi = 2L
+    private val uber = 3L
+    private val names = mapOf(indriver to "InDriver", didi to "Didi", uber to "Uber")
+
     private fun trip(
-        platform: Platform,
+        platformId: Long,
         amount: Long?,
         payment: PaymentMethod? = PaymentMethod.CASH,
-        label: String? = null,
         finished: Boolean = true,
         id: Long = 1L
     ) = Trip(
-        id = id, sessionId = 1L, platform = platform, platformOtherLabel = label,
+        id = id, sessionId = 1L, platformId = platformId, platformName = names.getValue(platformId),
         startedAt = t0, endedAt = if (finished) t0 + 10 * minute else null,
         amountMinor = amount, paymentMethod = payment
     )
@@ -98,10 +101,10 @@ class ShiftSummaryModelTest {
     @Test
     fun `totals split by payment method and only count finished trips`() {
         val trips = listOf(
-            trip(Platform.DIDI, 10_000L, PaymentMethod.CASH, id = 1),
-            trip(Platform.DIDI, 5_000L, PaymentMethod.TRANSFER, id = 2),
-            trip(Platform.INDRIVER, 7_000L, PaymentMethod.CASH, id = 3),
-            trip(Platform.INDRIVER, null, null, finished = false, id = 4)
+            trip(didi, 10_000L, PaymentMethod.CASH, id = 1),
+            trip(didi, 5_000L, PaymentMethod.TRANSFER, id = 2),
+            trip(indriver, 7_000L, PaymentMethod.CASH, id = 3),
+            trip(indriver, null, null, finished = false, id = 4)
         )
 
         val model = ShiftSummaryModel.from(summary(trips), utc)
@@ -115,14 +118,14 @@ class ShiftSummaryModelTest {
     @Test
     fun `bars are relative to the highest platform total and sorted descending`() {
         val trips = listOf(
-            trip(Platform.DIDI, 5_000L, id = 1),
-            trip(Platform.INDRIVER, 20_000L, id = 2),
-            trip(Platform.INDRIVER, 20_000L, id = 3)
+            trip(didi, 5_000L, id = 1),
+            trip(indriver, 20_000L, id = 2),
+            trip(indriver, 20_000L, id = 3)
         )
 
         val bars = ShiftSummaryModel.from(summary(trips), utc).bars
 
-        assertEquals(listOf(Platform.INDRIVER, Platform.DIDI), bars.map { it.platform })
+        assertEquals(listOf(indriver, didi), bars.map { it.platformId })
         assertEquals(40_000L, bars[0].totalMinor)
         assertEquals(2, bars[0].tripCount)
         assertEquals(1f, bars[0].fraction, 0.0001f)
@@ -132,27 +135,43 @@ class ShiftSummaryModelTest {
     @Test
     fun `platforms without finished trips are hidden`() {
         val trips = listOf(
-            trip(Platform.DIDI, 5_000L, id = 1),
-            trip(Platform.INDRIVER, null, null, finished = false, id = 2)
+            trip(didi, 5_000L, id = 1),
+            trip(indriver, null, null, finished = false, id = 2)
         )
 
         val bars = ShiftSummaryModel.from(summary(trips), utc).bars
 
-        assertEquals(listOf(Platform.DIDI), bars.map { it.platform })
+        assertEquals(listOf(didi), bars.map { it.platformId })
     }
 
     @Test
-    fun `Otra trips are grouped by their label`() {
+    fun `bars are grouped by platform id and named after the platform`() {
         val trips = listOf(
-            trip(Platform.OTHER, 3_000L, label = "Uber", id = 1),
-            trip(Platform.OTHER, 1_000L, label = " uber ", id = 2),
-            trip(Platform.OTHER, 2_000L, label = "Cabify", id = 3)
+            trip(uber, 3_000L, id = 1),
+            trip(uber, 1_000L, id = 2),
+            trip(didi, 2_000L, id = 3)
         )
 
         val bars = ShiftSummaryModel.from(summary(trips), utc).bars
 
-        assertEquals(listOf("Uber", "Cabify"), bars.map { it.otherLabel })
+        assertEquals(listOf(uber, didi), bars.map { it.platformId })
+        assertEquals(listOf("Uber", "Didi"), bars.map { it.name })
         assertEquals(4_000L, bars[0].totalMinor)
+    }
+
+    @Test
+    fun `two platforms with the same name stay separate bars`() {
+        val trips = listOf(
+            trip(didi, 3_000L, id = 1),
+            Trip(
+                id = 2, sessionId = 1L, platformId = 9L, platformName = "Didi",
+                startedAt = t0, endedAt = t0 + minute, amountMinor = 1_000L, paymentMethod = PaymentMethod.CASH
+            )
+        )
+
+        val bars = ShiftSummaryModel.from(summary(trips), utc).bars
+
+        assertEquals(listOf(didi, 9L), bars.map { it.platformId })
     }
 
     @Test
@@ -165,7 +184,7 @@ class ShiftSummaryModelTest {
 
     @Test
     fun `fractions are zero when every platform total is zero`() {
-        val trips = listOf(trip(Platform.DIDI, 0L))
+        val trips = listOf(trip(didi, 0L))
 
         val bars = ShiftSummaryModel.from(summary(trips), utc).bars
 

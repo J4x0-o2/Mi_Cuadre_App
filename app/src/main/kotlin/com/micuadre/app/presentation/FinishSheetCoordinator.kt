@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation
 
+import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PlatformSelection
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.presentation.finish.FinishSheetState
@@ -14,7 +15,7 @@ import kotlinx.coroutines.launch
  * Owns when the finish-trip sheet opens: from the in-app "Terminar carrera" button and from
  * the notification deep link ([PendingFinishRequest]). JVM-testable; the view model only forwards.
  *
- * Opening needs a suspend lookup (last used platform), so the final decision is made atomically
+ * Opening needs suspend lookups (visible platforms, last used platform), so the final decision is made atomically
  * inside the state update: the sheet opens only if it is still closed and the shift is still on
  * a trip. A single in-flight [openJob] absorbs repeated triggers, and [onDismissed] cancels it
  * so a dismissal during the lookup can never be followed by a reopen.
@@ -23,6 +24,7 @@ class FinishSheetCoordinator(
     private val ui: MutableStateFlow<HomeUiState>,
     private val scope: CoroutineScope,
     private val lastUsedPlatform: suspend () -> PlatformSelection,
+    private val visiblePlatforms: suspend () -> List<Platform>,
     private val nowMs: () -> Long
 ) {
     companion object {
@@ -70,6 +72,7 @@ class FinishSheetCoordinator(
         if (ui.value.finishSheet != null) return
         if (ui.value.shiftState !is ShiftState.OnTrip) return
         openJob = scope.launch {
+            val platforms = visiblePlatforms()
             val selection = lastUsedPlatform()
             val endedAt = nowMs()
             ui.update { current ->
@@ -81,7 +84,8 @@ class FinishSheetCoordinator(
                         finishSheet = FinishSheetState(
                             tripStartedAtMs = state.tripStartedAtMs,
                             tripEndedAtMs = endedAt,
-                            initialSelection = selection
+                            initialSelection = selection,
+                            platforms = platforms
                         )
                     )
                 }

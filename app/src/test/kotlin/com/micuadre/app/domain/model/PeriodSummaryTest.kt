@@ -27,7 +27,7 @@ class PeriodSummaryTest {
         payment: PaymentMethod? = PaymentMethod.CASH,
         finished: Boolean = true
     ) = Trip(
-        id = nextId++, sessionId = sessionId, platform = Platform.DIDI, platformOtherLabel = null,
+        id = nextId++, sessionId = sessionId, platformId = 2L, platformName = "Didi",
         startedAt = 1L, endedAt = if (finished) 2L else null, amountMinor = amount, paymentMethod = payment
     )
 

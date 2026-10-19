@@ -8,7 +8,6 @@ import com.micuadre.app.R
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Period
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
@@ -27,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.ZoneId
@@ -54,6 +54,7 @@ class MainViewModel @Inject constructor(
         ui = _ui,
         scope = viewModelScope,
         lastUsedPlatform = { getLastUsedPlatform() },
+        visiblePlatforms = { repository.observeVisiblePlatforms().first() },
         nowMs = clock::nowMs
     )
     private val periodSummaries = PeriodSummaryCoordinator(
@@ -195,13 +196,12 @@ class MainViewModel @Inject constructor(
     }
 
     fun onFinishTripConfirmed(
-        platform: Platform,
-        platformOtherLabel: String?,
+        platformId: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
     ) {
         finishSheets.onDismissed()
-        controller.finishTrip(platform, platformOtherLabel, amountMinor, paymentMethod)
+        controller.finishTrip(platformId, amountMinor, paymentMethod)
         _ui.update { it.copy(finishSheet = null, pendingMessage = null) }
     }
 

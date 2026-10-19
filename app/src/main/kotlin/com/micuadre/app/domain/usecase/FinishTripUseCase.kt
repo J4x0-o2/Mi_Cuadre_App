@@ -1,7 +1,6 @@
 package com.micuadre.app.domain.usecase
 
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.repository.ShiftRepository
 import javax.inject.Inject
 
@@ -9,8 +8,7 @@ import javax.inject.Inject
  * Persists a finished trip.
  *
  * Validation rules (append-only):
- *  - platform is always required.
- *  - if platform == OTHER, platformOtherLabel must be non-blank.
+ *  - platformId must reference an existing, non-deleted platform (checked by the repository).
  *  - amountMinor must be > 0.
  *  - paymentMethod must be non-null.
  *
@@ -28,21 +26,18 @@ class FinishTripUseCase @Inject constructor(
 
     suspend operator fun invoke(
         sessionId: Long,
-        platform: Platform,
-        platformOtherLabel: String?,
+        platformId: Long,
         startedAt: Long,
         endedAt: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
     ): Result {
-        if (platform == Platform.OTHER && platformOtherLabel.isNullOrBlank()) return Result.Invalid
         if (amountMinor <= 0L) return Result.Invalid
         if (endedAt <= startedAt) return Result.Invalid
 
         val saved = repository.finishTrip(
             sessionId = sessionId,
-            platform = platform,
-            platformOtherLabel = platformOtherLabel?.trim(),
+            platformId = platformId,
             startedAt = startedAt,
             endedAt = endedAt,
             amountMinor = amountMinor,

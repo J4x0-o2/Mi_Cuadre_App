@@ -2,7 +2,6 @@ package com.micuadre.app.presentation.home
 
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PeriodSummary
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
@@ -76,7 +75,7 @@ class DisconnectedContentTest {
         PeriodSummary(total, total, 0L, if (total > 0) 1 else 0, 3_600L, sessions, sessions, null, emptyList())
 
     private fun finished(amount: Long) = Trip(
-        id = 1, sessionId = 1, platform = Platform.DIDI, platformOtherLabel = null,
+        id = 1, sessionId = 1, platformId = 2L, platformName = "Didi",
         startedAt = t0, endedAt = t0 + 1, amountMinor = amount, paymentMethod = PaymentMethod.CASH
     )
 

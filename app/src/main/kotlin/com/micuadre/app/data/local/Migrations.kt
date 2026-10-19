@@ -2,6 +2,7 @@ package com.micuadre.app.data.local
 
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.util.Locale
 
 /**
  * 1 -> 2: adds `connected_intervals` (real connected time per session, pauses excluded) and
@@ -35,3 +36,116 @@ val MIGRATION_1_2: Migration = object : Migration(1, 2) {
         )
     }
 }
+
+/**
+ * 2 -> 3: platforms become rows. Creates `platforms`, always seeds the defaults (InDriver id 1,
+ * Didi id 2, visible, even if unused) and rebuilds `trips` so `platform` + `platformOtherLabel`
+ * are replaced by `platformId` (foreign key, no cascade).
+ *
+ * Mapping: INDRIVER -> InDriver, DIDI -> Didi; every other trip (the old "Otra") goes to the
+ * platform named by its trimmed label, grouped case-insensitively and keeping the casing of the
+ * first trip (lowest id) that used it; a blank/missing label goes to "Otra". A label that spells
+ * an existing platform name reuses that platform. Trip ids and all other columns are preserved.
+ */
+val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `platforms` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`visible` INTEGER NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "`deletedAt` INTEGER)"
+        )
+        val now = System.currentTimeMillis()
+        DefaultPlatforms.insertInto(db, now)
+        val inDriverId = 1L
+        val didiId = 2L
+        val idsByName = linkedMapOf<String, Long>().apply {
+            DefaultPlatforms.NAMES.forEachIndexed { index, name -> put(key(name), index + 1L) }
+        }
+
+        val oldTrips = mutableListOf<OldTrip>()
+        db.query(
+            "SELECT id, sessionId, platform, platformOtherLabel, startedAt, endedAt, amountMinor, paymentMethod " +
+                "FROM trips ORDER BY id"
+        ).use { c ->
+            while (c.moveToNext()) {
+                oldTrips += OldTrip(
+                    id = c.getLong(0),
+                    sessionId = c.getLong(1),
+                    platform = c.getString(2),
+                    label = if (c.isNull(3)) null else c.getString(3),
+                    startedAt = c.getLong(4),
+                    endedAt = if (c.isNull(5)) null else c.getLong(5),
+                    amountMinor = if (c.isNull(6)) null else c.getLong(6),
+                    paymentMethod = if (c.isNull(7)) null else c.getString(7)
+                )
+            }
+        }
+
+        fun createPlatform(name: String): Long {
+            db.execSQL(
+                "INSERT INTO platforms (name, visible, createdAt, deletedAt) VALUES (?, 1, ?, NULL)",
+                arrayOf<Any?>(name, now)
+            )
+            return db.query("SELECT last_insert_rowid()").use { c ->
+                c.moveToFirst()
+                c.getLong(0)
+            }
+        }
+
+        fun platformIdFor(trip: OldTrip): Long = when (trip.platform) {
+            "INDRIVER" -> inDriverId
+            "DIDI" -> didiId
+            else -> {
+                val name = trip.label?.trim().orEmpty().ifEmpty { "Otra" }
+                idsByName.getOrPut(key(name)) { createPlatform(name) }
+            }
+        }
+
+        val platformIds = oldTrips.associate { it.id to platformIdFor(it) }
+
+        db.execSQL(
+            "CREATE TABLE `trips_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`sessionId` INTEGER NOT NULL, " +
+                "`platformId` INTEGER NOT NULL, " +
+                "`startedAt` INTEGER NOT NULL, " +
+                "`endedAt` INTEGER, " +
+                "`amountMinor` INTEGER, " +
+                "`paymentMethod` TEXT, " +
+                "FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`platformId`) REFERENCES `platforms`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )"
+        )
+        oldTrips.forEach { t ->
+            db.execSQL(
+                "INSERT INTO trips_new (id, sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                arrayOf<Any?>(
+                    t.id, t.sessionId, platformIds.getValue(t.id), t.startedAt, t.endedAt, t.amountMinor, t.paymentMethod
+                )
+            )
+        }
+        db.execSQL("DROP TABLE `trips`")
+        db.execSQL("ALTER TABLE `trips_new` RENAME TO `trips`")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_trips_sessionId` ON `trips` (`sessionId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_trips_platformId` ON `trips` (`platformId`)")
+    }
+}
+
+/** A v2 trip row as read by [MIGRATION_2_3]; [platform] and [label] are the removed columns. */
+private class OldTrip(
+    val id: Long,
+    val sessionId: Long,
+    val platform: String,
+    val label: String?,
+    val startedAt: Long,
+    val endedAt: Long?,
+    val amountMinor: Long?,
+    val paymentMethod: String?
+)
+
+/** Case-insensitive identity of a platform name. */
+private fun key(name: String) = name.lowercase(Locale.ROOT)

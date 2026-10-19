@@ -155,10 +155,9 @@ fun HomeScreen(
         FinishTripSheet(
             state = sheet,
             onDismiss = { viewModel.onFinishTripDismissed() },
-            onConfirm = { platform, otherLabel, amountMinor, method ->
+            onConfirm = { platformId, amountMinor, method ->
                 viewModel.onFinishTripConfirmed(
-                    platform = platform,
-                    platformOtherLabel = otherLabel,
+                    platformId = platformId,
                     amountMinor = amountMinor,
                     paymentMethod = method
                 )

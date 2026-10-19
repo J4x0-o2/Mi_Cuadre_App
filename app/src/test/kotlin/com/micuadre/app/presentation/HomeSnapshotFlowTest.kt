@@ -2,7 +2,6 @@ package com.micuadre.app.presentation
 
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,8 +24,7 @@ class HomeSnapshotFlowTest {
     private fun trip(id: Long, amount: Long) = Trip(
         id = id,
         sessionId = 7L,
-        platform = Platform.DIDI,
-        platformOtherLabel = null,
+        platformId = 2L, platformName = "Didi",
         startedAt = 1_000L,
         endedAt = 2_000L,
         amountMinor = amount,

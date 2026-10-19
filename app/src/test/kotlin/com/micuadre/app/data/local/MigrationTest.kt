@@ -1,16 +1,20 @@
 package com.micuadre.app.data.local
 
 import androidx.room.testing.MigrationTestHelper
+import android.database.sqlite.SQLiteConstraintException
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Runs the real [MIGRATION_1_2] against the exported schemas 1 and 2. */
+/** Runs the real [MIGRATION_1_2] and [MIGRATION_2_3] against the exported schemas 1, 2 and 3. */
 @RunWith(RobolectricTestRunner::class)
 // The exported schemas are copied into the unit-test assets of every variant by build.gradle.kts.
 @Config(sdk = [34])
@@ -101,6 +105,189 @@ class MigrationTest {
         db.query("SELECT COUNT(*) FROM connected_intervals").use {
             assertTrue(it.moveToFirst())
             assertEquals(0, it.getInt(0))
+        }
+    }
+
+    // ---- 2 -> 3: custom platforms ----
+
+    private fun v2Trip(
+        db: SupportSQLiteDatabase,
+        platform: String,
+        label: String?,
+        amount: Long?,
+        startedAt: Long = START_1
+    ) {
+        val labelSql = label?.let { "'$it'" } ?: "NULL"
+        val amountSql = amount?.toString() ?: "NULL"
+        db.execSQL(
+            "INSERT INTO trips (sessionId, platform, platformOtherLabel, startedAt, endedAt, amountMinor, paymentMethod) " +
+                "VALUES (1, '$platform', $labelSql, $startedAt, ${startedAt + 60_000L}, $amountSql, 'CASH')"
+        )
+    }
+
+    private fun createV2(block: (SupportSQLiteDatabase) -> Unit = {}) {
+        helper.createDatabase(DB_NAME, 2).apply {
+            execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            block(this)
+            close()
+        }
+    }
+
+    private fun migrate3(): SupportSQLiteDatabase =
+        helper.runMigrationsAndValidate(DB_NAME, 3, true, MIGRATION_2_3)
+
+    private fun SupportSQLiteDatabase.platforms(): List<Triple<Long, String, Boolean>> =
+        query("SELECT id, name, visible FROM platforms WHERE deletedAt IS NULL ORDER BY id").use {
+            buildList { while (it.moveToNext()) add(Triple(it.getLong(0), it.getString(1), it.getInt(2) == 1)) }
+        }
+
+    private fun SupportSQLiteDatabase.tripPlatforms(): List<Pair<Long, String>> =
+        query(
+            "SELECT t.id, p.name FROM trips t JOIN platforms p ON p.id = t.platformId ORDER BY t.id"
+        ).use { buildList { while (it.moveToNext()) add(it.getLong(0) to it.getString(1)) } }
+
+    @Test
+    fun `2 to 3 maps InDriver and Didi trips to the default platforms`() {
+        createV2 {
+            v2Trip(it, "INDRIVER", null, 10_000)
+            v2Trip(it, "DIDI", null, 5_000)
+        }
+
+        val db = migrate3()
+
+        assertEquals(
+            listOf(Triple(1L, "InDriver", true), Triple(2L, "Didi", true)),
+            db.platforms()
+        )
+        assertEquals(listOf(1L to "InDriver", 2L to "Didi"), db.tripPlatforms())
+    }
+
+    @Test
+    fun `2 to 3 turns each distinct OTHER label into one platform ignoring case and spaces`() {
+        createV2 {
+            v2Trip(it, "OTHER", "Beat", 1_000)
+            v2Trip(it, "OTHER", " beat ", 2_000)
+            v2Trip(it, "OTHER", "Cabify", 3_000)
+        }
+
+        val db = migrate3()
+
+        assertEquals(listOf("InDriver", "Didi", "Beat", "Cabify"), db.platforms().map { it.second })
+        assertTrue(db.platforms().all { it.third })
+        assertEquals(listOf("Beat", "Beat", "Cabify"), db.tripPlatforms().map { it.second })
+    }
+
+    @Test
+    fun `2 to 3 sends blank or missing OTHER labels to a single Otra platform`() {
+        createV2 {
+            v2Trip(it, "OTHER", null, 1_000)
+            v2Trip(it, "OTHER", "   ", 2_000)
+            v2Trip(it, "WHATEVER", null, 3_000)
+        }
+
+        val db = migrate3()
+
+        assertEquals(listOf("InDriver", "Didi", "Otra"), db.platforms().map { it.second })
+        assertEquals(listOf("Otra", "Otra", "Otra"), db.tripPlatforms().map { it.second })
+    }
+
+    @Test
+    fun `2 to 3 reuses a default platform when an OTHER label spells its name`() {
+        createV2 {
+            v2Trip(it, "OTHER", "didi", 1_000)
+        }
+
+        val db = migrate3()
+
+        assertEquals(listOf("InDriver", "Didi"), db.platforms().map { it.second })
+        assertEquals(listOf(1L to "Didi"), db.tripPlatforms())
+    }
+
+    @Test
+    fun `2 to 3 creates the default platforms even with no trips`() {
+        createV2()
+
+        val db = migrate3()
+
+        assertEquals(listOf("InDriver" to true, "Didi" to true), db.platforms().map { it.second to it.third })
+        db.query("SELECT COUNT(*) FROM trips").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(0, it.getInt(0))
+        }
+    }
+
+    @Test
+    fun `2 to 3 preserves every trip with its ids, times, amounts and payment`() {
+        createV2 {
+            v2Trip(it, "DIDI", null, 5_000, startedAt = START_1)
+            v2Trip(it, "OTHER", "Uber", null, startedAt = START_1 + 100_000L)
+            v2Trip(it, "INDRIVER", null, 7_500, startedAt = START_1 + 200_000L)
+        }
+
+        val db = migrate3()
+
+        db.query("SELECT id, sessionId, startedAt, endedAt, amountMinor, paymentMethod FROM trips ORDER BY id").use {
+            assertEquals(3, it.count)
+            assertTrue(it.moveToNext())
+            assertEquals(listOf(1L, 1L, START_1, START_1 + 60_000L, 5_000L), (0..4).map { c -> it.getLong(c) })
+            assertEquals("CASH", it.getString(5))
+            assertTrue(it.moveToNext())
+            assertEquals(2L, it.getLong(0))
+            assertTrue(it.isNull(4))
+            assertTrue(it.moveToNext())
+            assertEquals(3L, it.getLong(0))
+            assertEquals(7_500L, it.getLong(4))
+        }
+        db.query("SELECT COALESCE(SUM(amountMinor), 0) FROM trips").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(12_500L, it.getLong(0))
+        }
+    }
+
+    @Test
+    fun `2 to 3 leaves no foreign key violations`() {
+        createV2 {
+            v2Trip(it, "DIDI", null, 5_000)
+            v2Trip(it, "OTHER", "Uber", 1_000)
+        }
+
+        val db = migrate3()
+
+        db.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
+    }
+
+    @Test
+    fun `a platform used by trips cannot be hard deleted`() {
+        createV2 { v2Trip(it, "DIDI", null, 5_000) }
+        val db = migrate3()
+
+        db.execSQL("PRAGMA foreign_keys = ON")
+        try {
+            db.execSQL("DELETE FROM platforms WHERE id = 2")
+            fail("expected the foreign key to block the delete")
+        } catch (expected: SQLiteConstraintException) {
+            // trips keep a valid platform
+        }
+    }
+
+    @Test
+    fun `1 to 2 to 3 chain validates and maps the old trips`() {
+        helper.createDatabase(DB_NAME, 1).apply {
+            execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            execSQL(
+                "INSERT INTO trips (sessionId, platform, platformOtherLabel, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (1, 'OTHER', 'Uber', $START_1, $END_1, 5000, 'CASH')"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(DB_NAME, 3, true, MIGRATION_1_2, MIGRATION_2_3)
+
+        assertEquals(listOf("InDriver", "Didi", "Uber"), db.platforms().map { it.second })
+        assertEquals(listOf(1L to "Uber"), db.tripPlatforms())
+        db.query("SELECT COUNT(*) FROM connected_intervals").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(1, it.getInt(0))
         }
     }
 

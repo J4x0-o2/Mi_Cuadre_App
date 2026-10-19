@@ -1,7 +1,6 @@
 package com.micuadre.app.domain.usecase
 
 import com.micuadre.app.domain.model.PaymentMethod
-import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.repository.ShiftRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -11,14 +10,13 @@ import org.junit.Test
 class FinishTripUseCaseTest {
 
     @Test
-    fun `valid INDRIVER trip with positive amount is persisted`() = runTest {
+    fun `valid trip with positive amount is persisted`() = runTest {
         val repo = FakeShiftRepository(finishTripResult = true)
         val useCase = FinishTripUseCase(repo)
 
         val result = useCase(
             sessionId = 1L,
-            platform = Platform.INDRIVER,
-            platformOtherLabel = null,
+            platformId = 5L,
             startedAt = 1_000L,
             endedAt = 2_000L,
             amountMinor = 150_050L,
@@ -28,28 +26,9 @@ class FinishTripUseCaseTest {
         assertTrue(result is FinishTripUseCase.Result.Saved)
         assertEquals(1, repo.finishCalls.size)
         val call = repo.finishCalls.single()
-        assertEquals(Platform.INDRIVER, call.platform)
+        assertEquals(5L, call.platformId)
         assertEquals(150_050L, call.amountMinor)
         assertEquals(PaymentMethod.CASH, call.method)
-    }
-
-    @Test
-    fun `OTHER platform with blank label is rejected`() = runTest {
-        val repo = FakeShiftRepository(finishTripResult = true)
-        val useCase = FinishTripUseCase(repo)
-
-        val result = useCase(
-            sessionId = 1L,
-            platform = Platform.OTHER,
-            platformOtherLabel = "   ",
-            startedAt = 1_000L,
-            endedAt = 2_000L,
-            amountMinor = 100L,
-            paymentMethod = PaymentMethod.CASH
-        )
-
-        assertEquals(FinishTripUseCase.Result.Invalid, result)
-        assertEquals(0, repo.finishCalls.size)
     }
 
     @Test
@@ -59,8 +38,7 @@ class FinishTripUseCaseTest {
 
         val result = useCase(
             sessionId = 1L,
-            platform = Platform.DIDI,
-            platformOtherLabel = null,
+            platformId = 2L,
             startedAt = 1_000L,
             endedAt = 2_000L,
             amountMinor = 0L,
@@ -78,8 +56,7 @@ class FinishTripUseCaseTest {
 
         val result = useCase(
             sessionId = 1L,
-            platform = Platform.DIDI,
-            platformOtherLabel = null,
+            platformId = 2L,
             startedAt = 2_000L,
             endedAt = 1_000L,
             amountMinor = 100L,
@@ -97,8 +74,7 @@ class FinishTripUseCaseTest {
 
         val result = useCase(
             sessionId = 1L,
-            platform = Platform.INDRIVER,
-            platformOtherLabel = null,
+            platformId = 2L,
             startedAt = 1_000L,
             endedAt = 2_000L,
             amountMinor = 100L,
@@ -108,31 +84,11 @@ class FinishTripUseCaseTest {
         assertEquals(FinishTripUseCase.Result.Invalid, result)
         assertEquals(1, repo.finishCalls.size)
     }
-
-    @Test
-    fun `OTHER platform with label is persisted`() = runTest {
-        val repo = FakeShiftRepository(finishTripResult = true)
-        val useCase = FinishTripUseCase(repo)
-
-        val result = useCase(
-            sessionId = 1L,
-            platform = Platform.OTHER,
-            platformOtherLabel = "Uber",
-            startedAt = 1_000L,
-            endedAt = 2_000L,
-            amountMinor = 999L,
-            paymentMethod = PaymentMethod.TRANSFER
-        )
-
-        assertTrue(result is FinishTripUseCase.Result.Saved)
-        assertEquals("Uber", repo.finishCalls.single().platformOtherLabel)
-    }
 }
 
 private data class FinishCall(
     val sessionId: Long,
-    val platform: Platform,
-    val platformOtherLabel: String?,
+    val platformId: Long,
     val startedAt: Long,
     val endedAt: Long,
     val amountMinor: Long,
@@ -162,14 +118,13 @@ private class FakeShiftRepository(
 
     override suspend fun finishTrip(
         sessionId: Long,
-        platform: Platform,
-        platformOtherLabel: String?,
+        platformId: Long,
         startedAt: Long,
         endedAt: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
     ): Boolean {
-        finishCalls += FinishCall(sessionId, platform, platformOtherLabel, startedAt, endedAt, amountMinor, paymentMethod)
+        finishCalls += FinishCall(sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod)
         return finishTripResult
     }
 }
