@@ -55,9 +55,14 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
       Advisory follow-ups (non-blocking): ofOpenShift passes nowMs=0 (safe while paused, fragile),
       open-shift wiring in HomeScreen untested, zone read from two sources (use case Provider vs
       coordinator supplier).
-- [ ] T4 Review follow-ups (user-requested 2026-10-18): single zone source for use case and
+- [x] T4 Review follow-ups (user-requested 2026-10-18): single zone source for use case and
       coordinator; ofOpenShift without nowMs=0 hack; test open-shift wiring decision; DST test
-      for PeriodRange. Route: delegated writer.
+      for PeriodRange; @Transaction relation query for atomic snapshots. Route: delegated writer.
+      Evidence: 55d4fa4; tests written first but RED NOT observed (honest gap; DST tests passed
+      on first run, no code change needed); testDebugUnitTest + assembleDebug green (parent re-ran).
+      Review: medium (under budget), granted, reliability APPROVED + acknowledged
+      (review-dd13ca81a3c0437c). Advisory: weak fallback bucket assertion in PeriodRangeTest,
+      loading test name contradiction, nowMs snapshot only refreshes with shift snapshot.
 
 ## Acceptance criteria
 - Night shift 20:00-02:00 counts entirely for its start day.
@@ -79,3 +84,4 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
 - 2026-10-18: T3 done (c28eb7c), reviewed. All tasks done. Pending: on-device check by the user,
   then merge feat/home-aggregates into main (user decision).
 - 2026-10-18: user validated T1-T3 on emulator (works). Added T4 follow-ups. Later: Sheets sync, history.
+- 2026-10-18: T4 done (55d4fa4), reviewed. Feature complete; awaiting merge decision.
