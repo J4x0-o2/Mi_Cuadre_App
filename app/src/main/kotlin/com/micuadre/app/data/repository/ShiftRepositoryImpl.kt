@@ -15,7 +15,6 @@ import com.micuadre.app.domain.model.SessionActivity
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.repository.ShiftRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -60,18 +59,12 @@ class ShiftRepositoryImpl @Inject constructor(
         tripDao.lastFinished()?.toDomain()
 
     override fun observeSessionActivity(fromMs: Long, toMs: Long): Flow<List<SessionActivity>> =
-        combine(
-            sessionDao.observeStartedBetween(fromMs, toMs),
-            tripDao.observeBySessionStartedBetween(fromMs, toMs),
-            intervalDao.observeBySessionStartedBetween(fromMs, toMs)
-        ) { sessions, trips, intervals ->
-            val tripsBySession = trips.groupBy { it.sessionId }
-            val intervalsBySession = intervals.groupBy { it.sessionId }
-            sessions.map { session ->
+        sessionDao.observeActivityStartedBetween(fromMs, toMs).map { rows ->
+            rows.map { row ->
                 SessionActivity(
-                    session = session.toDomain(),
-                    trips = tripsBySession[session.id].orEmpty().map { it.toDomain() },
-                    intervals = intervalsBySession[session.id].orEmpty().map { it.toDomain() }
+                    session = row.session.toDomain(),
+                    trips = row.trips.map { it.toDomain() },
+                    intervals = row.intervals.map { it.toDomain() }
                 )
             }
         }

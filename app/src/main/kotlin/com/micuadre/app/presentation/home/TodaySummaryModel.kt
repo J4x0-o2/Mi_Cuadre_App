@@ -38,14 +38,19 @@ data class TodaySummaryModel(
 
         /**
          * Figures of a paused shift that started on a previous day, from its own trips and
-         * intervals. A paused shift has no open interval, so no clock reading is needed.
+         * intervals as of [nowMs]. A paused shift normally has no open interval, but if one
+         * is present it still counts up to [nowMs].
          */
-        fun ofOpenShift(breakdown: DayBreakdown, intervals: List<ConnectedInterval>): TodaySummaryModel = of(
+        fun ofOpenShift(
+            breakdown: DayBreakdown,
+            intervals: List<ConnectedInterval>,
+            nowMs: Long
+        ): TodaySummaryModel = of(
             totalMinor = breakdown.totalMinor,
             cashMinor = breakdown.cashMinor,
             transferMinor = breakdown.transferMinor,
             tripCount = breakdown.tripCount,
-            connectedSeconds = ConnectedTime.totalSeconds(intervals, nowMs = 0L),
+            connectedSeconds = ConnectedTime.totalSeconds(intervals, nowMs = nowMs),
             sessionCount = 1
         )
 

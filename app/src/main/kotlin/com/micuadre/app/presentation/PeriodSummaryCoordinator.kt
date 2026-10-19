@@ -60,7 +60,8 @@ private fun initialDay(clock: Clock, zone: () -> ZoneId): DayKey {
  *
  * [ObservePeriodSummaryUseCase][com.micuadre.app.domain.usecase.ObservePeriodSummaryUseCase]
  * freezes its range when invoked, so each period is re-subscribed whenever the local day
- * (date or time zone) changes (`flatMapLatest` over [localDays]); otherwise "today" would keep showing yesterday
+ * (date or time zone) changes (`flatMapLatest` over [localDays]), using the zone of that very
+ * [DayKey]; otherwise "today" would keep showing yesterday
  * after midnight. Within a day the database drives updates, never a timer. JVM-testable; the
  * view model only forwards.
  */
@@ -70,7 +71,7 @@ class PeriodSummaryCoordinator(
     clock: Clock,
     zone: () -> ZoneId,
     clockChanges: Flow<Unit> = emptyFlow(),
-    private val observe: (Period) -> Flow<PeriodSummary>
+    private val observe: (Period, ZoneId) -> Flow<PeriodSummary>
 ) {
     @OptIn(ExperimentalCoroutinesApi::class)
     private val days: Flow<DayKey> = localDays(clock, zone, clockChanges)
@@ -81,7 +82,7 @@ class PeriodSummaryCoordinator(
         Period.entries.forEach { period ->
             scope.launch {
                 @OptIn(ExperimentalCoroutinesApi::class)
-                days.flatMapLatest { observe(period) }.collect { summary ->
+                days.flatMapLatest { observe(period, it.zone) }.collect { summary ->
                     ui.update {
                         when (period) {
                             Period.TODAY -> it.copy(today = summary)

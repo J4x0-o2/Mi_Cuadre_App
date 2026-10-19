@@ -21,6 +21,8 @@ data class HomeUiState(
     val hasOpenShift: Boolean = false,
     /** Connected intervals of the open session; pauses are not counted as connected. */
     val connectedIntervals: List<ConnectedInterval> = emptyList(),
+    /** Clock reading when the shift fields above were last refreshed; bounds any open interval. */
+    val nowMs: Long = 0L,
     /** Seconds of real connected time today. */
     val elapsedSec: Long = 0L,
     /** Seconds since the current trip started (0 when not on a trip). */

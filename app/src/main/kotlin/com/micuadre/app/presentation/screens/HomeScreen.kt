@@ -59,6 +59,7 @@ import com.micuadre.app.presentation.components.TripRow
 import com.micuadre.app.presentation.components.cardSurface
 import com.micuadre.app.presentation.home.DayBreakdown
 import com.micuadre.app.presentation.home.DisconnectedContent
+import com.micuadre.app.presentation.home.DisconnectedModel
 import com.micuadre.app.presentation.home.HomeAction
 import com.micuadre.app.presentation.home.HomeActions
 import com.micuadre.app.presentation.home.TodaySubtitle
@@ -191,15 +192,12 @@ private fun DisconnectedView(
 ) {
     val actions = HomeActions.secondary(ui.shiftState, ui.hasOpenShift)
     val paused = ui.hasOpenShift
-    val content = DisconnectedContent.choose(ui.hasOpenShift, ui.today?.sessionCount)
-    val today = remember(ui.today) { ui.today?.let(TodaySummaryModel::from) ?: TodaySummaryModel.EMPTY }
-    val openShift = remember(ui.trips, ui.connectedIntervals) {
-        TodaySummaryModel.ofOpenShift(DayBreakdown.from(ui.trips), ui.connectedIntervals)
+    val model = remember(ui.hasOpenShift, ui.today, ui.trips, ui.connectedIntervals, ui.shiftState, ui.nowMs) {
+        DisconnectedModel.of(ui)
     }
-    val openShiftStart = remember(ui.shiftState, ui.connectedIntervals) {
-        shiftStartMs(ui.shiftState, ui.connectedIntervals)
-    }
-    val shown = if (content == DisconnectedContent.OPEN_SHIFT) openShift else today
+    val content = model.content
+    val shown = model.figures
+    val openShiftStart = model.openShiftStartMs
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -238,7 +236,7 @@ private fun DisconnectedView(
                         )
                         ui.todayDate?.let { date ->
                             Text(
-                                text = TodaySubtitle.format(date, today.sessionCount),
+                                text = TodaySubtitle.format(date, shown.sessionCount),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -246,9 +244,9 @@ private fun DisconnectedView(
                     }
                     TotalCard(
                         label = stringResource(R.string.total_today),
-                        totalMinor = today.totalMinor,
-                        cashMinor = today.cashMinor,
-                        transferMinor = today.transferMinor
+                        totalMinor = shown.totalMinor,
+                        cashMinor = shown.cashMinor,
+                        transferMinor = shown.transferMinor
                     )
                 }
                 TodayTiles(shown)

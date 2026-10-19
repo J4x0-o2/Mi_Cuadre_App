@@ -121,10 +121,11 @@ class PeriodSummaryCoordinatorTest {
 
     // ---- coordinator ----
 
-    private class Fixture(scope: TestScope, val clock: FakeClock, zone: ZoneId) {
+    private class Fixture(scope: TestScope, val clock: FakeClock, var zone: ZoneId) {
         val changes = MutableSharedFlow<Unit>()
         val ui = MutableStateFlow(HomeUiState())
         val subscriptions = mutableListOf<Period>()
+        val zonesSeen = mutableListOf<ZoneId>()
         val sources = Period.entries.associateWith {
             MutableStateFlow(PeriodSummary(0, 0, 0, 0, 0, 0, 0, null, emptyList()))
         }
@@ -132,10 +133,11 @@ class PeriodSummaryCoordinatorTest {
             ui = ui,
             scope = scope.backgroundScope,
             clock = clock,
-            zone = { zone },
+            zone = { this.zone },
             clockChanges = changes,
-            observe = { period: Period ->
+            observe = { period: Period, zone: ZoneId ->
                 subscriptions.add(period)
+                zonesSeen.add(zone)
                 sources.getValue(period) as Flow<PeriodSummary>
             }
         )
@@ -231,5 +233,19 @@ class PeriodSummaryCoordinatorTest {
 
         f.coordinator.onPeriodSheetDismissed()
         assertNull(f.ui.value.periodSheet)
+    }
+
+    @Test
+    fun `observes every period in the zone the date ticker emitted`() = runTest {
+        val f = fixture()
+        runCurrent()
+        assertEquals(List(3) { zone }, f.zonesSeen)
+
+        val madrid = ZoneId.of("Europe/Madrid")
+        f.zone = madrid
+        f.changes.emit(Unit)
+        runCurrent()
+
+        assertEquals(List(3) { madrid }, f.zonesSeen.takeLast(3))
     }
 }

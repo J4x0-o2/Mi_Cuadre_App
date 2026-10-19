@@ -123,7 +123,7 @@ class ShiftRepositoryPeriodTest {
         val lastWeek = repository.createSession(ms("2026-10-11", "10:00"))
         finishedTrip(lastWeek, "11:00", 50_000, PaymentMethod.CASH)
 
-        val summary = ObservePeriodSummaryUseCase(repository, clock) { zone }(Period.WEEK).first()
+        val summary = ObservePeriodSummaryUseCase(repository, clock)(Period.WEEK, zone).first()
 
         assertEquals(26_000L, summary.totalMinor)
         assertEquals(20_000L, summary.cashMinor)

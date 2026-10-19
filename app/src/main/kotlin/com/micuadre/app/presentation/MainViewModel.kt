@@ -62,7 +62,7 @@ class MainViewModel @Inject constructor(
         clock = clock,
         zone = ZoneId::systemDefault,
         clockChanges = clockChanges(context),
-        observe = observePeriodSummary::invoke
+        observe = { period, zone -> observePeriodSummary(period, zone) }
     )
     private val connectCoordinator = ConnectCoordinator(startShift = controller::connect)
 
@@ -86,7 +86,8 @@ class MainViewModel @Inject constructor(
                         trips = snapshot.trips,
                         totalMinor = snapshot.totalMinor,
                         hasOpenShift = snapshot.hasOpenShift,
-                        connectedIntervals = snapshot.connectedIntervals
+                        connectedIntervals = snapshot.connectedIntervals,
+                        nowMs = clock.nowMs()
                     )
                 }
                 syncTicker(snapshot.shiftState)

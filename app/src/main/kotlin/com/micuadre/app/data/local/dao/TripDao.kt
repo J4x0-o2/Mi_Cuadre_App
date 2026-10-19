@@ -34,11 +34,4 @@ interface TripDao {
      */
     @Query("SELECT * FROM trips WHERE sessionId = :sessionId AND endedAt IS NULL LIMIT 1")
     suspend fun inProgressBySession(sessionId: Long): TripEntity?
-
-    /** Trips of every session that started in [[fromMs], [toMs]), for period aggregates. */
-    @Query(
-        "SELECT t.* FROM trips t INNER JOIN sessions s ON s.id = t.sessionId " +
-            "WHERE s.startedAt >= :fromMs AND s.startedAt < :toMs"
-    )
-    fun observeBySessionStartedBetween(fromMs: Long, toMs: Long): Flow<List<TripEntity>>
 }

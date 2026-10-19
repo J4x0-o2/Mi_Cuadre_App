@@ -9,20 +9,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.ZoneId
 import javax.inject.Inject
-import javax.inject.Provider
 
 /**
  * Streams the aggregate of every session started in [Period] (today, this week, this month),
- * recomputed whenever sessions, trips or connected intervals change. The time zone is read on
- * every call so a device zone change applies to the next subscription.
+ * recomputed whenever sessions, trips or connected intervals change. The caller supplies the
+ * [ZoneId] (the one its own date ticker emitted) so the range and the ticker cannot disagree.
  */
 class ObservePeriodSummaryUseCase @Inject constructor(
     private val repository: ShiftRepository,
-    private val clock: Clock,
-    private val zone: Provider<ZoneId>
+    private val clock: Clock
 ) {
-    operator fun invoke(period: Period): Flow<PeriodSummary> {
-        val zone = zone.get()
+    operator fun invoke(period: Period, zone: ZoneId): Flow<PeriodSummary> {
         val range = PeriodRange.of(period, clock.nowMs(), zone)
         return repository.observeSessionActivity(range.fromMs, range.toMs)
             .map { PeriodSummary.of(range, it, clock.nowMs(), zone) }
