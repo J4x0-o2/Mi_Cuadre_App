@@ -16,6 +16,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The versi
 
 ### Fixed
 - Summaries roll over correctly at midnight and when the time zone or clock changes.
+- "Por hora" no longer extrapolates a huge rate from less than one connected minute.
 
 ## [0.1.0] - 2026-10-17
 
