@@ -55,6 +55,9 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
       Advisory follow-ups (non-blocking): ofOpenShift passes nowMs=0 (safe while paused, fragile),
       open-shift wiring in HomeScreen untested, zone read from two sources (use case Provider vs
       coordinator supplier).
+- [ ] T4 Review follow-ups (user-requested 2026-10-18): single zone source for use case and
+      coordinator; ofOpenShift without nowMs=0 hack; test open-shift wiring decision; DST test
+      for PeriodRange. Route: delegated writer.
 
 ## Acceptance criteria
 - Night shift 20:00-02:00 counts entirely for its start day.
@@ -75,3 +78,4 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
 - 2026-10-18: T2 done (b1a3376), reviewed.
 - 2026-10-18: T3 done (c28eb7c), reviewed. All tasks done. Pending: on-device check by the user,
   then merge feat/home-aggregates into main (user decision).
+- 2026-10-18: user validated T1-T3 on emulator (works). Added T4 follow-ups. Later: Sheets sync, history.
