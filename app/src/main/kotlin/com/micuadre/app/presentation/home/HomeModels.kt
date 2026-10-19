@@ -18,6 +18,17 @@ private val clockFormat = DateTimeFormatter.ofPattern("HH:mm")
 fun clockTime(epochMs: Long, zone: ZoneId = ZoneId.systemDefault()): String =
     clockFormat.format(Instant.ofEpochMilli(epochMs).atZone(zone))
 
+/**
+ * When the open shift began: the earliest connected interval, or the current connection when the
+ * intervals are not known yet. Null when disconnected without intervals.
+ */
+fun shiftStartMs(state: ShiftState, intervals: List<ConnectedInterval>): Long? =
+    intervals.minOfOrNull { it.startedAt } ?: when (state) {
+        is ShiftState.Connected -> state.connectedSinceMs
+        is ShiftState.OnTrip -> state.connectedSinceMs
+        is ShiftState.Disconnected -> null
+    }
+
 /** Day figures shown on Home. Only finished trips count; the open trip has no amount yet. */
 data class DayBreakdown(
     val totalMinor: Long,

@@ -3,7 +3,9 @@ package com.micuadre.app.data.local.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import com.micuadre.app.data.local.entity.SessionEntity
+import com.micuadre.app.data.local.entity.SessionWithActivityEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -23,4 +25,15 @@ interface SessionDao {
 
     @Query("SELECT * FROM sessions ORDER BY startedAt DESC")
     fun observeAll(): Flow<List<SessionEntity>>
+
+    @Query("SELECT * FROM sessions WHERE startedAt >= :fromMs AND startedAt < :toMs ORDER BY startedAt ASC")
+    fun observeStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionEntity>>
+
+    /**
+     * Sessions started in the range with their trips and intervals. One query observing all three
+     * tables, so a collector never sees trips from one write and intervals from another.
+     */
+    @Transaction
+    @Query("SELECT * FROM sessions WHERE startedAt >= :fromMs AND startedAt < :toMs ORDER BY startedAt ASC")
+    fun observeActivityStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionWithActivityEntity>>
 }

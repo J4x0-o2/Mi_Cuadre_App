@@ -3,6 +3,23 @@
 
 
     <string name="total_today">Total del día</string>
+    <string name="total_shift">Total del turno</string>
+    <string name="since_time">Desde %1$s</string>
+    <string name="today_summary_title">Resumen de hoy</string>
+    <string name="per_hour_label">Por hora</string>
+    <string name="per_hour_unknown">—</string>
+    <string name="earnings_title">Mis ingresos</string>
+    <string name="period_week">Esta semana</string>
+    <string name="period_month">Este mes</string>
+    <string name="period_open_detail">Ver detalle</string>
+    <string name="period_tab_week">Semana</string>
+    <string name="period_tab_month">Mes</string>
+    <string name="period_total_label">Total</string>
+    <string name="period_chart_by_day">Por día</string>
+    <string name="period_chart_by_week">Por semana</string>
+    <string name="period_days_label">Días</string>
+    <string name="period_average_label">Prom./día</string>
+    <string name="paused_shift_title">Turno en pausa</string>
     <string name="connected_label">Conectado</string>
     <string name="trips_label">Carreras</string>
     <string name="status_in_shift">En turno</string>
@@ -11,7 +28,7 @@
     <string name="welcome_title">Listo para arrancar</string>
     <string name="start_trip_cta">Iniciar carrera</string>
     <string name="end_shift_cta">Terminar turno</string>
-    <string name="todays_trips">Carreras de hoy</string>
+    <string name="shift_trips">Carreras del turno</string>
     <string name="trip_duration_label">Duración</string>
     <string name="trip_started_at">Iniciada %1$s</string>
     <string name="finish_trip_cta">Terminar carrera</string>

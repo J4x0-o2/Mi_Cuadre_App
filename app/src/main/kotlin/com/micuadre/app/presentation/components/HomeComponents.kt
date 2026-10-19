@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.micuadre.app.R
 import com.micuadre.app.ui.theme.MiCuadreTheme
 
@@ -124,7 +125,8 @@ private fun StatusPill(text: String, container: Color, content: Color, dot: Colo
 
 /**
  * Label + value tile (radius 22). By default a bordered card; with [onCard] it sits inside
- * another card on a surfaceVariant fill (the cash / transfer split).
+ * another card on a surfaceVariant fill (the cash / transfer split). [compact] trims the padding
+ * and label size so three tiles fit in a row.
  */
 @Composable
 fun MetricTile(
@@ -132,7 +134,8 @@ fun MetricTile(
     value: String,
     modifier: Modifier = Modifier,
     valueStyle: TextStyle = MiCuadreTheme.typography.money,
-    onCard: Boolean = false
+    onCard: Boolean = false,
+    compact: Boolean = false
 ) {
     val shape = RoundedCornerShape(22.dp)
     val base = if (onCard) {
@@ -140,8 +143,8 @@ fun MetricTile(
     } else {
         modifier.cardSurface(shape)
     }
-    Column(modifier = base.padding(horizontal = 16.dp, vertical = 14.dp)) {
-        SectionLabel(text = label)
+    Column(modifier = base.padding(horizontal = if (compact) 12.dp else 16.dp, vertical = 14.dp)) {
+        SectionLabel(text = label, fontSize = if (compact) 11.sp else 13.sp)
         Text(
             text = value,
             style = valueStyle,

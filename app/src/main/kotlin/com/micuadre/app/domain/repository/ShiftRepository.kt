@@ -5,6 +5,7 @@ import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.Session
+import com.micuadre.app.domain.model.SessionActivity
 import com.micuadre.app.domain.model.Trip
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -48,6 +49,13 @@ interface ShiftRepository {
 
     /** Streams the session's connected intervals, oldest first. */
     fun observeConnectedIntervals(sessionId: Long): Flow<List<ConnectedInterval>> = flowOf(emptyList())
+
+    /**
+     * Streams every session that STARTED in [[fromMs], [toMs]) with its trips and connected
+     * intervals, oldest session first. Selection is by start time only, so a session that crosses
+     * midnight stays whole with the day it started.
+     */
+    fun observeSessionActivity(fromMs: Long, toMs: Long): Flow<List<SessionActivity>> = flowOf(emptyList())
 
     /** Inserts a trip row. */
     suspend fun insertTrip(trip: Trip): Long
