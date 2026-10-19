@@ -37,8 +37,12 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
       Evidence: 92959eb; RED = compile failures on new API; 19 new tests green;
       testDebugUnitTest + assembleDebug green. Gaps for T2: re-invoke at midnight,
       ticker for open interval, ZoneId read once.
+      Review: medium, granted, 1 lens (reliability) APPROVED + acknowledged
+      (lineage review-9b3d10f034865df7). Advisory: stale range across midnight, re-emit test
+      not observing, DST untested, non-atomic combine -> first two folded into T2.
 - [ ] T2 Home: TOTAL DEL TURNO when connected, RESUMEN DE HOY when disconnected, week/month
-      buttons with amounts. Route: delegated writer.
+      buttons with amounts; midnight rollover + live connected ticker; fix re-emit test.
+      Route: delegated writer.
 - [ ] T3 Period bottom sheet (Semana/Mes tabs, bars, stats). Route: delegated writer.
 
 ## Acceptance criteria
@@ -56,4 +60,4 @@ Out of scope: versioning, user-defined platforms, app icon (separate features), 
 
 ## Progress
 - 2026-10-18: doc created; branch created.
-- 2026-10-18: T1 done (92959eb). Next: T2.
+- 2026-10-18: T1 done (92959eb), reviewed boundary = docs commit after it. Next: T2.
