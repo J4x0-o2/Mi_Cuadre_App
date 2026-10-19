@@ -1,5 +1,7 @@
 package com.micuadre.app.presentation.home
 
+import com.micuadre.app.domain.model.ConnectedInterval
+import com.micuadre.app.domain.model.ConnectedTime
 import com.micuadre.app.domain.model.PeriodSummary
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -25,22 +27,48 @@ data class TodaySummaryModel(
         /** Nothing recorded yet; shown while the summary loads. */
         val EMPTY = TodaySummaryModel(0L, 0L, 0L, 0, 0L, null, 0)
 
-        fun from(summary: PeriodSummary): TodaySummaryModel {
-            val seconds = summary.connectedSeconds
-            return TodaySummaryModel(
-                totalMinor = summary.totalMinor,
-                cashMinor = summary.cashMinor,
-                transferMinor = summary.transferMinor,
-                tripCount = summary.tripCount,
-                connectedSeconds = seconds,
-                perHourMinor = if (seconds > 0L) {
-                    (summary.totalMinor * SECONDS_PER_HOUR + seconds / 2) / seconds
-                } else {
-                    null
-                },
-                sessionCount = summary.sessionCount
-            )
-        }
+        fun from(summary: PeriodSummary): TodaySummaryModel = of(
+            totalMinor = summary.totalMinor,
+            cashMinor = summary.cashMinor,
+            transferMinor = summary.transferMinor,
+            tripCount = summary.tripCount,
+            connectedSeconds = summary.connectedSeconds,
+            sessionCount = summary.sessionCount
+        )
+
+        /**
+         * Figures of a paused shift that started on a previous day, from its own trips and
+         * intervals. A paused shift has no open interval, so no clock reading is needed.
+         */
+        fun ofOpenShift(breakdown: DayBreakdown, intervals: List<ConnectedInterval>): TodaySummaryModel = of(
+            totalMinor = breakdown.totalMinor,
+            cashMinor = breakdown.cashMinor,
+            transferMinor = breakdown.transferMinor,
+            tripCount = breakdown.tripCount,
+            connectedSeconds = ConnectedTime.totalSeconds(intervals, nowMs = 0L),
+            sessionCount = 1
+        )
+
+        private fun of(
+            totalMinor: Long,
+            cashMinor: Long,
+            transferMinor: Long,
+            tripCount: Int,
+            connectedSeconds: Long,
+            sessionCount: Int
+        ) = TodaySummaryModel(
+            totalMinor = totalMinor,
+            cashMinor = cashMinor,
+            transferMinor = transferMinor,
+            tripCount = tripCount,
+            connectedSeconds = connectedSeconds,
+            perHourMinor = if (connectedSeconds > 0L) {
+                (totalMinor * SECONDS_PER_HOUR + connectedSeconds / 2) / connectedSeconds
+            } else {
+                null
+            },
+            sessionCount = sessionCount
+        )
     }
 }
 

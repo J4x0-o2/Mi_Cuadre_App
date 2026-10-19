@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation
 
+import android.content.Context
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,7 +19,9 @@ import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
 import com.micuadre.app.service.ShiftError
 import com.micuadre.app.service.ShiftServiceController
 import com.micuadre.app.util.Clock
+import com.micuadre.app.presentation.theme.clockChanges
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +41,7 @@ class MainViewModel @Inject constructor(
     private val repository: ShiftRepository,
     private val observePeriodSummary: ObservePeriodSummaryUseCase,
     private val clock: Clock,
-    zone: ZoneId
+    @ApplicationContext context: Context
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(HomeUiState())
@@ -57,7 +60,8 @@ class MainViewModel @Inject constructor(
         ui = _ui,
         scope = viewModelScope,
         clock = clock,
-        zone = zone,
+        zone = ZoneId::systemDefault,
+        clockChanges = clockChanges(context),
         observe = observePeriodSummary::invoke
     )
     private val connectCoordinator = ConnectCoordinator(startShift = controller::connect)

@@ -12,6 +12,14 @@
     <string name="period_week">Esta semana</string>
     <string name="period_month">Este mes</string>
     <string name="period_open_detail">Ver detalle</string>
+    <string name="period_tab_week">Semana</string>
+    <string name="period_tab_month">Mes</string>
+    <string name="period_total_label">Total</string>
+    <string name="period_chart_by_day">Por día</string>
+    <string name="period_chart_by_week">Por semana</string>
+    <string name="period_days_label">Días</string>
+    <string name="period_average_label">Prom./día</string>
+    <string name="paused_shift_title">Turno en pausa</string>
     <string name="connected_label">Conectado</string>
     <string name="trips_label">Carreras</string>
     <string name="status_in_shift">En turno</string>

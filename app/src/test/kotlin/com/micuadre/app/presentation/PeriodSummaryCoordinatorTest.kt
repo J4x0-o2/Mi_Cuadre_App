@@ -5,6 +5,7 @@ import com.micuadre.app.domain.model.PeriodSummary
 import com.micuadre.app.util.FakeClock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -33,28 +34,30 @@ class PeriodSummaryCoordinatorTest {
 
     // ---- date ticker ----
 
+    private fun day(date: String, zone: ZoneId = this.zone) = DayKey(LocalDate.parse(date), zone)
+
     @Test
-    fun `local dates emits today and then the next day after midnight`() = runTest {
+    fun `local days emits today and then the next day after midnight`() = runTest {
         val clock = FakeClock(ms("2026-10-18", "23:59:00"))
-        val seen = mutableListOf<LocalDate>()
-        val job = launch { localDates(clock, zone).collect { seen.add(it) } }
+        val seen = mutableListOf<DayKey>()
+        val job = launch { localDays(clock, { zone }).collect { seen.add(it) } }
 
         runCurrent()
-        assertEquals(listOf(LocalDate.of(2026, 10, 18)), seen)
+        assertEquals(listOf(day("2026-10-18")), seen)
 
         clock.now = ms("2026-10-19", "00:00:01")
         advanceTimeBy(61_000L)
         runCurrent()
 
-        assertEquals(listOf(LocalDate.of(2026, 10, 18), LocalDate.of(2026, 10, 19)), seen)
+        assertEquals(listOf(day("2026-10-18"), day("2026-10-19")), seen)
         job.cancel()
     }
 
     @Test
-    fun `local dates does not wake before the next midnight`() = runTest {
+    fun `local days does not wake before the next midnight`() = runTest {
         val clock = FakeClock(ms("2026-10-18", "12:00:00"))
-        val seen = mutableListOf<LocalDate>()
-        val job = launch { localDates(clock, zone).collect { seen.add(it) } }
+        val seen = mutableListOf<DayKey>()
+        val job = launch { localDays(clock, { zone }).collect { seen.add(it) } }
 
         advanceTimeBy(11 * 3_600_000L)
         runCurrent()
@@ -63,9 +66,63 @@ class PeriodSummaryCoordinatorTest {
         job.cancel()
     }
 
+    @Test
+    fun `local days re-reads the clock when the wall clock changes`() = runTest {
+        val clock = FakeClock(ms("2026-10-18", "12:00:00"))
+        val changes = MutableSharedFlow<Unit>()
+        val seen = mutableListOf<DayKey>()
+        val job = launch { localDays(clock, { zone }, changes).collect { seen.add(it) } }
+        runCurrent()
+
+        clock.now = ms("2026-10-20", "09:00:00")
+        changes.emit(Unit)
+        runCurrent()
+
+        assertEquals(listOf(day("2026-10-18"), day("2026-10-20")), seen)
+        job.cancel()
+    }
+
+    @Test
+    fun `local days re-reads the time zone when it changes`() = runTest {
+        var current = zone
+        val clock = FakeClock(ms("2026-10-18", "23:30:00")) // 04:30 UTC on the 19th
+        val changes = MutableSharedFlow<Unit>()
+        val seen = mutableListOf<DayKey>()
+        val job = launch { localDays(clock, { current }, changes).collect { seen.add(it) } }
+        runCurrent()
+
+        current = ZoneId.of("UTC")
+        changes.emit(Unit)
+        runCurrent()
+
+        assertEquals(listOf(day("2026-10-18"), day("2026-10-19", ZoneId.of("UTC"))), seen)
+        job.cancel()
+    }
+
+    @Test
+    fun `local days re-arms the midnight sleep after a clock change`() = runTest {
+        val clock = FakeClock(ms("2026-10-18", "12:00:00"))
+        val changes = MutableSharedFlow<Unit>()
+        val seen = mutableListOf<DayKey>()
+        val job = launch { localDays(clock, { zone }, changes).collect { seen.add(it) } }
+        runCurrent()
+
+        // Clock jumps to 23:59 on the same day: the next wake-up must be one minute away, not 12 h.
+        clock.now = ms("2026-10-18", "23:59:00")
+        changes.emit(Unit)
+        runCurrent()
+        clock.now = ms("2026-10-19", "00:00:01")
+        advanceTimeBy(61_000L)
+        runCurrent()
+
+        assertEquals(day("2026-10-19"), seen.last())
+        job.cancel()
+    }
+
     // ---- coordinator ----
 
     private class Fixture(scope: TestScope, val clock: FakeClock, zone: ZoneId) {
+        val changes = MutableSharedFlow<Unit>()
         val ui = MutableStateFlow(HomeUiState())
         val subscriptions = mutableListOf<Period>()
         val sources = Period.entries.associateWith {
@@ -75,7 +132,8 @@ class PeriodSummaryCoordinatorTest {
             ui = ui,
             scope = scope.backgroundScope,
             clock = clock,
-            zone = zone,
+            zone = { zone },
+            clockChanges = changes,
             observe = { period: Period ->
                 subscriptions.add(period)
                 sources.getValue(period) as Flow<PeriodSummary>
@@ -123,6 +181,31 @@ class PeriodSummaryCoordinatorTest {
 
         assertEquals(6, f.subscriptions.size)
         assertEquals(LocalDate.of(2026, 10, 19), f.ui.value.todayDate)
+    }
+
+    @Test
+    fun `re-subscribes every period when the clock jumps to another day`() = runTest {
+        val f = fixture(ms("2026-10-18", "10:00:00"))
+        runCurrent()
+
+        f.clock.now = ms("2026-10-20", "10:00:00")
+        f.changes.emit(Unit)
+        runCurrent()
+
+        assertEquals(6, f.subscriptions.size)
+        assertEquals(LocalDate.of(2026, 10, 20), f.ui.value.todayDate)
+    }
+
+    @Test
+    fun `a clock change within the same day keeps the subscriptions`() = runTest {
+        val f = fixture(ms("2026-10-18", "10:00:00"))
+        runCurrent()
+
+        f.clock.now = ms("2026-10-18", "11:00:00")
+        f.changes.emit(Unit)
+        runCurrent()
+
+        assertEquals(3, f.subscriptions.size)
     }
 
     @Test

@@ -51,12 +51,14 @@ import com.micuadre.app.presentation.components.FinishTripSheet
 import com.micuadre.app.presentation.components.HeaderStatus
 import com.micuadre.app.presentation.components.MetricTile
 import com.micuadre.app.presentation.components.PeriodButtons
+import com.micuadre.app.presentation.components.PeriodSheet
 import com.micuadre.app.presentation.components.PrimaryActionButton
 import com.micuadre.app.presentation.components.ScreenHeader
 import com.micuadre.app.presentation.components.SectionLabel
 import com.micuadre.app.presentation.components.TripRow
 import com.micuadre.app.presentation.components.cardSurface
 import com.micuadre.app.presentation.home.DayBreakdown
+import com.micuadre.app.presentation.home.DisconnectedContent
 import com.micuadre.app.presentation.home.HomeAction
 import com.micuadre.app.presentation.home.HomeActions
 import com.micuadre.app.presentation.home.TodaySubtitle
@@ -138,6 +140,16 @@ fun HomeScreen(
         }
     }
 
+    state.periodSheet?.takeIf { it != Period.TODAY }?.let { period ->
+        PeriodSheet(
+            period = period,
+            summary = if (period == Period.WEEK) state.week else state.month,
+            today = state.todayDate,
+            onPeriodSelected = viewModel::onPeriodTapped,
+            onDismiss = viewModel::onPeriodSheetDismissed
+        )
+    }
+
     state.finishSheet?.let { sheet ->
         FinishTripSheet(
             state = sheet,
@@ -166,7 +178,8 @@ private fun notificationPermissionState(context: Context): NotificationPermissio
 /**
  * "Resumen de hoy" with the primary "Conectarse" action: every shift started today, plus the
  * week and month totals. With no shift yet today it shows the welcome instead. A paused shift
- * keeps its hint and offers "Terminar turno".
+ * keeps its hint and offers "Terminar turno"; when it started on a previous day (so today's
+ * summary is empty) its own totals are shown as "Total del turno".
  */
 @Composable
 private fun DisconnectedView(
@@ -178,7 +191,15 @@ private fun DisconnectedView(
 ) {
     val actions = HomeActions.secondary(ui.shiftState, ui.hasOpenShift)
     val paused = ui.hasOpenShift
+    val content = DisconnectedContent.choose(ui.hasOpenShift, ui.today?.sessionCount)
     val today = remember(ui.today) { ui.today?.let(TodaySummaryModel::from) ?: TodaySummaryModel.EMPTY }
+    val openShift = remember(ui.trips, ui.connectedIntervals) {
+        TodaySummaryModel.ofOpenShift(DayBreakdown.from(ui.trips), ui.connectedIntervals)
+    }
+    val openShiftStart = remember(ui.shiftState, ui.connectedIntervals) {
+        shiftStartMs(ui.shiftState, ui.connectedIntervals)
+    }
+    val shown = if (content == DisconnectedContent.OPEN_SHIFT) openShift else today
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -186,7 +207,7 @@ private fun DisconnectedView(
             .padding(top = 16.dp, bottom = 24.dp)
     ) {
         ScreenHeader(status = null, onSettingsClick = onOpenSettings)
-        if (paused || today.hasActivity) {
+        if (content != DisconnectedContent.WELCOME) {
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -195,27 +216,42 @@ private fun DisconnectedView(
                     .padding(top = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column {
+                if (content == DisconnectedContent.OPEN_SHIFT) {
                     Text(
-                        text = stringResource(R.string.today_summary_title),
+                        text = stringResource(R.string.paused_shift_title),
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    ui.todayDate?.let { date ->
+                    TotalCard(
+                        label = stringResource(R.string.total_shift),
+                        totalMinor = shown.totalMinor,
+                        cashMinor = shown.cashMinor,
+                        transferMinor = shown.transferMinor,
+                        trailing = openShiftStart?.let { stringResource(R.string.since_time, clockTime(it)) }
+                    )
+                } else {
+                    Column {
                         Text(
-                            text = TodaySubtitle.format(date, today.sessionCount),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = stringResource(R.string.today_summary_title),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
+                        ui.todayDate?.let { date ->
+                            Text(
+                                text = TodaySubtitle.format(date, today.sessionCount),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
+                    TotalCard(
+                        label = stringResource(R.string.total_today),
+                        totalMinor = today.totalMinor,
+                        cashMinor = today.cashMinor,
+                        transferMinor = today.transferMinor
+                    )
                 }
-                TotalCard(
-                    label = stringResource(R.string.total_today),
-                    totalMinor = today.totalMinor,
-                    cashMinor = today.cashMinor,
-                    transferMinor = today.transferMinor
-                )
-                TodayTiles(today)
+                TodayTiles(shown)
                 EarningsSection(ui, onPeriodTapped)
                 if (paused) {
                     Text(
