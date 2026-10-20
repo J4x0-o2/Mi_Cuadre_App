@@ -49,6 +49,11 @@ Out of scope: Google Sheets sync, history screen, README refinement.
       (2), use case (1), state machine (2), service (2), dialog (4 more) tests; full suite +
       assembleDebug pass. Note: trip rows are only written at finish time, so the DAO delete is
       defensive; the real effect is the OnTrip -> Connected transition.
+      Review (T1..T3 slice, base 3a50813): medium, granted, reliability APPROVED + acknowledged
+      (review-4fad99ee052cabad). Advisories -> T3b.
+- [ ] T3b Review advisories: stale cancel dialog (clear when leaving OnTrip + pass the trip
+      startedAt so the service only cancels that trip), abstract cancelInProgressTrip, test the
+      finish-vs-cancel race guard, fix misattached KDoc in TripDao. Route: delegated writer.
 - [ ] T4 Floating bubble: overlay controller in ShiftService, Compose panel, permission +
       Settings toggle, manifest. Route: delegated writer (2+ non-trivial files).
 
@@ -60,4 +65,4 @@ Out of scope: Google Sheets sync, history screen, README refinement.
   dragged, and its actions work; it disappears when the shift ends or the toggle is off.
 
 ## Progress
-- Branch created from main (3a50813). T1 done (4cd39b0), T2 done (8c370c1), T3 done (1d67c72). Next: T4.
+- Branch created from main (3a50813). T1 done (4cd39b0), T2 done (8c370c1), T3 done (1d67c72), slice reviewed. Next: T3b, T4.
