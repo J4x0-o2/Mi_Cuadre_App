@@ -21,12 +21,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.micuadre.app.R
 import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.ShiftState
+import com.micuadre.app.presentation.HomeDialog
 import com.micuadre.app.presentation.HomeUiState
 import com.micuadre.app.presentation.MainViewModel
 import com.micuadre.app.presentation.NotificationPermission
@@ -149,6 +152,28 @@ fun HomeScreen(
             onPeriodSelected = viewModel::onPeriodTapped,
             onDismiss = viewModel::onPeriodSheetDismissed
         )
+    }
+
+    when (state.dialog) {
+        HomeDialog.EndShift -> AlertDialog(
+            onDismissRequest = viewModel::onDialogDismissed,
+            title = { Text(stringResource(R.string.end_shift_dialog_title)) },
+            text = { Text(stringResource(R.string.end_shift_dialog_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onEndShiftConfirmed) {
+                    Text(
+                        text = stringResource(R.string.end_shift_cta),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onDialogDismissed) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+        null -> Unit
     }
 
     state.finishSheet?.let { sheet ->
