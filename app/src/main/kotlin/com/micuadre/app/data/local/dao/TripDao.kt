@@ -46,14 +46,15 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE endedAt IS NOT NULL ORDER BY endedAt DESC LIMIT 1")
     suspend fun lastFinished(): TripEntity?
 
+    /** Discards the in-progress trip of [sessionId] (a row whose `endedAt` is null), if any. */
+    @Query("DELETE FROM trips WHERE sessionId = :sessionId AND endedAt IS NULL")
+    suspend fun deleteInProgressBySession(sessionId: Long)
+
     /**
      * Returns the in-progress trip for [sessionId] (a row whose `endedAt`
      * is null), or null if there is none. Used by the service on
      * rehydration after a process restart.
      */
-    @Query("DELETE FROM trips WHERE sessionId = :sessionId AND endedAt IS NULL")
-    suspend fun deleteInProgressBySession(sessionId: Long)
-
     @Query("SELECT * FROM trips WHERE sessionId = :sessionId AND endedAt IS NULL LIMIT 1")
     suspend fun inProgressBySession(sessionId: Long): TripEntity?
 }

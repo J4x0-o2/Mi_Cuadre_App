@@ -3,6 +3,7 @@ package com.micuadre.app.service
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.di.ClockModule
@@ -74,8 +75,11 @@ class ShiftServiceTest {
 
     private val context: Context get() = ApplicationProvider.getApplicationContext<Application>()
 
-    private fun intent(action: String?) =
-        Intent(context, ShiftService::class.java).apply { this.action = action }
+    private fun intent(action: String?, extras: Bundle? = null) =
+        Intent(context, ShiftService::class.java).apply {
+            this.action = action
+            if (extras != null) putExtras(extras)
+        }
 
     @Before
     fun setUp() {
@@ -87,9 +91,25 @@ class ShiftServiceTest {
     }
 
     /** Delivers [action] and lets everything settle. */
-    private fun ServiceController<ShiftService>.deliver(action: String?) {
-        withIntent(intent(action)).startCommand(0, 1)
+    private fun ServiceController<ShiftService>.deliver(action: String?, extras: Bundle? = null) {
+        withIntent(intent(action, extras)).startCommand(0, 1)
         shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    private fun ServiceController<ShiftService>.deliverCancel(tripStartedAtMs: Long?) {
+        val extras = tripStartedAtMs?.let {
+            Bundle().apply { putLong(ShiftServiceController.EXTRA_TRIP_STARTED_AT_MS, it) }
+        }
+        deliver(ShiftServiceController.ACTION_CANCEL_TRIP, extras)
+    }
+
+    private fun ServiceController<ShiftService>.deliverFinish() {
+        val extras = Bundle().apply {
+            putLong(ShiftServiceController.EXTRA_PLATFORM_ID, 1L)
+            putLong(ShiftServiceController.EXTRA_AMOUNT_MINOR, 5_000L)
+            putString(ShiftServiceController.EXTRA_PAYMENT_METHOD, PaymentMethod.CASH.name)
+        }
+        deliver(ShiftServiceController.ACTION_FINISH_TRIP, extras)
     }
 
     /**
@@ -213,9 +233,9 @@ class ShiftServiceTest {
         controller.deliver(ShiftServiceController.ACTION_CONNECT)
         val connectedSince = (controller.get().controller.state.value as ShiftState.Connected).connectedSinceMs
         controller.deliver(ShiftServiceController.ACTION_START_TRIP)
-        assertTrue(controller.get().controller.state.value is ShiftState.OnTrip)
+        val tripStart = (controller.get().controller.state.value as ShiftState.OnTrip).tripStartedAtMs
 
-        controller.deliver(ShiftServiceController.ACTION_CANCEL_TRIP)
+        controller.deliverCancel(tripStart)
 
         assertEquals(ShiftState.Connected(connectedSince), controller.get().controller.state.value)
         assertEquals(listOf(100L), repository.cancelledTripSessions)
@@ -227,10 +247,80 @@ class ShiftServiceTest {
         controller.deliver(ShiftServiceController.ACTION_CONNECT)
         val before = controller.get().controller.state.value
 
-        controller.deliver(ShiftServiceController.ACTION_CANCEL_TRIP)
+        controller.deliverCancel(NOW)
 
         assertEquals(before, controller.get().controller.state.value)
         assertTrue(repository.cancelledTripSessions.isEmpty())
+    }
+
+    @Test
+    fun `cancel trip aimed at a different ride is ignored`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val onTrip = controller.get().controller.state.value as ShiftState.OnTrip
+
+        controller.deliverCancel(onTrip.tripStartedAtMs - 1L)
+
+        assertEquals(onTrip, controller.get().controller.state.value)
+        assertTrue(repository.cancelledTripSessions.isEmpty())
+    }
+
+    @Test
+    fun `cancel trip without a ride identity is ignored`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val onTrip = controller.get().controller.state.value
+
+        controller.deliverCancel(null)
+
+        assertEquals(onTrip, controller.get().controller.state.value)
+        assertTrue(repository.cancelledTripSessions.isEmpty())
+    }
+
+    @Test
+    fun `a finish that wins the race while the cancel is in flight is not overwritten`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        val connectedSince = (controller.get().controller.state.value as ShiftState.Connected).connectedSinceMs
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val tripStart = (controller.get().controller.state.value as ShiftState.OnTrip).tripStartedAtMs
+
+        repository.cancelGate = CompletableDeferred()
+        controller.deliverCancel(tripStart)
+        fakeClock.now = NOW + MINUTE
+        controller.deliverFinish()
+        assertEquals(ShiftState.Connected(connectedSince), controller.get().controller.state.value)
+        assertEquals(1, repository.finishCalls)
+
+        repository.cancelGate?.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(ShiftState.Connected(connectedSince), controller.get().controller.state.value)
+        assertEquals(1, repository.finishCalls)
+    }
+
+    @Test
+    fun `a cancel in flight never discards a ride started after it was requested`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val first = (controller.get().controller.state.value as ShiftState.OnTrip).tripStartedAtMs
+
+        repository.cancelGate = CompletableDeferred()
+        controller.deliverCancel(first)
+        fakeClock.now = NOW + MINUTE
+        controller.deliverFinish()
+        fakeClock.now = NOW + 2 * MINUTE
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val second = controller.get().controller.state.value
+        assertTrue("expected a second ride but was $second", second is ShiftState.OnTrip)
+
+        repository.cancelGate?.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(second, controller.get().controller.state.value)
     }
 
     @Test
@@ -343,8 +433,12 @@ class InMemoryShiftRepository : ShiftRepository {
 
     val cancelledTripSessions = mutableListOf<Long>()
 
+    /** While set, [cancelInProgressTrip] suspends until it completes: models a slow delete. */
+    var cancelGate: CompletableDeferred<Unit>? = null
+
     override suspend fun cancelInProgressTrip(sessionId: Long) {
         yield()
+        cancelGate?.await()
         cancelledTripSessions += sessionId
     }
 
@@ -363,5 +457,11 @@ class InMemoryShiftRepository : ShiftRepository {
         endedAt: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
-    ): Boolean = true
+    ): Boolean {
+        yield()
+        finishCalls++
+        return true
+    }
+
+    var finishCalls = 0
 }

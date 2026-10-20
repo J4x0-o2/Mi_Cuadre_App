@@ -155,7 +155,7 @@ class ShiftService : Service() {
             ShiftServiceController.ACTION_DISCONNECT -> handleDisconnect()
             ShiftServiceController.ACTION_START_TRIP -> handleStartTrip()
             ShiftServiceController.ACTION_FINISH_TRIP -> handleFinishTrip(intent)
-            ShiftServiceController.ACTION_CANCEL_TRIP -> handleCancelTrip()
+            ShiftServiceController.ACTION_CANCEL_TRIP -> handleCancelTrip(intent)
             ShiftServiceController.ACTION_END_SHIFT -> handleEndShift()
             else -> stopIfIdle()
         }
@@ -293,23 +293,30 @@ class ShiftService : Service() {
         }
     }
 
-    private fun handleCancelTrip() {
+    private fun handleCancelTrip(intent: Intent) {
         val sessionId = activeSessionId
-        if (_currentState.value !is ShiftState.OnTrip || sessionId == null) {
+        val tripStart = ShiftServiceController.tripStartedAtFrom(intent)
+        if (sessionId == null || !isOnTrip(tripStart)) {
             stopIfIdle()
             return
         }
         scope.launch {
             // Defensive: the row is only written at finish time today, but a stray open one must not survive.
             cancelTrip(sessionId)
-            // A finish may have won the race while the delete was in flight.
-            if (_currentState.value !is ShiftState.OnTrip) return@launch
+            // A finish (or a newer ride) may have won the race while the delete was in flight.
+            if (!isOnTrip(tripStart)) return@launch
             val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.CancelTrip)
             _currentState.value = next
             activeTripStartMs = null
             controller.publishState(next)
             updateNotification(next)
         }
+    }
+
+    /** True while the shift is on the ride that started at [tripStartedAtMs]. */
+    private fun isOnTrip(tripStartedAtMs: Long?): Boolean {
+        val state = _currentState.value
+        return tripStartedAtMs != null && state is ShiftState.OnTrip && state.tripStartedAtMs == tripStartedAtMs
     }
 
     private fun handleEndShift() {

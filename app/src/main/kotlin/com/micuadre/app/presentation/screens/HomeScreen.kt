@@ -156,7 +156,7 @@ fun HomeScreen(
     }
 
     when (state.dialog) {
-        HomeDialog.CancelTrip -> AlertDialog(
+        is HomeDialog.CancelTrip -> AlertDialog(
             onDismissRequest = viewModel::onDialogDismissed,
             title = { Text(stringResource(R.string.cancel_trip_dialog_title)) },
             text = { Text(stringResource(R.string.cancel_trip_dialog_message)) },

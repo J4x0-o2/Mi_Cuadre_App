@@ -115,6 +115,8 @@ private class FakeShiftRepository(
 
     override suspend fun insertTrip(trip: com.micuadre.app.domain.model.Trip) = 1L
 
+    override suspend fun cancelInProgressTrip(sessionId: Long) {}
+
     override suspend fun summary(sessionId: Long) =
         com.micuadre.app.domain.model.DailySummary(0L, 0, 0L, 0L)
 

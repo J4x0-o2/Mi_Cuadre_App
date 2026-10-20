@@ -1,12 +1,15 @@
 package com.micuadre.app.presentation
 
+import com.micuadre.app.domain.model.ShiftState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
 /** Confirmation dialogs the Home screen can show; at most one at a time. */
 sealed interface HomeDialog {
     data object EndShift : HomeDialog
-    data object CancelTrip : HomeDialog
+
+    /** Bound to the ride it was opened for, so a confirm can never discard a different one. */
+    data class CancelTrip(val tripStartedAtMs: Long) : HomeDialog
 }
 
 /**
@@ -17,7 +20,7 @@ sealed interface HomeDialog {
 class HomeDialogCoordinator(
     private val ui: MutableStateFlow<HomeUiState>,
     private val endShift: () -> Unit,
-    private val cancelTrip: () -> Unit
+    private val cancelTrip: (tripStartedAtMs: Long) -> Unit
 ) {
 
     fun onEndShiftTapped() {
@@ -30,12 +33,24 @@ class HomeDialogCoordinator(
     }
 
     fun onCancelTripTapped() {
-        ui.update { it.copy(dialog = HomeDialog.CancelTrip) }
+        val trip = ui.value.shiftState as? ShiftState.OnTrip ?: return
+        ui.update { it.copy(dialog = HomeDialog.CancelTrip(trip.tripStartedAtMs)) }
     }
 
     fun onCancelTripConfirmed() {
-        if (!close(HomeDialog.CancelTrip)) return
-        cancelTrip()
+        val dialog = ui.value.dialog as? HomeDialog.CancelTrip ?: return
+        if (!close(dialog)) return
+        cancelTrip(dialog.tripStartedAtMs)
+    }
+
+    /** Must be called every time the shift state is (re)published; drops a cancel dialog whose ride is gone. */
+    fun onShiftState(state: ShiftState) {
+        ui.update {
+            val dialog = it.dialog
+            val stale = dialog is HomeDialog.CancelTrip &&
+                !(state is ShiftState.OnTrip && state.tripStartedAtMs == dialog.tripStartedAtMs)
+            if (stale) it.copy(dialog = null) else it
+        }
     }
 
     fun onDialogDismissed() {
