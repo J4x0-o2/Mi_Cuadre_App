@@ -77,6 +77,12 @@ Out of scope: Google Sheets sync, history screen, README refinement.
       by design. GREEN: handleCancelTrip catches non-cancellation failures (log, ride stays
       active), and waits for rehydration (CompletableDeferred) before judging, keeping the
       EXTRA_TRIP_STARTED_AT_MS guard. Full suite 486 tests, 0 failures; assembleDebug passes.
+      Commit 313f1b6. Review (base a571a71; full branch exceeded the reviewer context budget):
+      medium, granted, reliability APPROVED + acknowledged (review-56bb31f323b1199b).
+      Finding (verified): trip rows are only written at finish, so rehydration never restores
+      OnTrip on a real device; the R3-002 path only matters if trip rows are pre-inserted later.
+      The underlying gap (an active ride is lost when the service process dies) is pre-existing
+      and out of scope. Suggestion: test the cancel-during-rehydration path when nothing restores.
 
 ## Acceptance criteria
 - No "MiCuadré" left in the repo; header shows only the name.
