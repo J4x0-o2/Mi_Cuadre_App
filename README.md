@@ -1,11 +1,11 @@
-# MiCuadré
+# MiCuadre
 
-**Know exactly what you earned in every shift.** MiCuadré is an Android app for ride-hailing and
+**Know exactly what you earned in every shift.** MiCuadre is an Android app for ride-hailing and
 taxi drivers (InDriver, DiDi or any other platform). You log each ride in a couple of taps and the
 app instantly shows how much you made in the current shift, today, this week and this month,
 split into cash and bank transfers.
 
-![MiCuadré: shift total, weekly and monthly earnings](docs/images/cover.png)
+![MiCuadre: shift total, weekly and monthly earnings](docs/images/cover.png)
 
 ## Why it exists
 
@@ -14,7 +14,7 @@ from memory, screenshots or a notebook. That is slow and error-prone, and it hid
 that matter: how much you earn per hour, which days pay off, and how much cash you should have in
 your pocket.
 
-MiCuadré replaces that with a record you build while you drive. It works offline and keeps every
+MiCuadre replaces that with a record you build while you drive. It works offline and keeps every
 number on your phone.
 
 | Goal | How the app gets there |
@@ -125,5 +125,5 @@ Every release is tagged in git (`v0.3.0`), and changes are listed in [CHANGELOG.
 
 ## Project status
 
-MiCuadré is in active development (current version **0.3.0**) and is used first by its author as
+MiCuadre is in active development (current version **0.3.0**) and is used first by its author as
 a daily driver tool, with the goal of opening it to any app-based driver.

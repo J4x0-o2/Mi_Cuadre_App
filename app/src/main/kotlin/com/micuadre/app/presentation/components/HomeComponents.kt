@@ -28,8 +28,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,38 +44,22 @@ fun Modifier.cardSurface(shape: Shape): Modifier = this
 /** Status shown at the right of the header. */
 enum class HeaderStatus { IN_SHIFT, ON_TRIP }
 
-/** 40dp emerald logo + app name on the left, optional status pill and settings button on the right. */
+/** App name on the left, optional status pill and settings button on the right. */
 @Composable
 fun ScreenHeader(
     status: HeaderStatus?,
     onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val logoDescription = stringResource(R.string.logo_description)
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .semantics { contentDescription = logoDescription }
-                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "M",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
-        }
         Text(
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier
-                .padding(start = 12.dp)
-                .weight(1f)
+            modifier = Modifier.weight(1f)
         )
         when (status) {
             HeaderStatus.IN_SHIFT -> StatusPill(
