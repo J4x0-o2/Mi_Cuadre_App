@@ -36,11 +36,19 @@ Out of scope: Google Sheets sync, history screen, README refinement.
 - Delivery strategy: ask-on-risk. Branch: feat/shift-safety-and-bubble.
 
 ## Tasks
-- [ ] T1 Rename MiCuadré -> MiCuadre + Home header without the "M" badge.
+- [x] T1 Rename MiCuadré -> MiCuadre + Home header without the "M" badge.
       Route: inline (2 mechanical files + README).
-- [ ] T2 End-shift confirmation dialog (Home). Route: delegated writer.
-- [ ] T3 Cancel ride: repository/DAO delete, use case, state machine transition, service
+- [x] T2 End-shift confirmation dialog (Home). Route: delegated writer.
+      Commit 8c370c1. RED: HomeDialogCoordinatorTest failed to compile (HomeDialogCoordinator
+      missing). GREEN: 4 new tests; full testDebugUnitTest + assembleDebug pass.
+      Dialog state: HomeUiState.dialog via HomeDialogCoordinator, wired in MainViewModel.
+- [x] T3 Cancel ride: repository/DAO delete, use case, state machine transition, service
       action, Home button + confirmation. Route: delegated writer (2+ non-trivial files).
+      Commit 1d67c72. RED: test sources failed to compile (cancelInProgressTrip, CancelTripUseCase,
+      Action.CancelTrip, ACTION_CANCEL_TRIP, HomeDialog.CancelTrip unresolved). GREEN: repository
+      (2), use case (1), state machine (2), service (2), dialog (4 more) tests; full suite +
+      assembleDebug pass. Note: trip rows are only written at finish time, so the DAO delete is
+      defensive; the real effect is the OnTrip -> Connected transition.
 - [ ] T4 Floating bubble: overlay controller in ShiftService, Compose panel, permission +
       Settings toggle, manifest. Route: delegated writer (2+ non-trivial files).
 
@@ -52,4 +60,4 @@ Out of scope: Google Sheets sync, history screen, README refinement.
   dragged, and its actions work; it disappears when the shift ends or the toggle is off.
 
 ## Progress
-- Branch created from main (3a50813). Next: T1.
+- Branch created from main (3a50813). T1 done (4cd39b0), T2 done (8c370c1), T3 done (1d67c72). Next: T4.
