@@ -87,5 +87,11 @@ Out of scope: Google Sheets sync, history screen, README refinement.
   OverlayPermissionSettings / onPermissionSettingsUnavailable; then 3 Robolectric failures
   (non-activity context needs FLAG_ACTIVITY_NEW_TASK) fixed. GREEN: 483 tests + assembleDebug.
   Route: inline (user-requested 2026-10-19).
+- Review full branch (base 3a50813, user granted): reliability APPROVED + acknowledged
+  (review-4aa1877b6d778a33). Advisories (non-blocking, pending user decision):
+  R3-001 handleCancelTrip has no error handling (DB failure crashes the process);
+  R3-002 cancel dropped while a fresh service is rehydrating (endShift has a Room fallback);
+  R3-003 permission revoke after grant not detected (bubble not re-attached);
+  R3-004 EndShift dialog not cleared when the shift ends elsewhere; R3-005 overlay glue untested.
 - Next: manual device check of the bubble (permission flow, drag + edge snap, panel actions,
   opening the finish sheet from the background, rotation, dark/light theme, hides on end shift).
