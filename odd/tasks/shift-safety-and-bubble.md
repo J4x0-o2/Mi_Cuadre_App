@@ -51,11 +51,22 @@ Out of scope: Google Sheets sync, history screen, README refinement.
       defensive; the real effect is the OnTrip -> Connected transition.
       Review (T1..T3 slice, base 3a50813): medium, granted, reliability APPROVED + acknowledged
       (review-4fad99ee052cabad). Advisories -> T3b.
-- [ ] T3b Review advisories: stale cancel dialog (clear when leaving OnTrip + pass the trip
+- [x] T3b Review advisories: stale cancel dialog (clear when leaving OnTrip + pass the trip
       startedAt so the service only cancels that trip), abstract cancelInProgressTrip, test the
       finish-vs-cancel race guard, fix misattached KDoc in TripDao. Route: delegated writer.
-- [ ] T4 Floating bubble: overlay controller in ShiftService, Compose panel, permission +
+      Commit 2173b20. RED: test sources failed to compile (HomeDialog.CancelTrip(tripStartedAtMs),
+      HomeDialogCoordinator.onShiftState, EXTRA_TRIP_STARTED_AT_MS unresolved). GREEN: dialog
+      tests (5 new), service tests (identity mismatch, missing identity, finish-vs-cancel race,
+      cancel vs newer ride); full suite + assembleDebug pass.
+- [x] T4 Floating bubble: overlay controller in ShiftService, Compose panel, permission +
       Settings toggle, manifest. Route: delegated writer (2+ non-trivial files).
+      Commits 8a53fd6 (SYSTEM_ALERT_WINDOW, DataStore toggle `bubble_enabled`, Settings row,
+      BubbleVisibility) and 76764c8 (overlay). RED: test sources failed to compile before the
+      settings code existed (observed); overlay tests were written before their classes.
+      Tests: BubbleVisibility (4), BubblePreferenceRepositoryImpl (5), SettingsViewModel bubble
+      (7), BubblePlacement (11), DragGesture (7), BubblePanelModel (6), BubblePanelCoordinator
+      (17), permissionUpdates (3), ShiftService bubble wiring (9). 479 unit tests, 0 failures.
+      Untested glue (compiles, needs a device): WindowBubbleOverlay, BubbleRootView, BubbleContent.
 
 ## Acceptance criteria
 - No "MiCuadré" left in the repo; header shows only the name.
@@ -65,4 +76,7 @@ Out of scope: Google Sheets sync, history screen, README refinement.
   dragged, and its actions work; it disappears when the shift ends or the toggle is off.
 
 ## Progress
-- Branch created from main (3a50813). T1 done (4cd39b0), T2 done (8c370c1), T3 done (1d67c72), slice reviewed. Next: T3b, T4.
+- Branch created from main (3a50813). T1 done (4cd39b0), T2 done (8c370c1), T3 done (1d67c72), slice reviewed.
+  T3b done (2173b20), T4 done (8a53fd6, 76764c8).
+- Next: manual device check of the bubble (permission flow, drag + edge snap, panel actions,
+  opening the finish sheet from the background, rotation, dark/light theme, hides on end shift).
