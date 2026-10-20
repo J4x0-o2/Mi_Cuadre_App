@@ -38,18 +38,25 @@ class TodaySummaryModelTest {
 
     @Test
     fun `per hour rounds to the nearest minor unit`() {
-        // 1000 minor over 7 min = 8_571.43 per hour.
-        val model = TodaySummaryModel.from(summary(total = 1_000L, connectedSeconds = 7 * 60L, sessions = 1))
+        // 1000 minor over 70 min = 857.14 per hour.
+        val model = TodaySummaryModel.from(summary(total = 1_000L, connectedSeconds = 70 * 60L, sessions = 1))
 
-        assertEquals(8_571L, model.perHourMinor)
+        assertEquals(857L, model.perHourMinor)
     }
 
     @Test
-    fun `per hour is null under one connected minute`() {
-        // The tile shows "0:00" then, so a rate extrapolated from seconds would be nonsense.
-        val model = TodaySummaryModel.from(summary(total = 500_000L, connectedSeconds = 59L, sessions = 1))
+    fun `per hour is null under one connected hour`() {
+        // One early ride extrapolated over the hour reads as an absurd rate (15.000 in 2 min = 450k/h).
+        val model = TodaySummaryModel.from(summary(total = 1_500_000L, connectedSeconds = 3_599L, sessions = 1))
 
         assertNull(model.perHourMinor)
+    }
+
+    @Test
+    fun `per hour appears from exactly one connected hour`() {
+        val model = TodaySummaryModel.from(summary(total = 1_500_000L, connectedSeconds = 3_600L, sessions = 1))
+
+        assertEquals(1_500_000L, model.perHourMinor)
     }
 
     @Test

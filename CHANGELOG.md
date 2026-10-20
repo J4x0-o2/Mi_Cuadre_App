@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version lives in
 `version.properties`; the Android `versionCode` is derived from it as `major*10000 + minor*100 + patch`.
 
+## [Unreleased]
+
+### Changed
+- "Por hora" appears only after one full connected hour (was one minute), so an early ride no
+  longer reads as an absurd hourly rate.
+
 ## [0.4.0] - 2026-10-20
 
 ### Added

@@ -61,10 +61,10 @@ class DisconnectedContentTest {
         val breakdown = DayBreakdown(totalMinor = 1_000_000L, cashMinor = 1_000_000L, transferMinor = 0L, tripCount = 1)
         val intervals = listOf(ConnectedInterval(sessionId = 1, startedAt = t0, endedAt = null))
 
-        val model = TodaySummaryModel.ofOpenShift(breakdown, intervals, nowMs = t0 + 1_800_000L)
+        val model = TodaySummaryModel.ofOpenShift(breakdown, intervals, nowMs = t0 + 7_200_000L)
 
-        assertEquals(1_800L, model.connectedSeconds)
-        assertEquals(2_000_000L, model.perHourMinor)
+        assertEquals(7_200L, model.connectedSeconds)
+        assertEquals(500_000L, model.perHourMinor)
     }
 
     // ---- assembly of what the disconnected Home renders ----

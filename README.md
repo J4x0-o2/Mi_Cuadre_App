@@ -63,7 +63,7 @@ todos los datos se quedan en tu teléfono.
 |-------|---------|
 | Un turno cuenta completo para el día en que **empezó** | Un turno nocturno de 20:00 a 02:00 es un día de trabajo, no dos |
 | La semana va de lunes a hoy; el mes, del día 1 a hoy | Coincide con calendarios, cuentas y metas |
-| "Por hora" aparece solo después de un minuto completo conectado | Evita tarifas absurdas extrapoladas de pocos segundos |
+| "Por hora" aparece solo después de una hora completa conectado | Evita tarifas absurdas extrapoladas de pocos minutos |
 | Una carrera debe terminarse o cancelarse antes de desconectarte | Ninguna carrera queda registrada a medias |
 | Una carrera cancelada no suma | Solo cuenta lo que realmente cobraste |
 
