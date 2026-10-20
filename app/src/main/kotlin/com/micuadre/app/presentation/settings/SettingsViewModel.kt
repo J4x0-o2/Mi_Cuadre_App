@@ -82,6 +82,11 @@ class SettingsViewModel @Inject constructor(
         if (!permissionGranted.value) _permissionRequests.tryEmit(Unit)
     }
 
+    /** The device has no settings page for the overlay permission; tell the user where to grant it. */
+    fun onPermissionSettingsUnavailable() {
+        _message.value = UiMessage(id = ++messageSeq, textRes = R.string.settings_bubble_permission_unavailable)
+    }
+
     fun onBubbleToggled(enabled: Boolean) {
         viewModelScope.launch {
             try {

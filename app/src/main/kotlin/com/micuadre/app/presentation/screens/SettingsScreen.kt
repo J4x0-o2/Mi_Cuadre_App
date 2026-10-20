@@ -1,8 +1,5 @@
 package com.micuadre.app.presentation.screens
 
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +43,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.micuadre.app.R
+import com.micuadre.app.overlay.OverlayPermissionSettings
 import com.micuadre.app.presentation.components.SectionLabel
 import com.micuadre.app.presentation.components.cardSurface
 import com.micuadre.app.presentation.settings.BubbleSettings
@@ -69,8 +67,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     LaunchedEffect(Unit) {
         viewModel.permissionRequests.collect {
-            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-            context.startActivity(intent)
+            if (!OverlayPermissionSettings.open(context)) viewModel.onPermissionSettingsUnavailable()
         }
     }
 

@@ -107,6 +107,7 @@
     <string name="settings_bubble_title">Burbuja flotante</string>
     <string name="settings_bubble_subtitle">Muestra acciones rápidas sobre otras apps mientras hay un turno activo</string>
     <string name="settings_bubble_permission_pending">Permiso pendiente: falta permitir mostrar MiCuadre sobre otras apps</string>
+    <string name="settings_bubble_permission_unavailable">No se pudo abrir el ajuste del permiso. Permití \"Mostrar sobre otras apps\" para MiCuadre desde los Ajustes del teléfono.</string>
 
     <string name="bubble_cd">MiCuadre: acceso rápido</string>
     <string name="bubble_close_cd">Cerrar panel</string>

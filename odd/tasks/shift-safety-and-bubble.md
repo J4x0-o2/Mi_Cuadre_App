@@ -82,5 +82,10 @@ Out of scope: Google Sheets sync, history screen, README refinement.
   (review-4a0af03eb1ae91e2). Advisories: overlay-permission intent not guarded against
   ActivityNotFoundException (SettingsScreen.kt:72), BubbleOverlay not @Singleton (position resets
   when the service is recreated), WindowBubbleOverlay touch routing untested.
+- Fix: overlay-permission intent guarded (OverlayPermissionSettings tries app overlay page,
+  generic overlay list, then app details; snackbar if none). RED: compile failures on missing
+  OverlayPermissionSettings / onPermissionSettingsUnavailable; then 3 Robolectric failures
+  (non-activity context needs FLAG_ACTIVITY_NEW_TASK) fixed. GREEN: 483 tests + assembleDebug.
+  Route: inline (user-requested 2026-10-19).
 - Next: manual device check of the bubble (permission flow, drag + edge snap, panel actions,
   opening the finish sheet from the background, rotation, dark/light theme, hides on end shift).

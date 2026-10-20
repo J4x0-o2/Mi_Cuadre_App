@@ -228,4 +228,13 @@ class SettingsViewModelTest {
         assertEquals(0, requests)
         assertEquals(R.string.settings_save_error, vm.message.value?.textRes)
     }
+
+    @Test
+    fun missingPermissionSettingsPageExplainsHowToGrantItManually() = runTest {
+        val vm = viewModel()
+
+        vm.onPermissionSettingsUnavailable()
+
+        assertEquals(R.string.settings_bubble_permission_unavailable, vm.message.value?.textRes)
+    }
 }
