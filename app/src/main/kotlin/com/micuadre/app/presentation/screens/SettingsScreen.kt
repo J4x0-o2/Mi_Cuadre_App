@@ -1,5 +1,8 @@
 package com.micuadre.app.presentation.screens
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +26,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,15 +36,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.micuadre.app.R
 import com.micuadre.app.presentation.components.SectionLabel
 import com.micuadre.app.presentation.components.cardSurface
+import com.micuadre.app.presentation.settings.BubbleSettings
 import com.micuadre.app.presentation.settings.SettingsViewModel
 import com.micuadre.app.presentation.settings.ThemeOption
 import com.micuadre.app.presentation.settings.ThemeOptions
@@ -53,7 +61,18 @@ fun SettingsScreen(
 ) {
     val selected by viewModel.themeMode.collectAsStateWithLifecycle()
     val platformCounts by viewModel.platformCounts.collectAsStateWithLifecycle()
+    val bubble by viewModel.bubble.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
+
+    // The user may have just granted (or revoked) the overlay permission in the system settings.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.permissionRequests.collect {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+            context.startActivity(intent)
+        }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -112,6 +131,15 @@ fun SettingsScreen(
                 }
             }
             SectionLabel(
+                text = stringResource(R.string.settings_quick_access),
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
+            )
+            BubbleRow(
+                bubble = bubble,
+                onToggle = viewModel::onBubbleToggled,
+                onRetryPermission = viewModel::onBubblePermissionRetry
+            )
+            SectionLabel(
                 text = stringResource(R.string.settings_platforms),
                 modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
             )
@@ -151,6 +179,43 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun BubbleRow(
+    bubble: BubbleSettings,
+    onToggle: (Boolean) -> Unit,
+    onRetryPermission: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .cardSurface(MaterialTheme.shapes.large)
+            .clip(MaterialTheme.shapes.large)
+            // While the permission is pending, tapping the row sends the user back to the system page.
+            .clickable(role = Role.Button) { if (bubble.permissionPending) onRetryPermission() else onToggle(!bubble.enabled) }
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(
+                text = stringResource(R.string.settings_bubble_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(
+                    if (bubble.permissionPending) R.string.settings_bubble_permission_pending
+                    else R.string.settings_bubble_subtitle
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(checked = bubble.enabled, onCheckedChange = onToggle)
     }
 }
 

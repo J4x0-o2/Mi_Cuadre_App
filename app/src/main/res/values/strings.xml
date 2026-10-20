@@ -103,6 +103,11 @@
         <item quantity="other">%1$d activas de %2$d</item>
     </plurals>
 
+    <string name="settings_quick_access">Acceso rápido</string>
+    <string name="settings_bubble_title">Burbuja flotante</string>
+    <string name="settings_bubble_subtitle">Muestra acciones rápidas sobre otras apps mientras hay un turno activo</string>
+    <string name="settings_bubble_permission_pending">Permiso pendiente: falta permitir mostrar MiCuadre sobre otras apps</string>
+
     <string name="platforms_title">Plataformas</string>
     <string name="platforms_hint">Elegí cuáles aparecen al terminar una carrera.</string>
     <string name="platforms_none_visible">Ninguna plataforma va a aparecer al terminar una carrera.</string>
