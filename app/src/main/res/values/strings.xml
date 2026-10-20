@@ -108,6 +108,13 @@
     <string name="settings_bubble_subtitle">Muestra acciones rápidas sobre otras apps mientras hay un turno activo</string>
     <string name="settings_bubble_permission_pending">Permiso pendiente: falta permitir mostrar MiCuadre sobre otras apps</string>
 
+    <string name="bubble_cd">MiCuadre: acceso rápido</string>
+    <string name="bubble_close_cd">Cerrar panel</string>
+    <string name="bubble_connected_time">Tiempo conectado</string>
+    <string name="bubble_trip_time">Tiempo de carrera</string>
+    <string name="bubble_discard_title">¿Descartar la carrera?</string>
+    <string name="bubble_discard_confirm">Confirmar</string>
+
     <string name="platforms_title">Plataformas</string>
     <string name="platforms_hint">Elegí cuáles aparecen al terminar una carrera.</string>
     <string name="platforms_none_visible">Ninguna plataforma va a aparecer al terminar una carrera.</string>

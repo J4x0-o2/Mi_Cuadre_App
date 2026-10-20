@@ -2,7 +2,9 @@ package com.micuadre.app.di
 
 import com.micuadre.app.data.repository.BubblePreferenceRepositoryImpl
 import com.micuadre.app.domain.repository.BubblePreferenceRepository
+import com.micuadre.app.overlay.BubbleOverlay
 import com.micuadre.app.overlay.OverlayPermission
+import com.micuadre.app.overlay.WindowBubbleOverlay
 import com.micuadre.app.overlay.SystemOverlayPermission
 import dagger.Binds
 import dagger.Module
@@ -20,4 +22,7 @@ abstract class BubbleModule {
 
     @Binds
     abstract fun bindOverlayPermission(impl: SystemOverlayPermission): OverlayPermission
+
+    @Binds
+    abstract fun bindBubbleOverlay(impl: WindowBubbleOverlay): BubbleOverlay
 }

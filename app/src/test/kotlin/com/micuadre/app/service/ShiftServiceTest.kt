@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
+import com.micuadre.app.di.BubbleModule
 import com.micuadre.app.di.ClockModule
 import com.micuadre.app.di.RepositoryModule
 import com.micuadre.app.domain.model.Platform
@@ -15,7 +16,10 @@ import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Session
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
+import com.micuadre.app.domain.repository.BubblePreferenceRepository
 import com.micuadre.app.domain.repository.ShiftRepository
+import com.micuadre.app.overlay.BubbleOverlay
+import com.micuadre.app.overlay.OverlayPermission
 import com.micuadre.app.util.Clock
 import com.micuadre.app.util.FakeClock
 import dagger.hilt.android.testing.BindValue
@@ -23,9 +27,11 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import dagger.hilt.android.testing.UninstallModules
+import java.time.Duration
 import java.time.ZoneId
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
@@ -47,7 +53,7 @@ import org.robolectric.annotation.Config
  * of a freshly created service is exercised instead of being resolved synchronously.
  */
 @HiltAndroidTest
-@UninstallModules(RepositoryModule::class, ClockModule::class)
+@UninstallModules(RepositoryModule::class, ClockModule::class, BubbleModule::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [34])
 class ShiftServiceTest {
@@ -72,6 +78,22 @@ class ShiftServiceTest {
     @BindValue
     @JvmField
     val zone: ZoneId = ZoneId.of("UTC")
+
+    private val bubblePrefs = FakeBubblePreferences()
+    private val bubblePermission = FakeOverlayPermission()
+    private val bubbleOverlay = FakeBubbleOverlay()
+
+    @BindValue
+    @JvmField
+    val bubblePreferences: BubblePreferenceRepository = bubblePrefs
+
+    @BindValue
+    @JvmField
+    val overlayPermission: OverlayPermission = bubblePermission
+
+    @BindValue
+    @JvmField
+    val overlay: BubbleOverlay = bubbleOverlay
 
     private val context: Context get() = ApplicationProvider.getApplicationContext<Application>()
 
@@ -324,6 +346,123 @@ class ShiftServiceTest {
     }
 
     @Test
+    fun `the bubble appears while connected when it is enabled and the permission is granted`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertTrue(bubbleOverlay.visible)
+        assertTrue(bubbleOverlay.lastState is ShiftState.Connected)
+    }
+
+    @Test
+    fun `the bubble follows the ride state`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+
+        assertTrue(bubbleOverlay.visible)
+        assertTrue(bubbleOverlay.lastState is ShiftState.OnTrip)
+    }
+
+    @Test
+    fun `the bubble stays hidden while the toggle is off`() {
+        bubblePrefs.enabled.value = false
+        bubblePermission.granted = true
+        val controller = newService()
+
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertEquals(false, bubbleOverlay.visible)
+        assertEquals(0, bubbleOverlay.shows)
+    }
+
+    @Test
+    fun `the bubble stays hidden without the overlay permission`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = false
+        val controller = newService()
+
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertEquals(false, bubbleOverlay.visible)
+        assertEquals(0, bubbleOverlay.shows)
+    }
+
+    @Test
+    fun `turning the toggle on during a shift shows the bubble and turning it off hides it`() {
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        assertEquals(false, bubbleOverlay.visible)
+
+        bubblePrefs.enabled.value = true
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(bubbleOverlay.visible)
+
+        bubblePrefs.enabled.value = false
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(false, bubbleOverlay.visible)
+    }
+
+    @Test
+    fun `granting the permission while a shift runs shows the bubble without a state change`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = false
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        assertEquals(false, bubbleOverlay.visible)
+
+        bubblePermission.granted = true
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(5))
+
+        assertTrue(bubbleOverlay.visible)
+    }
+
+    @Test
+    fun `pausing the shift hides the bubble`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        controller.deliver(ShiftServiceController.ACTION_DISCONNECT)
+
+        assertEquals(false, bubbleOverlay.visible)
+    }
+
+    @Test
+    fun `ending the shift hides the bubble`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+
+        controller.deliver(ShiftServiceController.ACTION_END_SHIFT)
+
+        assertEquals(false, bubbleOverlay.visible)
+    }
+
+    @Test
+    fun `destroying the service removes the bubble`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        assertTrue(bubbleOverlay.visible)
+
+        controller.destroy()
+
+        assertEquals(false, bubbleOverlay.visible)
+    }
+
+    @Test
     fun `rehydrating a connected session keeps its interval open and adds none`() {
         repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
         repository.intervals += ConnectedInterval(1L, 7L, NOW - HOUR, null)
@@ -464,4 +603,32 @@ class InMemoryShiftRepository : ShiftRepository {
     }
 
     var finishCalls = 0
+}
+
+class FakeBubblePreferences : BubblePreferenceRepository {
+    val enabled = MutableStateFlow(false)
+    override val bubbleEnabled: Flow<Boolean> = enabled
+    override suspend fun setBubbleEnabled(enabled: Boolean) {
+        this.enabled.value = enabled
+    }
+}
+
+class FakeOverlayPermission(var granted: Boolean = false) : OverlayPermission {
+    override fun canDrawOverlays() = granted
+}
+
+class FakeBubbleOverlay : BubbleOverlay {
+    var visible = false
+    var shows = 0
+    var lastState: ShiftState? = null
+
+    override fun show(state: ShiftState, intervals: List<ConnectedInterval>) {
+        visible = true
+        shows++
+        lastState = state
+    }
+
+    override fun hide() {
+        visible = false
+    }
 }
