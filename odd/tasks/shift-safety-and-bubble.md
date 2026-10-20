@@ -78,5 +78,9 @@ Out of scope: Google Sheets sync, history screen, README refinement.
 ## Progress
 - Branch created from main (3a50813). T1 done (4cd39b0), T2 done (8c370c1), T3 done (1d67c72), slice reviewed.
   T3b done (2173b20), T4 done (8a53fd6, 76764c8).
+- Review T3b..T4 slice (base 4dd19a0): medium, granted, reliability APPROVED + acknowledged
+  (review-4a0af03eb1ae91e2). Advisories: overlay-permission intent not guarded against
+  ActivityNotFoundException (SettingsScreen.kt:72), BubbleOverlay not @Singleton (position resets
+  when the service is recreated), WindowBubbleOverlay touch routing untested.
 - Next: manual device check of the bubble (permission flow, drag + edge snap, panel actions,
   opening the finish sheet from the background, rotation, dark/light theme, hides on end shift).
