@@ -1,129 +1,163 @@
-# MiCuadré
+# MiCuadre
 
-**Know exactly what you earned in every shift.** MiCuadré is an Android app for ride-hailing and
-taxi drivers (InDriver, DiDi or any other platform). You log each ride in a couple of taps and the
-app instantly shows how much you made in the current shift, today, this week and this month,
-split into cash and bank transfers.
+**Sabe exactamente cuánto ganaste en cada turno.** MiCuadre es una app Android para conductores de
+plataformas y taxi (InDriver, DiDi o cualquier otra). Registras cada carrera con un par de toques y
+la app muestra al instante cuánto llevas en el turno, en el día, en la semana y en el mes,
+separado en efectivo y transferencia.
 
-![MiCuadré: shift total, weekly and monthly earnings](docs/images/cover.png)
+![MiCuadre: total del turno, ganancias de la semana y del mes](docs/images/cover.png)
 
-## Why it exists
+## Novedades en 0.4.0
 
-Drivers who work across several apps usually "do the math" (*el cuadre*) at the end of the day
-from memory, screenshots or a notebook. That is slow and error-prone, and it hides the numbers
-that matter: how much you earn per hour, which days pay off, and how much cash you should have in
-your pocket.
+- **Burbuja flotante.** Un acceso rápido sobre otras apps (mapas, apps de viajes) mientras hay un
+  turno activo. Se arrastra, se pega al borde y al tocarla abre un panel con las acciones del
+  momento: *Iniciar carrera*, *Terminar carrera*, *Cancelar carrera* y *Abrir app*.
+- **Cancelar carrera.** Una carrera iniciada por error se puede descartar, con confirmación. No se
+  suma a los totales y el turno vuelve a "Conectado".
+- **Confirmación al terminar el turno.** *Terminar turno* pide confirmación, así un toque
+  accidental ya no cierra el turno.
+- **Nombre corregido.** La app se llama "MiCuadre" (sin tilde) y el encabezado de inicio muestra
+  solo el nombre.
 
-MiCuadré replaces that with a record you build while you drive. It works offline and keeps every
-number on your phone.
+## Por qué existe
 
-| Goal | How the app gets there |
-|------|------------------------|
-| Logging must never slow you down | Start and finish rides from the persistent notification, without opening the app |
-| Always know your numbers | Live totals for the shift, the day, the week and the month |
-| Know where the money is | Every ride records cash or transfer; totals show both |
-| Fit any driver | You define your own platforms in Settings |
+Los conductores que trabajan con varias apps suelen hacer *el cuadre* al final del día de memoria,
+con capturas de pantalla o en un cuaderno. Eso es lento, propenso a errores y esconde los números
+que importan: cuánto ganas por hora, qué días rinden y cuánto efectivo deberías tener en el
+bolsillo.
 
-## What it does
+MiCuadre lo reemplaza con un registro que construyes mientras manejas. Funciona sin internet y
+todos los datos se quedan en tu teléfono.
 
-- **Shifts.** Connect when you start working. Pause (disconnect) and resume as needed. End the
-  shift to see its summary. Connected time excludes pauses.
-- **Rides.** Start a ride, then finish it with the platform, the amount and the payment method.
-  The last platform and payment method you used are preselected.
-- **Home summary.**
-  - *While connected:* the shift total, connected time, ride count and the rides of the shift.
-  - *While disconnected:* today's summary across all shifts, including earnings per hour.
-- **Week and month.** Two buttons open a sheet with the total, cash vs. transfer, a bar chart (per
-  day for the week, per week for the month), worked days and the average per worked day.
-- **Your platforms.** In *Settings › Plataformas* you create, rename, show or hide and delete
-  platforms. Deleting one never changes your history: past rides keep its name and totals.
-- **Theme.** System, light, dark, or automatic by schedule (dark from 18:00 to 06:00).
+| Objetivo | Cómo lo logra la app |
+|----------|----------------------|
+| Registrar nunca debe frenarte | Inicias y terminas carreras desde la notificación o la burbuja flotante, sin abrir la app |
+| Conocer tus números siempre | Totales en vivo del turno, el día, la semana y el mes |
+| Saber dónde está la plata | Cada carrera guarda si fue en efectivo o transferencia; los totales muestran ambos |
+| Servir a cualquier conductor | Defines tus propias plataformas en Ajustes |
 
-## How the numbers are counted
+## Qué hace
 
-| Rule | Why |
-|------|-----|
-| A shift counts entirely for the day it **started** | A night shift from 20:00 to 02:00 is one working day, not two |
-| The week runs Monday to today; the month runs from the 1st to today | Matches calendars, bills and goals |
-| "Per hour" appears only after one full connected minute | Avoids absurd rates extrapolated from a few seconds |
-| A ride must be finished before you disconnect | No ride is ever left half-recorded |
+- **Turnos.** Te conectas cuando empiezas a trabajar, pausas (desconectas) y retomas cuando lo
+  necesites. Al terminar el turno, con confirmación, ves su resumen. El tiempo conectado no cuenta
+  las pausas.
+- **Carreras.** Inicias una carrera y la terminas indicando la plataforma, el monto y el medio de
+  pago. La última plataforma y el último medio de pago quedan preseleccionados. Si la iniciaste por
+  error, la cancelas y no se registra.
+- **Burbuja flotante.** Opcional, se activa en *Ajustes › Burbuja flotante* y requiere el permiso
+  "Mostrar sobre otras apps". Solo aparece mientras hay un turno activo y desaparece al terminarlo.
+- **Resumen en inicio.**
+  - *Conectado:* total del turno, tiempo conectado, cantidad de carreras y las carreras del turno.
+  - *Desconectado:* resumen del día con todos los turnos, incluida la ganancia por hora.
+- **Semana y mes.** Dos botones abren una hoja con el total, efectivo frente a transferencia, un
+  gráfico de barras (por día en la semana, por semana en el mes), días trabajados y el promedio por
+  día trabajado.
+- **Tus plataformas.** En *Ajustes › Plataformas* creas, renombras, muestras u ocultas y eliminas
+  plataformas. Eliminar una nunca cambia tu historial: las carreras pasadas conservan su nombre y
+  sus totales.
+- **Tema.** Sistema, claro, oscuro o automático por horario (oscuro de 18:00 a 06:00).
 
-## Screenshots
+## Cómo se cuentan los números
 
-| Today's summary | On shift | Week |
+| Regla | Por qué |
+|-------|---------|
+| Un turno cuenta completo para el día en que **empezó** | Un turno nocturno de 20:00 a 02:00 es un día de trabajo, no dos |
+| La semana va de lunes a hoy; el mes, del día 1 a hoy | Coincide con calendarios, cuentas y metas |
+| "Por hora" aparece solo después de un minuto completo conectado | Evita tarifas absurdas extrapoladas de pocos segundos |
+| Una carrera debe terminarse o cancelarse antes de desconectarte | Ninguna carrera queda registrada a medias |
+| Una carrera cancelada no suma | Solo cuenta lo que realmente cobraste |
+
+## Capturas
+
+| Resumen de hoy | En turno | Semana |
 |---|---|---|
-| ![Today](docs/images/today.png) | ![On shift](docs/images/shift.png) | ![Week](docs/images/week.png) |
+| ![Hoy](docs/images/today.png) | ![En turno](docs/images/shift.png) | ![Semana](docs/images/week.png) |
 
-The screenshots use demo data.
+| Terminar carrera | Cancelar carrera | Terminar turno |
+|---|---|---|
+| ![Terminar carrera](docs/images/finish-trip.png) | ![Cancelar carrera](docs/images/cancel-trip.png) | ![Terminar turno](docs/images/end-shift-confirm.png) |
 
-## Quick start (developers)
+| Burbuja flotante | Panel de la burbuja | Ajustes |
+|---|---|---|
+| ![Burbuja](docs/images/bubble.png) | ![Panel de la burbuja](docs/images/bubble-panel.png) | ![Ajustes](docs/images/settings.png) |
 
-**Requirements:** Android Studio (recent stable), JDK 17 or newer (the JDK bundled with Android
-Studio works), and a device or emulator on Android 10 (API 29) or newer.
+| Mes | Plataformas | Modo oscuro |
+|---|---|---|
+| ![Mes](docs/images/month.png) | ![Plataformas](docs/images/platforms.png) | ![Modo oscuro](docs/images/home-dark.png) |
 
-1. Clone the repository and open the project folder in Android Studio.
-2. Run the `app` configuration on a device or emulator.
-3. Run the tests:
+Las capturas usan datos de demostración.
+
+## Inicio rápido (desarrolladores)
+
+**Requisitos:** Android Studio (versión estable reciente), JDK 17 o superior (sirve el JDK incluido
+en Android Studio) y un dispositivo o emulador con Android 10 (API 29) o superior.
+
+1. Clona el repositorio y abre la carpeta del proyecto en Android Studio.
+2. Ejecuta la configuración `app` en un dispositivo o emulador.
+3. Corre las pruebas:
 
 ```bash
-./gradlew testDebugUnitTest   # unit, Room and Robolectric tests
-./gradlew assembleDebug       # debug APK in app/build/outputs/apk/debug/
+./gradlew testDebugUnitTest   # pruebas unitarias, de Room y de Robolectric
+./gradlew assembleDebug       # APK de depuración en app/build/outputs/apk/debug/
 ```
 
-The debug build installs as a separate app (`com.micuadre.app.debug`), so it never touches the
-data of a release install.
+La versión de depuración se instala como una app aparte (`com.micuadre.app.debug`), así que nunca
+toca los datos de una instalación de producción.
 
-## Tech stack
+## Stack técnico
 
-| Area | Choice |
-|------|--------|
-| Language | Kotlin 2.0 |
-| UI | Jetpack Compose with Material 3 (custom theme, Sora and Manrope fonts) |
-| Dependency injection | Hilt |
-| Storage | Room (shifts, rides, connected intervals, platforms) and DataStore (preferences) |
-| Background work | A foreground service with notification actions to start and finish rides |
-| Async | Kotlin Coroutines and Flow |
-| Tests | JUnit 4, Robolectric, Room `MigrationTestHelper` (about 390 tests) |
-| Build | Gradle Kotlin DSL with a version catalog; `minSdk 29`, `targetSdk 35` |
+| Área | Elección |
+|------|----------|
+| Lenguaje | Kotlin 2.0 |
+| UI | Jetpack Compose con Material 3 (tema propio, fuentes Sora y Manrope) |
+| Inyección de dependencias | Hilt |
+| Almacenamiento | Room (turnos, carreras, intervalos conectados, plataformas) y DataStore (preferencias) |
+| Trabajo en segundo plano | Un servicio en primer plano con acciones en la notificación y una ventana superpuesta (burbuja) |
+| Asincronía | Kotlin Coroutines y Flow |
+| Pruebas | JUnit 4, Robolectric, `MigrationTestHelper` de Room (unas 490 pruebas) |
+| Build | Gradle Kotlin DSL con catálogo de versiones; `minSdk 29`, `targetSdk 35` |
 
-## Architecture
+## Arquitectura
 
-The code follows a layered (clean) architecture: the UI depends on the domain, and the domain
-knows nothing about Android storage.
+El código sigue una arquitectura por capas (clean): la UI depende del dominio y el dominio no sabe
+nada del almacenamiento de Android.
 
 ```text
 app/src/main/kotlin/com/micuadre/app/
-├── domain/        Business rules: models, repository interfaces, use cases
-├── data/          Room entities, DAOs, migrations and repository implementations
-├── presentation/  ViewModels, coordinators, UI models and Compose screens
-├── service/       Foreground shift service, notification and its state machine
-├── ui/theme/      Colors, typography and theme
-├── di/            Hilt modules
-└── util/          Formatting, version and time helpers
+├── domain/        Reglas de negocio: modelos, interfaces de repositorio, casos de uso
+├── data/          Entidades de Room, DAOs, migraciones e implementaciones de repositorio
+├── presentation/  ViewModels, coordinadores, modelos de UI y pantallas Compose
+├── service/       Servicio del turno en primer plano, notificación y su máquina de estados
+├── overlay/       Burbuja flotante: ventana, panel, arrastre y permiso
+├── ui/theme/      Colores, tipografía y tema
+├── di/            Módulos de Hilt
+└── util/          Utilidades de formato, versión y tiempo
 ```
 
-Key decisions:
+Decisiones clave:
 
-- **Database migrations are real and tested.** Each schema version (now v3) ships with a
-  `Migration` and a `MigrationTestHelper` test that runs it on existing data.
-- **Time is injected.** A `Clock` and the time zone are provided by Hilt, so day, week and month
-  boundaries, midnight rollover and time-zone changes are unit-tested.
-- **Logic lives outside composables.** Screens only render pure UI models, which are covered by
-  plain JVM tests.
+- **Las migraciones de base de datos son reales y están probadas.** Cada versión del esquema (hoy
+  v3) trae una `Migration` y una prueba con `MigrationTestHelper` que la ejecuta sobre datos
+  existentes.
+- **El tiempo se inyecta.** Un `Clock` y la zona horaria los provee Hilt, así que los límites de
+  día, semana y mes, el cambio de medianoche y los cambios de zona horaria tienen pruebas unitarias.
+- **La lógica vive fuera de los composables.** Las pantallas solo pintan modelos de UI puros,
+  cubiertos con pruebas JVM simples. La burbuja sigue la misma regla: posición, arrastre, visibilidad
+  y acciones del panel son lógica pura con pruebas.
 
-## Versioning
+## Versionado
 
-The app follows [Semantic Versioning](https://semver.org). The version lives in a single file,
-`version.properties`, and the Android `versionCode` is derived from it as
-`major × 10000 + minor × 100 + patch`. The installed version is shown in *Settings › Acerca de*.
-Every release is tagged in git (`v0.3.0`), and changes are listed in [CHANGELOG.md](CHANGELOG.md).
+La app sigue [Semantic Versioning](https://semver.org). La versión vive en un solo archivo,
+`version.properties`, y el `versionCode` de Android se deriva de ella como
+`major × 10000 + minor × 100 + patch`. La versión instalada se ve en *Ajustes › Acerca de*. Cada
+versión se etiqueta en git (`v0.4.0`) y los cambios se listan en [CHANGELOG.md](CHANGELOG.md).
 
-## Roadmap
+## Hoja de ruta
 
-- Optional sync of rides to Google Sheets.
-- A history screen to browse past shifts and rides.
+- Sincronización opcional de las carreras con Google Sheets.
+- Una pantalla de historial para recorrer turnos y carreras pasados.
 
-## Project status
+## Estado del proyecto
 
-MiCuadré is in active development (current version **0.3.0**) and is used first by its author as
-a daily driver tool, with the goal of opening it to any app-based driver.
+MiCuadre está en desarrollo activo (versión actual **0.4.0**). Su autor la usa primero como
+herramienta diaria de conductor, con el objetivo de abrirla a cualquier conductor de plataformas.

@@ -110,6 +110,23 @@ class ShiftServiceStateMachineTest {
     }
 
     @Test
+    fun `CancelTrip from OnTrip returns to Connected keeping connectedSince`() {
+        val onTrip = ShiftState.OnTrip(connectedSinceMs = 1_000L, tripStartedAtMs = 2_500L)
+        val s = machine.transition(onTrip, ShiftStateMachine.Action.CancelTrip)
+        assertEquals(ShiftState.Connected(connectedSinceMs = 1_000L), s)
+    }
+
+    @Test
+    fun `CancelTrip outside OnTrip is a no-op`() {
+        val connected = ShiftState.Connected(connectedSinceMs = 1_000L)
+        assertSame(connected, machine.transition(connected, ShiftStateMachine.Action.CancelTrip))
+        assertSame(
+            ShiftState.Disconnected,
+            machine.transition(ShiftState.Disconnected, ShiftStateMachine.Action.CancelTrip)
+        )
+    }
+
+    @Test
     fun `Connect from Connected is a no-op`() {
         val connected = ShiftState.Connected(connectedSinceMs = 1_000L)
         val s = machine.transition(connected, ShiftStateMachine.Action.Connect)

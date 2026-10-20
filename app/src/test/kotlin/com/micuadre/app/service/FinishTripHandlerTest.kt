@@ -93,6 +93,7 @@ private class HandlerFakeRepository(
     override suspend fun activeSession() = null
     override fun observeTrips(sessionId: Long): Flow<List<Trip>> = flowOf(emptyList())
     override suspend fun insertTrip(trip: Trip) = 1L
+    override suspend fun cancelInProgressTrip(sessionId: Long) {}
     override suspend fun summary(sessionId: Long) = DailySummary(0L, 0, 0L, 0L)
     override suspend fun totalMinor(sessionId: Long) = 0L
     override suspend fun finishTrip(

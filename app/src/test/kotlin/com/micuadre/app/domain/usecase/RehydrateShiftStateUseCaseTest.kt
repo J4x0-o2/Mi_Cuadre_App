@@ -153,6 +153,8 @@ private class FakeRehydrateRepository(
 
     override suspend fun insertTrip(trip: Trip): Long = 1L
 
+    override suspend fun cancelInProgressTrip(sessionId: Long) {}
+
     override suspend fun summary(sessionId: Long) =
         com.micuadre.app.domain.model.DailySummary(0L, 0, 0L, 0L)
 

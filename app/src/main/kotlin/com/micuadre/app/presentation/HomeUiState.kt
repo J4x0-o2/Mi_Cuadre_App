@@ -37,6 +37,8 @@ data class HomeUiState(
     val periodSheet: Period? = null,
     val summary: DailySummary? = null,
     val finishSheet: FinishSheetState? = null,
+    /** Confirmation dialog currently shown over Home, or null. */
+    val dialog: HomeDialog? = null,
     val needsNotificationPermission: Boolean = false,
     val pendingMessage: UiMessage? = null
 )

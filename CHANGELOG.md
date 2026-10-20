@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version lives in
 `version.properties`; the Android `versionCode` is derived from it as `major*10000 + minor*100 + patch`.
 
+## [0.4.0] - 2026-10-20
+
+### Added
+- Floating bubble over other apps while a shift is active: draggable, snaps to the edge, and opens
+  a panel with Start trip, Finish trip, Cancel trip and Open app. Enabled from Settings; requires
+  the "Display over other apps" permission (with a fallback when the system page is missing).
+- Cancel an in-progress trip, with confirmation; it is discarded and never counted.
+- Confirmation dialog before ending a shift.
+
+### Changed
+- README translated to Spanish and updated with the new features and screenshots.
+- The app name is spelled "MiCuadre" everywhere, and the Home header shows only the name.
+
+### Fixed
+- A database failure while cancelling a trip no longer crashes the app.
+- A cancel received while the service is restoring its state is no longer dropped.
+
 ## [0.3.0] - 2026-10-19
 
 ### Added

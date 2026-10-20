@@ -6,7 +6,14 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.ShiftState
+import com.micuadre.app.domain.repository.BubblePreferenceRepository
+import com.micuadre.app.overlay.BubbleOverlay
+import com.micuadre.app.overlay.BubbleVisibility
+import com.micuadre.app.overlay.OverlayPermission
+import com.micuadre.app.overlay.permissionUpdates
+import com.micuadre.app.domain.usecase.CancelTripUseCase
 import com.micuadre.app.domain.usecase.EndShiftUseCase
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
@@ -15,6 +22,8 @@ import com.micuadre.app.domain.usecase.StartShiftUseCase
 import com.micuadre.app.domain.usecase.StartTripUseCase
 import com.micuadre.app.util.Clock
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -22,8 +31,15 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -46,16 +62,22 @@ class ShiftService : Service() {
     @Inject lateinit var startShift: StartShiftUseCase
     @Inject lateinit var endShift: EndShiftUseCase
     @Inject lateinit var startTrip: StartTripUseCase
+    @Inject lateinit var cancelTrip: CancelTripUseCase
     @Inject lateinit var finishTripHandler: FinishTripHandler
     @Inject lateinit var getDailySummary: GetDailySummaryUseCase
     @Inject lateinit var rehydrateShiftState: RehydrateShiftStateUseCase
     @Inject lateinit var repository: ShiftRepository
+    @Inject lateinit var bubblePreferences: BubblePreferenceRepository
+    @Inject lateinit var overlayPermission: OverlayPermission
+    @Inject lateinit var bubbleOverlay: BubbleOverlay
 
     private val stateMachine by lazy { ShiftStateMachine(nowMs = clock::nowMs) }
     private val finishTripReducer by lazy { FinishTripReducer(stateMachine) }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var totalsJob: Job? = null
+    private var intervalsJob: Job? = null
+    private val connectedIntervals = MutableStateFlow<List<ConnectedInterval>>(emptyList())
     private val intervalLock = Mutex()
     private var dayTotals = DayTotals.EMPTY
 
@@ -71,6 +93,9 @@ class ShiftService : Service() {
     private var activeTripStartMs: Long? = null
 
     private var rehydrated = false
+
+    /** Completes once rehydration has settled (restored or not), for actions that must wait for it. */
+    private val rehydration = CompletableDeferred<Unit>()
     private var connectPending = false
     private var startCommandSeen = false
 
@@ -81,8 +106,49 @@ class ShiftService : Service() {
         super.onCreate()
         notificationFactory = NotificationFactory(applicationContext)
         notificationFactory.ensureChannel()
+        observeBubble()
         rehydrateFromRepository()
     }
+
+    /**
+     * Keeps the floating bubble in sync with the shift state, the settings toggle and the overlay
+     * permission. The permission has no callback, so while it is missing it is re-checked
+     * periodically; that lets the bubble appear right after the user grants it.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun observeBubble() {
+        scope.launch {
+            try {
+                combine(_currentState, bubbleGate(), connectedIntervals) { state, gate, intervals ->
+                    Triple(state, gate, intervals)
+                }.collect { (state, gate, intervals) ->
+                    if (BubbleVisibility.shouldShow(state, gate.enabled, gate.canDrawOverlays)) {
+                        bubbleOverlay.show(state, intervals)
+                    } else {
+                        bubbleOverlay.hide()
+                    }
+                }
+            } catch (t: Throwable) {
+                if (t is CancellationException) throw t
+                Log.e(TAG, "Bubble observation failed; the bubble stays off", t)
+                bubbleOverlay.hide()
+            }
+        }
+    }
+
+    private data class BubbleGate(val enabled: Boolean, val canDrawOverlays: Boolean)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun bubbleGate(): Flow<BubbleGate> = bubblePreferences.bubbleEnabled
+        .distinctUntilChanged()
+        .flatMapLatest { enabled ->
+            if (!enabled) {
+                flowOf(BubbleGate(enabled = false, canDrawOverlays = false))
+            } else {
+                permissionUpdates(overlayPermission::canDrawOverlays, PERMISSION_POLL_MS)
+                    .map { granted -> BubbleGate(enabled = true, canDrawOverlays = granted) }
+            }
+        }
 
     /**
      * Pulls the persisted shift state from Room so the freshly-recreated
@@ -116,6 +182,7 @@ class ShiftService : Service() {
                 Log.e(TAG, "Rehydration failed; staying Disconnected", t)
             } finally {
                 rehydrated = true
+                rehydration.complete(Unit)
                 stopIfIdle()
             }
         }
@@ -153,6 +220,7 @@ class ShiftService : Service() {
             ShiftServiceController.ACTION_DISCONNECT -> handleDisconnect()
             ShiftServiceController.ACTION_START_TRIP -> handleStartTrip()
             ShiftServiceController.ACTION_FINISH_TRIP -> handleFinishTrip(intent)
+            ShiftServiceController.ACTION_CANCEL_TRIP -> handleCancelTrip(intent)
             ShiftServiceController.ACTION_END_SHIFT -> handleEndShift()
             else -> stopIfIdle()
         }
@@ -290,6 +358,44 @@ class ShiftService : Service() {
         }
     }
 
+    private fun handleCancelTrip(intent: Intent) {
+        val tripStart = ShiftServiceController.tripStartedAtFrom(intent)
+        if (tripStart == null || (rehydrated && !isOnTrip(tripStart))) {
+            stopIfIdle()
+            return
+        }
+        scope.launch {
+            // A fresh instance may still be restoring the ride from Room: wait for that before judging.
+            rehydration.await()
+            val sessionId = activeSessionId
+            if (sessionId == null || !isOnTrip(tripStart)) {
+                stopIfIdle()
+                return@launch
+            }
+            try {
+                // Defensive: the row is only written at finish time today, but a stray open one must not survive.
+                cancelTrip(sessionId)
+            } catch (t: Throwable) {
+                if (t is CancellationException) throw t
+                Log.e(TAG, "Cancelling the trip failed; the ride stays active", t)
+                return@launch
+            }
+            // A finish (or a newer ride) may have won the race while the delete was in flight.
+            if (!isOnTrip(tripStart)) return@launch
+            val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.CancelTrip)
+            _currentState.value = next
+            activeTripStartMs = null
+            controller.publishState(next)
+            updateNotification(next)
+        }
+    }
+
+    /** True while the shift is on the ride that started at [tripStartedAtMs]. */
+    private fun isOnTrip(tripStartedAtMs: Long?): Boolean {
+        val state = _currentState.value
+        return tripStartedAtMs != null && state is ShiftState.OnTrip && state.tripStartedAtMs == tripStartedAtMs
+    }
+
     private fun handleEndShift() {
         scope.launch {
             // After a pause this instance may be fresh: fall back to the open session in Room.
@@ -345,6 +451,10 @@ class ShiftService : Service() {
      * saved. The chronometer is system-driven, so no per-second refresh is needed.
      */
     private fun observeDayTotals(sessionId: Long) {
+        intervalsJob?.cancel()
+        intervalsJob = scope.launch {
+            repository.observeConnectedIntervals(sessionId).collect { connectedIntervals.value = it }
+        }
         totalsJob?.cancel()
         totalsJob = scope.launch {
             repository.observeTrips(sessionId).collect { trips ->
@@ -358,10 +468,14 @@ class ShiftService : Service() {
     private fun stopObservingTotals() {
         totalsJob?.cancel()
         totalsJob = null
+        intervalsJob?.cancel()
+        intervalsJob = null
+        connectedIntervals.value = emptyList()
         dayTotals = DayTotals.EMPTY
     }
 
     override fun onDestroy() {
+        bubbleOverlay.hide()
         scope.cancel()
         super.onDestroy()
     }
@@ -371,5 +485,6 @@ class ShiftService : Service() {
 
     private companion object {
         private const val TAG = "ShiftService"
+        private const val PERMISSION_POLL_MS = 2_000L
     }
 }

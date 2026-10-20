@@ -50,13 +50,14 @@ private val RingSize = 264.dp
 private val RingStroke = 10.dp
 
 /**
- * On-trip state: gold pill, 264dp ring timer, day tiles, "Terminar carrera" and a disabled
- * "Desconectar" (a trip must be finished before disconnecting).
+ * On-trip state: gold pill, 264dp ring timer, day tiles, "Terminar carrera", "Cancelar carrera"
+ * (discards the ride after confirming) and a disabled "Desconectar" (a trip must be finished before disconnecting).
  */
 @Composable
 fun OnTripView(
     ui: HomeUiState,
     onFinishTrip: () -> Unit,
+    onCancelTrip: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val breakdown = remember(ui.trips) { DayBreakdown.from(ui.trips) }
@@ -110,6 +111,16 @@ fun OnTripView(
             onClick = onFinishTrip,
             modifier = Modifier.padding(top = 16.dp)
         )
+        OutlinedButton(
+            onClick = onCancelTrip,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(52.dp),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Text(stringResource(R.string.cancel_trip_cta), style = MaterialTheme.typography.titleSmall)
+        }
         // Disabled by business rule; no click handler is needed while it cannot be enabled.
         OutlinedButton(
             onClick = {},

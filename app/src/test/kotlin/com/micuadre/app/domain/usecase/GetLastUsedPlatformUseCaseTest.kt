@@ -95,6 +95,7 @@ class GetLastUsedPlatformUseCaseTest {
         override suspend fun activeSession(): Session? = error("unused")
         override fun observeTrips(sessionId: Long): Flow<List<Trip>> = emptyFlow()
         override suspend fun insertTrip(trip: Trip): Long = error("unused")
+        override suspend fun cancelInProgressTrip(sessionId: Long) = error("unused")
         override suspend fun summary(sessionId: Long): DailySummary = error("unused")
         override suspend fun totalMinor(sessionId: Long): Long = error("unused")
         override suspend fun finishTrip(

@@ -80,6 +80,10 @@ class ShiftRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun cancelInProgressTrip(sessionId: Long) {
+        tripDao.deleteInProgressBySession(sessionId)
+    }
+
     override suspend fun insertTrip(trip: Trip): Long =
         tripDao.insert(trip.toEntity())
 

@@ -3,8 +3,10 @@ package com.micuadre.app.service
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
+import com.micuadre.app.di.BubbleModule
 import com.micuadre.app.di.ClockModule
 import com.micuadre.app.di.RepositoryModule
 import com.micuadre.app.domain.model.Platform
@@ -14,7 +16,10 @@ import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Session
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
+import com.micuadre.app.domain.repository.BubblePreferenceRepository
 import com.micuadre.app.domain.repository.ShiftRepository
+import com.micuadre.app.overlay.BubbleOverlay
+import com.micuadre.app.overlay.OverlayPermission
 import com.micuadre.app.util.Clock
 import com.micuadre.app.util.FakeClock
 import dagger.hilt.android.testing.BindValue
@@ -22,9 +27,11 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
 import dagger.hilt.android.testing.UninstallModules
+import java.time.Duration
 import java.time.ZoneId
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
@@ -46,7 +53,7 @@ import org.robolectric.annotation.Config
  * of a freshly created service is exercised instead of being resolved synchronously.
  */
 @HiltAndroidTest
-@UninstallModules(RepositoryModule::class, ClockModule::class)
+@UninstallModules(RepositoryModule::class, ClockModule::class, BubbleModule::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [34])
 class ShiftServiceTest {
@@ -72,10 +79,29 @@ class ShiftServiceTest {
     @JvmField
     val zone: ZoneId = ZoneId.of("UTC")
 
+    private val bubblePrefs = FakeBubblePreferences()
+    private val bubblePermission = FakeOverlayPermission()
+    private val bubbleOverlay = FakeBubbleOverlay()
+
+    @BindValue
+    @JvmField
+    val bubblePreferences: BubblePreferenceRepository = bubblePrefs
+
+    @BindValue
+    @JvmField
+    val overlayPermission: OverlayPermission = bubblePermission
+
+    @BindValue
+    @JvmField
+    val overlay: BubbleOverlay = bubbleOverlay
+
     private val context: Context get() = ApplicationProvider.getApplicationContext<Application>()
 
-    private fun intent(action: String?) =
-        Intent(context, ShiftService::class.java).apply { this.action = action }
+    private fun intent(action: String?, extras: Bundle? = null) =
+        Intent(context, ShiftService::class.java).apply {
+            this.action = action
+            if (extras != null) putExtras(extras)
+        }
 
     @Before
     fun setUp() {
@@ -87,9 +113,25 @@ class ShiftServiceTest {
     }
 
     /** Delivers [action] and lets everything settle. */
-    private fun ServiceController<ShiftService>.deliver(action: String?) {
-        withIntent(intent(action)).startCommand(0, 1)
+    private fun ServiceController<ShiftService>.deliver(action: String?, extras: Bundle? = null) {
+        withIntent(intent(action, extras)).startCommand(0, 1)
         shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    private fun ServiceController<ShiftService>.deliverCancel(tripStartedAtMs: Long?) {
+        val extras = tripStartedAtMs?.let {
+            Bundle().apply { putLong(ShiftServiceController.EXTRA_TRIP_STARTED_AT_MS, it) }
+        }
+        deliver(ShiftServiceController.ACTION_CANCEL_TRIP, extras)
+    }
+
+    private fun ServiceController<ShiftService>.deliverFinish() {
+        val extras = Bundle().apply {
+            putLong(ShiftServiceController.EXTRA_PLATFORM_ID, 1L)
+            putLong(ShiftServiceController.EXTRA_AMOUNT_MINOR, 5_000L)
+            putString(ShiftServiceController.EXTRA_PAYMENT_METHOD, PaymentMethod.CASH.name)
+        }
+        deliver(ShiftServiceController.ACTION_FINISH_TRIP, extras)
     }
 
     /**
@@ -103,6 +145,13 @@ class ShiftServiceTest {
     ) {
         withIntent(intent(action)).startCommand(0, 1)
         whileInFlight()
+        repository.gate?.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    /** Like [deliverDuringRehydration] for an already built [intent]. */
+    private fun ServiceController<ShiftService>.deliverDuringRehydrationWith(intent: Intent) {
+        withIntent(intent).startCommand(0, 1)
         repository.gate?.complete(Unit)
         shadowOf(Looper.getMainLooper()).idle()
     }
@@ -205,6 +254,295 @@ class ShiftServiceTest {
             listOf<Pair<Long, Long?>>(NOW to NOW + HOUR, NOW + HOUR + 30 * MINUTE to null),
             repository.intervals.map { it.startedAt to it.endedAt }
         )
+    }
+
+    @Test
+    fun `cancel trip discards the ride and returns to Connected with the same connected time`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        val connectedSince = (controller.get().controller.state.value as ShiftState.Connected).connectedSinceMs
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val tripStart = (controller.get().controller.state.value as ShiftState.OnTrip).tripStartedAtMs
+
+        controller.deliverCancel(tripStart)
+
+        assertEquals(ShiftState.Connected(connectedSince), controller.get().controller.state.value)
+        assertEquals(listOf(100L), repository.cancelledTripSessions)
+    }
+
+    @Test
+    fun `cancel trip while Connected changes nothing`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        val before = controller.get().controller.state.value
+
+        controller.deliverCancel(NOW)
+
+        assertEquals(before, controller.get().controller.state.value)
+        assertTrue(repository.cancelledTripSessions.isEmpty())
+    }
+
+    @Test
+    fun `cancel trip aimed at a different ride is ignored`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val onTrip = controller.get().controller.state.value as ShiftState.OnTrip
+
+        controller.deliverCancel(onTrip.tripStartedAtMs - 1L)
+
+        assertEquals(onTrip, controller.get().controller.state.value)
+        assertTrue(repository.cancelledTripSessions.isEmpty())
+    }
+
+    @Test
+    fun `cancel trip without a ride identity is ignored`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val onTrip = controller.get().controller.state.value
+
+        controller.deliverCancel(null)
+
+        assertEquals(onTrip, controller.get().controller.state.value)
+        assertTrue(repository.cancelledTripSessions.isEmpty())
+    }
+
+    @Test
+    fun `a finish that wins the race while the cancel is in flight is not overwritten`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        val connectedSince = (controller.get().controller.state.value as ShiftState.Connected).connectedSinceMs
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val tripStart = (controller.get().controller.state.value as ShiftState.OnTrip).tripStartedAtMs
+
+        repository.cancelGate = CompletableDeferred()
+        controller.deliverCancel(tripStart)
+        fakeClock.now = NOW + MINUTE
+        controller.deliverFinish()
+        assertEquals(ShiftState.Connected(connectedSince), controller.get().controller.state.value)
+        assertEquals(1, repository.finishCalls)
+
+        repository.cancelGate?.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(ShiftState.Connected(connectedSince), controller.get().controller.state.value)
+        assertEquals(1, repository.finishCalls)
+    }
+
+    @Test
+    fun `a cancel in flight never discards a ride started after it was requested`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val first = (controller.get().controller.state.value as ShiftState.OnTrip).tripStartedAtMs
+
+        repository.cancelGate = CompletableDeferred()
+        controller.deliverCancel(first)
+        fakeClock.now = NOW + MINUTE
+        controller.deliverFinish()
+        fakeClock.now = NOW + 2 * MINUTE
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val second = controller.get().controller.state.value
+        assertTrue("expected a second ride but was $second", second is ShiftState.OnTrip)
+
+        repository.cancelGate?.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(second, controller.get().controller.state.value)
+    }
+
+    @Test
+    fun `a failing cancel keeps the ride and does not crash`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val onTrip = controller.get().controller.state.value as ShiftState.OnTrip
+
+        // An exception nobody handles reaches the thread's handler, which kills the process on a device.
+        val uncaught = mutableListOf<Throwable>()
+        val thread = Thread.currentThread()
+        val previous = thread.uncaughtExceptionHandler
+        thread.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, t -> uncaught += t }
+        try {
+            repository.cancelFailure = IllegalStateException("disk full")
+            controller.deliverCancel(onTrip.tripStartedAtMs)
+        } finally {
+            thread.uncaughtExceptionHandler = previous
+        }
+
+        assertEquals(emptyList<Throwable>(), uncaught)
+        assertEquals(onTrip, controller.get().controller.state.value)
+
+        // The failure is not sticky: a retry goes through.
+        repository.cancelFailure = null
+        controller.deliverCancel(onTrip.tripStartedAtMs)
+        assertTrue(controller.get().controller.state.value is ShiftState.Connected)
+    }
+
+    @Test
+    fun `cancel on a fresh service while Room is in flight discards the restored ride`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.inProgress = openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverDuringRehydrationWith(
+            intent(
+                ShiftServiceController.ACTION_CANCEL_TRIP,
+                Bundle().apply { putLong(ShiftServiceController.EXTRA_TRIP_STARTED_AT_MS, NOW - MINUTE) }
+            )
+        )
+
+        assertEquals(listOf(7L), repository.cancelledTripSessions)
+        assertEquals(ShiftState.Connected(NOW - HOUR), controller.get().controller.state.value)
+    }
+
+    @Test
+    fun `cancel aimed at another ride on a fresh service is ignored after rehydration`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.inProgress = openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverDuringRehydrationWith(
+            intent(
+                ShiftServiceController.ACTION_CANCEL_TRIP,
+                Bundle().apply { putLong(ShiftServiceController.EXTRA_TRIP_STARTED_AT_MS, NOW - 2 * MINUTE) }
+            )
+        )
+
+        assertTrue(repository.cancelledTripSessions.isEmpty())
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW - HOUR, tripStartedAtMs = NOW - MINUTE),
+            controller.get().controller.state.value
+        )
+    }
+
+    private fun openTrip(sessionId: Long, startedAt: Long) = Trip(
+        id = 1L,
+        sessionId = sessionId,
+        platformId = 0L,
+        platformName = "",
+        startedAt = startedAt,
+        endedAt = null,
+        amountMinor = null,
+        paymentMethod = null
+    )
+
+    @Test
+    fun `the bubble appears while connected when it is enabled and the permission is granted`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertTrue(bubbleOverlay.visible)
+        assertTrue(bubbleOverlay.lastState is ShiftState.Connected)
+    }
+
+    @Test
+    fun `the bubble follows the ride state`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+
+        assertTrue(bubbleOverlay.visible)
+        assertTrue(bubbleOverlay.lastState is ShiftState.OnTrip)
+    }
+
+    @Test
+    fun `the bubble stays hidden while the toggle is off`() {
+        bubblePrefs.enabled.value = false
+        bubblePermission.granted = true
+        val controller = newService()
+
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertEquals(false, bubbleOverlay.visible)
+        assertEquals(0, bubbleOverlay.shows)
+    }
+
+    @Test
+    fun `the bubble stays hidden without the overlay permission`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = false
+        val controller = newService()
+
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertEquals(false, bubbleOverlay.visible)
+        assertEquals(0, bubbleOverlay.shows)
+    }
+
+    @Test
+    fun `turning the toggle on during a shift shows the bubble and turning it off hides it`() {
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        assertEquals(false, bubbleOverlay.visible)
+
+        bubblePrefs.enabled.value = true
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(bubbleOverlay.visible)
+
+        bubblePrefs.enabled.value = false
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(false, bubbleOverlay.visible)
+    }
+
+    @Test
+    fun `granting the permission while a shift runs shows the bubble without a state change`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = false
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        assertEquals(false, bubbleOverlay.visible)
+
+        bubblePermission.granted = true
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(5))
+
+        assertTrue(bubbleOverlay.visible)
+    }
+
+    @Test
+    fun `pausing the shift hides the bubble`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        controller.deliver(ShiftServiceController.ACTION_DISCONNECT)
+
+        assertEquals(false, bubbleOverlay.visible)
+    }
+
+    @Test
+    fun `ending the shift hides the bubble`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+
+        controller.deliver(ShiftServiceController.ACTION_END_SHIFT)
+
+        assertEquals(false, bubbleOverlay.visible)
+    }
+
+    @Test
+    fun `destroying the service removes the bubble`() {
+        bubblePrefs.enabled.value = true
+        bubblePermission.granted = true
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        assertTrue(bubbleOverlay.visible)
+
+        controller.destroy()
+
+        assertEquals(false, bubbleOverlay.visible)
     }
 
     @Test
@@ -312,8 +650,25 @@ class InMemoryShiftRepository : ShiftRepository {
     }
 
     override fun observeTrips(sessionId: Long): Flow<List<Trip>> = flowOf(emptyList())
-    override suspend fun inProgressTrip(sessionId: Long): Trip? = null
+    var inProgress: Trip? = null
+
+    override suspend fun inProgressTrip(sessionId: Long): Trip? = inProgress?.takeIf { it.sessionId == sessionId }
     override suspend fun insertTrip(trip: Trip): Long = 1L
+
+    val cancelledTripSessions = mutableListOf<Long>()
+
+    /** While set, [cancelInProgressTrip] suspends until it completes: models a slow delete. */
+    var cancelGate: CompletableDeferred<Unit>? = null
+
+    /** When set, [cancelInProgressTrip] throws it: models a failing delete. */
+    var cancelFailure: Throwable? = null
+
+    override suspend fun cancelInProgressTrip(sessionId: Long) {
+        yield()
+        cancelGate?.await()
+        cancelFailure?.let { throw it }
+        cancelledTripSessions += sessionId
+    }
 
     override suspend fun summary(sessionId: Long): DailySummary {
         yield()
@@ -330,5 +685,39 @@ class InMemoryShiftRepository : ShiftRepository {
         endedAt: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
-    ): Boolean = true
+    ): Boolean {
+        yield()
+        finishCalls++
+        return true
+    }
+
+    var finishCalls = 0
+}
+
+class FakeBubblePreferences : BubblePreferenceRepository {
+    val enabled = MutableStateFlow(false)
+    override val bubbleEnabled: Flow<Boolean> = enabled
+    override suspend fun setBubbleEnabled(enabled: Boolean) {
+        this.enabled.value = enabled
+    }
+}
+
+class FakeOverlayPermission(var granted: Boolean = false) : OverlayPermission {
+    override fun canDrawOverlays() = granted
+}
+
+class FakeBubbleOverlay : BubbleOverlay {
+    var visible = false
+    var shows = 0
+    var lastState: ShiftState? = null
+
+    override fun show(state: ShiftState, intervals: List<ConnectedInterval>) {
+        visible = true
+        shows++
+        lastState = state
+    }
+
+    override fun hide() {
+        visible = false
+    }
 }

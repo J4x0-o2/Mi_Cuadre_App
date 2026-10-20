@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MiCuadré</string>
+    <string name="app_name">MiCuadre</string>
 
 
     <string name="total_today">Total del día</string>
@@ -28,6 +28,12 @@
     <string name="welcome_title">Listo para arrancar</string>
     <string name="start_trip_cta">Iniciar carrera</string>
     <string name="end_shift_cta">Terminar turno</string>
+    <string name="end_shift_dialog_title">¿Terminar turno?</string>
+    <string name="end_shift_dialog_message">Se cerrará el turno y se guardará su resumen. Para seguir sumando carreras tendrás que iniciar un turno nuevo.</string>
+    <string name="cancel_trip_cta">Cancelar carrera</string>
+    <string name="cancel_trip_dialog_title">¿Cancelar la carrera?</string>
+    <string name="cancel_trip_dialog_message">La carrera en curso se descartará y no se sumará a tus totales.</string>
+    <string name="cancel_trip_dialog_back">Volver</string>
     <string name="shift_trips">Carreras del turno</string>
     <string name="trip_duration_label">Duración</string>
     <string name="trip_started_at">Iniciada %1$s</string>
@@ -35,7 +41,6 @@
     <string name="disconnect_cta">Desconectar</string>
     <string name="paused_hint">Seguís en turno. Conectate para seguir sumando carreras o terminá el turno.</string>
     <string name="disconnect_hint">Terminá la carrera para desconectarte</string>
-    <string name="logo_description">Logo de MiCuadré</string>
     <string name="no_trips_yet">Sin carreras todavía</string>
 
     <string name="platform_label">Plataforma</string>
@@ -73,7 +78,7 @@
         <item quantity="one">%d carrera</item>
         <item quantity="other">%d carreras</item>
     </plurals>
-    <string name="notif_post_notifications_rationale">MiCuadré necesita mostrar una notificación para mantener el contador de jornada y de carrera activos.</string>
+    <string name="notif_post_notifications_rationale">MiCuadre necesita mostrar una notificación para mantener el contador de jornada y de carrera activos.</string>
 
     <string name="notif_permission_denied_hint">Sin permiso de notificaciones no vas a ver el contador en la barra, pero la jornada sigue corriendo.</string>
     <string name="error_finish_trip">No se pudo guardar la carrera. Revisá los datos e intentá de nuevo.</string>
@@ -97,6 +102,19 @@
         <item quantity="one">%1$d activa de %2$d</item>
         <item quantity="other">%1$d activas de %2$d</item>
     </plurals>
+
+    <string name="settings_quick_access">Acceso rápido</string>
+    <string name="settings_bubble_title">Burbuja flotante</string>
+    <string name="settings_bubble_subtitle">Muestra acciones rápidas sobre otras apps mientras hay un turno activo</string>
+    <string name="settings_bubble_permission_pending">Permiso pendiente: falta permitir mostrar MiCuadre sobre otras apps</string>
+    <string name="settings_bubble_permission_unavailable">No se pudo abrir el ajuste del permiso. Permití \"Mostrar sobre otras apps\" para MiCuadre desde los Ajustes del teléfono.</string>
+
+    <string name="bubble_cd">MiCuadre: acceso rápido</string>
+    <string name="bubble_close_cd">Cerrar panel</string>
+    <string name="bubble_connected_time">Tiempo conectado</string>
+    <string name="bubble_trip_time">Tiempo de carrera</string>
+    <string name="bubble_discard_title">¿Descartar la carrera?</string>
+    <string name="bubble_discard_confirm">Confirmar</string>
 
     <string name="platforms_title">Plataformas</string>
     <string name="platforms_hint">Elegí cuáles aparecen al terminar una carrera.</string>

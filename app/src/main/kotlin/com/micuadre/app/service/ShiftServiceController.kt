@@ -34,17 +34,23 @@ class ShiftServiceController @Inject constructor(
         const val ACTION_DISCONNECT = "com.micuadre.app.action.DISCONNECT"
         const val ACTION_START_TRIP = "com.micuadre.app.action.START_TRIP"
         const val ACTION_FINISH_TRIP = "com.micuadre.app.action.FINISH_TRIP"
+        const val ACTION_CANCEL_TRIP = "com.micuadre.app.action.CANCEL_TRIP"
         const val ACTION_END_SHIFT = "com.micuadre.app.action.END_SHIFT"
 
         const val EXTRA_PLATFORM_ID = "extra_platform_id"
         const val EXTRA_AMOUNT_MINOR = "extra_amount_minor"
         const val EXTRA_PAYMENT_METHOD = "extra_payment_method"
+        const val EXTRA_TRIP_STARTED_AT_MS = "extra_trip_started_at_ms"
 
         /** Platform id carried by a finish-trip intent, or null when absent, mistyped or not positive. */
         fun platformIdFrom(intent: Intent): Long? {
             val id = intent.extras?.get(EXTRA_PLATFORM_ID) as? Long ?: return null
             return id.takeIf { it > 0L }
         }
+
+        /** Start time of the ride a cancel-trip intent targets, or null when absent or mistyped. */
+        fun tripStartedAtFrom(intent: Intent): Long? =
+            intent.extras?.get(EXTRA_TRIP_STARTED_AT_MS) as? Long
     }
 
     private val _state = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
@@ -88,6 +94,12 @@ class ShiftServiceController @Inject constructor(
             putString(EXTRA_PAYMENT_METHOD, method.name)
         }
         sendAction(ACTION_FINISH_TRIP, extras)
+    }
+
+    /** Discards the ride that started at [tripStartedAtMs]; the service ignores it if that ride is gone. */
+    fun cancelTrip(tripStartedAtMs: Long) {
+        val extras = Bundle().apply { putLong(EXTRA_TRIP_STARTED_AT_MS, tripStartedAtMs) }
+        sendAction(ACTION_CANCEL_TRIP, extras)
     }
 
     fun endShift() = sendAction(ACTION_END_SHIFT)
