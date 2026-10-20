@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import com.micuadre.app.domain.model.ShiftState
+import com.micuadre.app.domain.usecase.CancelTripUseCase
 import com.micuadre.app.domain.usecase.EndShiftUseCase
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
@@ -46,6 +47,7 @@ class ShiftService : Service() {
     @Inject lateinit var startShift: StartShiftUseCase
     @Inject lateinit var endShift: EndShiftUseCase
     @Inject lateinit var startTrip: StartTripUseCase
+    @Inject lateinit var cancelTrip: CancelTripUseCase
     @Inject lateinit var finishTripHandler: FinishTripHandler
     @Inject lateinit var getDailySummary: GetDailySummaryUseCase
     @Inject lateinit var rehydrateShiftState: RehydrateShiftStateUseCase
@@ -153,6 +155,7 @@ class ShiftService : Service() {
             ShiftServiceController.ACTION_DISCONNECT -> handleDisconnect()
             ShiftServiceController.ACTION_START_TRIP -> handleStartTrip()
             ShiftServiceController.ACTION_FINISH_TRIP -> handleFinishTrip(intent)
+            ShiftServiceController.ACTION_CANCEL_TRIP -> handleCancelTrip()
             ShiftServiceController.ACTION_END_SHIFT -> handleEndShift()
             else -> stopIfIdle()
         }
@@ -283,6 +286,25 @@ class ShiftService : Service() {
                 return@launch
             }
             val next = result.state
+            _currentState.value = next
+            activeTripStartMs = null
+            controller.publishState(next)
+            updateNotification(next)
+        }
+    }
+
+    private fun handleCancelTrip() {
+        val sessionId = activeSessionId
+        if (_currentState.value !is ShiftState.OnTrip || sessionId == null) {
+            stopIfIdle()
+            return
+        }
+        scope.launch {
+            // Defensive: the row is only written at finish time today, but a stray open one must not survive.
+            cancelTrip(sessionId)
+            // A finish may have won the race while the delete was in flight.
+            if (_currentState.value !is ShiftState.OnTrip) return@launch
+            val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.CancelTrip)
             _currentState.value = next
             activeTripStartMs = null
             controller.publishState(next)

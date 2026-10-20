@@ -34,6 +34,7 @@ class ShiftServiceController @Inject constructor(
         const val ACTION_DISCONNECT = "com.micuadre.app.action.DISCONNECT"
         const val ACTION_START_TRIP = "com.micuadre.app.action.START_TRIP"
         const val ACTION_FINISH_TRIP = "com.micuadre.app.action.FINISH_TRIP"
+        const val ACTION_CANCEL_TRIP = "com.micuadre.app.action.CANCEL_TRIP"
         const val ACTION_END_SHIFT = "com.micuadre.app.action.END_SHIFT"
 
         const val EXTRA_PLATFORM_ID = "extra_platform_id"
@@ -89,6 +90,8 @@ class ShiftServiceController @Inject constructor(
         }
         sendAction(ACTION_FINISH_TRIP, extras)
     }
+
+    fun cancelTrip() = sendAction(ACTION_CANCEL_TRIP)
 
     fun endShift() = sendAction(ACTION_END_SHIFT)
 

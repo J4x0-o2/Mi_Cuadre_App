@@ -208,6 +208,32 @@ class ShiftServiceTest {
     }
 
     @Test
+    fun `cancel trip discards the ride and returns to Connected with the same connected time`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        val connectedSince = (controller.get().controller.state.value as ShiftState.Connected).connectedSinceMs
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        assertTrue(controller.get().controller.state.value is ShiftState.OnTrip)
+
+        controller.deliver(ShiftServiceController.ACTION_CANCEL_TRIP)
+
+        assertEquals(ShiftState.Connected(connectedSince), controller.get().controller.state.value)
+        assertEquals(listOf(100L), repository.cancelledTripSessions)
+    }
+
+    @Test
+    fun `cancel trip while Connected changes nothing`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        val before = controller.get().controller.state.value
+
+        controller.deliver(ShiftServiceController.ACTION_CANCEL_TRIP)
+
+        assertEquals(before, controller.get().controller.state.value)
+        assertTrue(repository.cancelledTripSessions.isEmpty())
+    }
+
+    @Test
     fun `rehydrating a connected session keeps its interval open and adds none`() {
         repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
         repository.intervals += ConnectedInterval(1L, 7L, NOW - HOUR, null)
@@ -314,6 +340,13 @@ class InMemoryShiftRepository : ShiftRepository {
     override fun observeTrips(sessionId: Long): Flow<List<Trip>> = flowOf(emptyList())
     override suspend fun inProgressTrip(sessionId: Long): Trip? = null
     override suspend fun insertTrip(trip: Trip): Long = 1L
+
+    val cancelledTripSessions = mutableListOf<Long>()
+
+    override suspend fun cancelInProgressTrip(sessionId: Long) {
+        yield()
+        cancelledTripSessions += sessionId
+    }
 
     override suspend fun summary(sessionId: Long): DailySummary {
         yield()

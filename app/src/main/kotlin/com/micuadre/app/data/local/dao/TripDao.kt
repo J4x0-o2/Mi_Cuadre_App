@@ -51,6 +51,9 @@ interface TripDao {
      * is null), or null if there is none. Used by the service on
      * rehydration after a process restart.
      */
+    @Query("DELETE FROM trips WHERE sessionId = :sessionId AND endedAt IS NULL")
+    suspend fun deleteInProgressBySession(sessionId: Long)
+
     @Query("SELECT * FROM trips WHERE sessionId = :sessionId AND endedAt IS NULL LIMIT 1")
     suspend fun inProgressBySession(sessionId: Long): TripEntity?
 }

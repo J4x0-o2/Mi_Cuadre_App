@@ -261,6 +261,46 @@ class ShiftRepositoryImplTest {
         assertEquals(listOf("Didi"), activity.single().trips.map { it.platformName })
     }
 
+    @Test
+    fun `cancelling deletes only the in-progress trip of that session`() = runBlocking {
+        val session = repository.createSession(startedAt = T0)
+        val other = repository.createSession(startedAt = T0 + HOUR)
+        val didi = addPlatform("Didi")
+        repository.finishTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
+        repository.insertTrip(inProgress(session, didi, T0 + 2 * MINUTE))
+        repository.insertTrip(inProgress(other, didi, T0 + HOUR))
+
+        repository.cancelInProgressTrip(session)
+
+        assertNull(repository.inProgressTrip(session))
+        assertEquals(1, repository.observeTrips(session).first().size)
+        assertEquals(7_000L, repository.totalMinor(session))
+        assertEquals(T0 + HOUR, repository.inProgressTrip(other)!!.startedAt)
+    }
+
+    @Test
+    fun `cancelling with no in-progress trip changes nothing`() = runBlocking {
+        val session = repository.createSession(startedAt = T0)
+        val didi = addPlatform("Didi")
+        repository.finishTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
+
+        repository.cancelInProgressTrip(session)
+
+        assertEquals(1, repository.observeTrips(session).first().size)
+        assertEquals(7_000L, repository.totalMinor(session))
+    }
+
+    private fun inProgress(sessionId: Long, platformId: Long, startedAt: Long) = Trip(
+        id = 0L,
+        sessionId = sessionId,
+        platformId = platformId,
+        platformName = "",
+        startedAt = startedAt,
+        endedAt = null,
+        amountMinor = null,
+        paymentMethod = null
+    )
+
     private companion object {
         const val MINUTE = 60_000L
         const val HOUR = 3_600_000L

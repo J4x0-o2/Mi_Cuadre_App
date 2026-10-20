@@ -9,6 +9,7 @@ import com.micuadre.app.domain.model.ShiftState
  *  - Disconnected --(Connect)--> Connected(startMs)
  *  - Connected --(StartTrip)--> OnTrip(connectedSinceMs, tripStartedAtMs)
  *  - OnTrip --(FinishTrip)--> Connected(connectedSinceMs)
+ *  - OnTrip --(CancelTrip)--> Connected(connectedSinceMs)
  *  - Connected --(Disconnect)--> Disconnected
  *  - any --(EndShift)--> Disconnected
  *
@@ -26,6 +27,7 @@ class ShiftStateMachine(
         data object Connect : Action
         data class StartTrip(val tripStartedAtMs: Long) : Action
         data object FinishTrip : Action
+        data object CancelTrip : Action
         data object Disconnect : Action
         data object EndShift : Action
     }
@@ -43,6 +45,10 @@ class ShiftStateMachine(
             else -> current
         }
         Action.FinishTrip -> when (current) {
+            is ShiftState.OnTrip -> ShiftState.Connected(connectedSinceMs = current.connectedSinceMs)
+            else -> current
+        }
+        Action.CancelTrip -> when (current) {
             is ShiftState.OnTrip -> ShiftState.Connected(connectedSinceMs = current.connectedSinceMs)
             else -> current
         }

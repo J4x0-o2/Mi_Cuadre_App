@@ -30,6 +30,10 @@
     <string name="end_shift_cta">Terminar turno</string>
     <string name="end_shift_dialog_title">¿Terminar turno?</string>
     <string name="end_shift_dialog_message">Se cerrará el turno y se guardará su resumen. Para seguir sumando carreras tendrás que iniciar un turno nuevo.</string>
+    <string name="cancel_trip_cta">Cancelar carrera</string>
+    <string name="cancel_trip_dialog_title">¿Cancelar la carrera?</string>
+    <string name="cancel_trip_dialog_message">La carrera en curso se descartará y no se sumará a tus totales.</string>
+    <string name="cancel_trip_dialog_back">Volver</string>
     <string name="shift_trips">Carreras del turno</string>
     <string name="trip_duration_label">Duración</string>
     <string name="trip_started_at">Iniciada %1$s</string>

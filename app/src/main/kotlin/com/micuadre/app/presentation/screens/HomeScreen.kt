@@ -138,6 +138,7 @@ fun HomeScreen(
                 is ShiftState.OnTrip -> OnTripView(
                     ui = state,
                     onFinishTrip = { viewModel.onFinishTripTapped() },
+                    onCancelTrip = { viewModel.onCancelTripTapped() },
                     onOpenSettings = onOpenSettings
                 )
             }
@@ -155,6 +156,24 @@ fun HomeScreen(
     }
 
     when (state.dialog) {
+        HomeDialog.CancelTrip -> AlertDialog(
+            onDismissRequest = viewModel::onDialogDismissed,
+            title = { Text(stringResource(R.string.cancel_trip_dialog_title)) },
+            text = { Text(stringResource(R.string.cancel_trip_dialog_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onCancelTripConfirmed) {
+                    Text(
+                        text = stringResource(R.string.cancel_trip_cta),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onDialogDismissed) {
+                    Text(stringResource(R.string.cancel_trip_dialog_back))
+                }
+            }
+        )
         HomeDialog.EndShift -> AlertDialog(
             onDismissRequest = viewModel::onDialogDismissed,
             title = { Text(stringResource(R.string.end_shift_dialog_title)) },

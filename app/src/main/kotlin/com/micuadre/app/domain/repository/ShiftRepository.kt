@@ -63,6 +63,12 @@ interface ShiftRepository {
      */
     fun observeVisiblePlatforms(): Flow<List<Platform>>
 
+    /**
+     * Discards the in-progress trip of [sessionId] (the row whose `endedAt` is null), if any.
+     * Finished trips are never touched, so totals do not change.
+     */
+    suspend fun cancelInProgressTrip(sessionId: Long) {}
+
     /** Inserts a trip row. */
     suspend fun insertTrip(trip: Trip): Long
 

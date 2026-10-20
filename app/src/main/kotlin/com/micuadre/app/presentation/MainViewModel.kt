@@ -65,7 +65,9 @@ class MainViewModel @Inject constructor(
         clockChanges = clockChanges(context),
         observe = { period, zone -> observePeriodSummary(period, zone) }
     )
-    private val dialogs = HomeDialogCoordinator(ui = _ui, endShift = controller::endShift)
+    private val dialogs = HomeDialogCoordinator(ui = _ui, endShift = controller::endShift,
+        cancelTrip = controller::cancelTrip
+    )
     private val connectCoordinator = ConnectCoordinator(startShift = controller::connect)
 
     init {
@@ -215,6 +217,10 @@ class MainViewModel @Inject constructor(
     fun onEndShiftConfirmed() = dialogs.onEndShiftConfirmed()
 
     fun onDialogDismissed() = dialogs.onDialogDismissed()
+
+    fun onCancelTripTapped() = dialogs.onCancelTripTapped()
+
+    fun onCancelTripConfirmed() = dialogs.onCancelTripConfirmed()
 
     fun onSummaryDismissed() {
         _ui.update { it.copy(summary = null) }

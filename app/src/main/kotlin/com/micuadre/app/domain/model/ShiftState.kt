@@ -7,6 +7,7 @@ package com.micuadre.app.domain.model
  *  - Disconnected --(connect)--> Connected
  *  - Connected --(startTrip)--> OnTrip
  *  - OnTrip --(finishTrip)--> Connected
+ *  - OnTrip --(cancelTrip)--> Connected
  *  - Connected --(disconnect)--> Disconnected
  *
  * Time references are wall-clock epoch milliseconds (see [com.micuadre.app.util.Clock]).
