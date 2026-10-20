@@ -23,6 +23,7 @@ import com.micuadre.app.domain.usecase.StartTripUseCase
 import com.micuadre.app.util.Clock
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -92,6 +93,9 @@ class ShiftService : Service() {
     private var activeTripStartMs: Long? = null
 
     private var rehydrated = false
+
+    /** Completes once rehydration has settled (restored or not), for actions that must wait for it. */
+    private val rehydration = CompletableDeferred<Unit>()
     private var connectPending = false
     private var startCommandSeen = false
 
@@ -178,6 +182,7 @@ class ShiftService : Service() {
                 Log.e(TAG, "Rehydration failed; staying Disconnected", t)
             } finally {
                 rehydrated = true
+                rehydration.complete(Unit)
                 stopIfIdle()
             }
         }
@@ -354,15 +359,27 @@ class ShiftService : Service() {
     }
 
     private fun handleCancelTrip(intent: Intent) {
-        val sessionId = activeSessionId
         val tripStart = ShiftServiceController.tripStartedAtFrom(intent)
-        if (sessionId == null || !isOnTrip(tripStart)) {
+        if (tripStart == null || (rehydrated && !isOnTrip(tripStart))) {
             stopIfIdle()
             return
         }
         scope.launch {
-            // Defensive: the row is only written at finish time today, but a stray open one must not survive.
-            cancelTrip(sessionId)
+            // A fresh instance may still be restoring the ride from Room: wait for that before judging.
+            rehydration.await()
+            val sessionId = activeSessionId
+            if (sessionId == null || !isOnTrip(tripStart)) {
+                stopIfIdle()
+                return@launch
+            }
+            try {
+                // Defensive: the row is only written at finish time today, but a stray open one must not survive.
+                cancelTrip(sessionId)
+            } catch (t: Throwable) {
+                if (t is CancellationException) throw t
+                Log.e(TAG, "Cancelling the trip failed; the ride stays active", t)
+                return@launch
+            }
             // A finish (or a newer ride) may have won the race while the delete was in flight.
             if (!isOnTrip(tripStart)) return@launch
             val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.CancelTrip)

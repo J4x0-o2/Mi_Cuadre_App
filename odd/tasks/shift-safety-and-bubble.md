@@ -67,6 +67,16 @@ Out of scope: Google Sheets sync, history screen, README refinement.
       (7), BubblePlacement (11), DragGesture (7), BubblePanelModel (6), BubblePanelCoordinator
       (17), permissionUpdates (3), ShiftService bubble wiring (9). 479 unit tests, 0 failures.
       Untested glue (compiles, needs a device): WindowBubbleOverlay, BubbleRootView, BubbleContent.
+- [x] T5 Full-branch review advisories (user-authorized 2026-10-20): R3-001 handleCancelTrip
+      catches DB failures instead of crashing the process; R3-002 a cancel received while a fresh
+      service is rehydrating is not dropped (mirror the endShift Room fallback).
+      Route: delegated writer (ShiftService + tests). R3-003..R3-005 stay deferred.
+      Commit: see git log (fix(service): handle cancel failures and cancel during rehydration).
+      RED: ShiftServiceTest, 2 of 3 new tests failed (failing cancel reached the thread's
+      uncaught handler; cancel during rehydration dropped); the identity-mismatch test passes
+      by design. GREEN: handleCancelTrip catches non-cancellation failures (log, ride stays
+      active), and waits for rehydration (CompletableDeferred) before judging, keeping the
+      EXTRA_TRIP_STARTED_AT_MS guard. Full suite 486 tests, 0 failures; assembleDebug passes.
 
 ## Acceptance criteria
 - No "MiCuadré" left in the repo; header shows only the name.

@@ -149,6 +149,13 @@ class ShiftServiceTest {
         shadowOf(Looper.getMainLooper()).idle()
     }
 
+    /** Like [deliverDuringRehydration] for an already built [intent]. */
+    private fun ServiceController<ShiftService>.deliverDuringRehydrationWith(intent: Intent) {
+        withIntent(intent).startCommand(0, 1)
+        repository.gate?.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
     private fun newServiceWithSlowRoom(): ServiceController<ShiftService> {
         repository.gate = CompletableDeferred()
         return newService()
@@ -344,6 +351,82 @@ class ShiftServiceTest {
 
         assertEquals(second, controller.get().controller.state.value)
     }
+
+    @Test
+    fun `a failing cancel keeps the ride and does not crash`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val onTrip = controller.get().controller.state.value as ShiftState.OnTrip
+
+        // An exception nobody handles reaches the thread's handler, which kills the process on a device.
+        val uncaught = mutableListOf<Throwable>()
+        val thread = Thread.currentThread()
+        val previous = thread.uncaughtExceptionHandler
+        thread.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, t -> uncaught += t }
+        try {
+            repository.cancelFailure = IllegalStateException("disk full")
+            controller.deliverCancel(onTrip.tripStartedAtMs)
+        } finally {
+            thread.uncaughtExceptionHandler = previous
+        }
+
+        assertEquals(emptyList<Throwable>(), uncaught)
+        assertEquals(onTrip, controller.get().controller.state.value)
+
+        // The failure is not sticky: a retry goes through.
+        repository.cancelFailure = null
+        controller.deliverCancel(onTrip.tripStartedAtMs)
+        assertTrue(controller.get().controller.state.value is ShiftState.Connected)
+    }
+
+    @Test
+    fun `cancel on a fresh service while Room is in flight discards the restored ride`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.inProgress = openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverDuringRehydrationWith(
+            intent(
+                ShiftServiceController.ACTION_CANCEL_TRIP,
+                Bundle().apply { putLong(ShiftServiceController.EXTRA_TRIP_STARTED_AT_MS, NOW - MINUTE) }
+            )
+        )
+
+        assertEquals(listOf(7L), repository.cancelledTripSessions)
+        assertEquals(ShiftState.Connected(NOW - HOUR), controller.get().controller.state.value)
+    }
+
+    @Test
+    fun `cancel aimed at another ride on a fresh service is ignored after rehydration`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.inProgress = openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverDuringRehydrationWith(
+            intent(
+                ShiftServiceController.ACTION_CANCEL_TRIP,
+                Bundle().apply { putLong(ShiftServiceController.EXTRA_TRIP_STARTED_AT_MS, NOW - 2 * MINUTE) }
+            )
+        )
+
+        assertTrue(repository.cancelledTripSessions.isEmpty())
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW - HOUR, tripStartedAtMs = NOW - MINUTE),
+            controller.get().controller.state.value
+        )
+    }
+
+    private fun openTrip(sessionId: Long, startedAt: Long) = Trip(
+        id = 1L,
+        sessionId = sessionId,
+        platformId = 0L,
+        platformName = "",
+        startedAt = startedAt,
+        endedAt = null,
+        amountMinor = null,
+        paymentMethod = null
+    )
 
     @Test
     fun `the bubble appears while connected when it is enabled and the permission is granted`() {
@@ -567,7 +650,9 @@ class InMemoryShiftRepository : ShiftRepository {
     }
 
     override fun observeTrips(sessionId: Long): Flow<List<Trip>> = flowOf(emptyList())
-    override suspend fun inProgressTrip(sessionId: Long): Trip? = null
+    var inProgress: Trip? = null
+
+    override suspend fun inProgressTrip(sessionId: Long): Trip? = inProgress?.takeIf { it.sessionId == sessionId }
     override suspend fun insertTrip(trip: Trip): Long = 1L
 
     val cancelledTripSessions = mutableListOf<Long>()
@@ -575,9 +660,13 @@ class InMemoryShiftRepository : ShiftRepository {
     /** While set, [cancelInProgressTrip] suspends until it completes: models a slow delete. */
     var cancelGate: CompletableDeferred<Unit>? = null
 
+    /** When set, [cancelInProgressTrip] throws it: models a failing delete. */
+    var cancelFailure: Throwable? = null
+
     override suspend fun cancelInProgressTrip(sessionId: Long) {
         yield()
         cancelGate?.await()
+        cancelFailure?.let { throw it }
         cancelledTripSessions += sessionId
     }
 
