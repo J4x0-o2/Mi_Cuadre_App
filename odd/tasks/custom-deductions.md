@@ -271,13 +271,21 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
       bar never exceeds the area. PeriodSheet uses it. Route: inline (one pure function + caller).
       - RED: compile failure, then with a stub returning the inputs, 6 tests, 3 failed on behavior.
       - GREEN: `./gradlew testDebugUnitTest assembleDebug` BUILD SUCCESSFUL, 641 tests, 0 failures.
-- [ ] T7 Docs: README (features + screenshots), CHANGELOG. Route: inline.
+      - Review (base bab697d): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-7666dac9b7cb63b9); suggestions only -> follow-ups.
+- [x] T7 Docs: README (Deducciones feature, week/month gross vs net, counting rules, storage, test
+      count, schema v4) and CHANGELOG [Unreleased]. Route: inline.
+      - No new screenshots: capturing them needs the emulator with demo deductions; left for the
+        release step after the device check (the README galleries still show 0.4.x screens).
 
 ## Follow-ups (non-blocking review suggestions)
 - T3c: a stale Ok/NotFound result after dismiss + reopening an equal dialog is not tested.
 - T4b: no assertion that a later End tap + confirm still works after the guarded lookup return.
 - T5: cancellation rethrow in GetDailySummaryUseCase untested; ShiftSummaryScreen branching (net vs gross label, negative tone, section hidden) has no Compose UI test.
 - T6: PeriodSheet Compose branching (card hidden without costs, stacked vs single bars, tile layout) has no Compose UI test.
+- T6c: StackedSegments tests miss the mirrored case (tiny net, large cost), the clamp where the
+  larger segment would drop below min, and net/total asserts; inputs are not sanitized (negative or
+  NaN fractions).
 
 ## Acceptance criteria
 - Deductions can be managed in Settings; deleting one keeps past amounts and names.
@@ -296,4 +304,9 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
   recorded per task below.
 
 ## Progress
-- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b, T3c, T3d, T4, T5, T6 done. Next: T7.
+- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. All tasks done:
+  T1, T2, T2b, T3, T3b, T3c, T3d, T4, T4b, T4c, T5, T6, T6b, T6c, T7; every code slice reviewed
+  (gentle-ai reliability, APPROVED + acknowledged). 641 unit tests green, assembleDebug green.
+- Next (user): manual device check (Settings › Deducciones, end-shift sheet incl. Omitir and the
+  no-deductions path, Turno cerrado net, week/month sheet with and without costs, scroll with fixed
+  header, stacked bars), then merge into main as 0.5.0 with new screenshots.

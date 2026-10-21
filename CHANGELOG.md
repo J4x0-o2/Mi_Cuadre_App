@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version lives in
 `version.properties`; the Android `versionCode` is derived from it as `major*10000 + minor*100 + patch`.
 
+## [Unreleased]
+
+### Added
+- Custom deductions (fuel, app fee, food…) managed in Settings › Deducciones: create, rename,
+  show or hide, delete, and an optional usual amount (whole pesos) used to prefill.
+- "Gastos del turno" sheet after confirming the end of a shift: one optional amount per visible
+  deduction, live total and net; "Omitir" ends the shift without amounts. With no visible
+  deductions the shift ends as before.
+- The shift summary shows the net ("Te quedó") with the gross, each deduction and the total.
+- The week/month earnings sheet adds a "Gastos y neto" card, bars split into net and expenses,
+  and a net-per-day tile. Home week/month tiles keep showing the gross.
+
+### Changed
+- Database v4: `deductions` and `session_deductions` tables (real migration from v3; existing
+  data untouched). Hidden or deleted deductions keep their past amounts and names.
+- The earnings sheet header (title and Semana/Mes tabs) stays fixed while the content scrolls.
+
+### Fixed
+- Settings › Plataformas: a double tap on a dialog's confirm button no longer runs the action twice,
+  and a result never lands on a dialog the user already closed.
+
 ## [0.4.1] - 2026-10-20
 
 ### Changed

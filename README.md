@@ -44,14 +44,20 @@ todos los datos se quedan en tu teléfono.
 - **Carreras.** Inicias una carrera y la terminas indicando la plataforma, el monto y el medio de
   pago. La última plataforma y el último medio de pago quedan preseleccionados. Si la iniciaste por
   error, la cancelas y no se registra.
+- **Deducciones.** En *Ajustes › Deducciones* creas tus propios gastos (combustible, tarifa de la
+  app, alimentación…), con un valor habitual opcional. Al terminar un turno la app te pregunta
+  cuánto gastaste en cada uno (puedes omitirlo) y el resumen del turno muestra lo que ganaste, cada
+  gasto y lo que **te quedó**. Ocultar o eliminar una deducción nunca cambia tus turnos pasados.
 - **Burbuja flotante.** Opcional, se activa en *Ajustes › Burbuja flotante* y requiere el permiso
   "Mostrar sobre otras apps". Solo aparece mientras hay un turno activo y desaparece al terminarlo.
 - **Resumen en inicio.**
   - *Conectado:* total del turno, tiempo conectado, cantidad de carreras y las carreras del turno.
   - *Desconectado:* resumen del día con todos los turnos, incluida la ganancia por hora.
-- **Semana y mes.** Dos botones abren una hoja con el total, efectivo frente a transferencia, un
-  gráfico de barras (por día en la semana, por semana en el mes), días trabajados y el promedio por
-  día trabajado.
+- **Semana y mes.** Los botones de inicio muestran lo ganado (bruto). Al abrirlos, una hoja
+  muestra el total, efectivo frente a transferencia, un gráfico de barras (por día en la semana, por
+  semana en el mes), días trabajados y el promedio por día trabajado. Si registraste gastos, suma
+  una tarjeta **Gastos y neto** con el detalle por deducción, barras que separan neto y gastos, y el
+  neto por día.
 - **Tus plataformas.** En *Ajustes › Plataformas* creas, renombras, muestras u ocultas y eliminas
   plataformas. Eliminar una nunca cambia tu historial: las carreras pasadas conservan su nombre y
   sus totales.
@@ -66,6 +72,8 @@ todos los datos se quedan en tu teléfono.
 | "Por hora" aparece solo después de una hora completa conectado | Evita tarifas absurdas extrapoladas de pocos minutos |
 | Una carrera debe terminarse o cancelarse antes de desconectarte | Ninguna carrera queda registrada a medias |
 | Una carrera cancelada no suma | Solo cuenta lo que realmente cobraste |
+| Los gastos de un turno cuentan para el día en que **empezó** el turno, igual que sus carreras | El neto de cada día y semana coincide con lo que ganaste ese día |
+| Neto = lo ganado − los gastos del período; puede ser negativo | Muestra la realidad, aunque un día cueste más de lo que dejó |
 
 ## Capturas
 
@@ -111,10 +119,10 @@ toca los datos de una instalación de producción.
 | Lenguaje | Kotlin 2.0 |
 | UI | Jetpack Compose con Material 3 (tema propio, fuentes Sora y Manrope) |
 | Inyección de dependencias | Hilt |
-| Almacenamiento | Room (turnos, carreras, intervalos conectados, plataformas) y DataStore (preferencias) |
+| Almacenamiento | Room (turnos, carreras, intervalos conectados, plataformas, deducciones y sus montos por turno) y DataStore (preferencias) |
 | Trabajo en segundo plano | Un servicio en primer plano con acciones en la notificación y una ventana superpuesta (burbuja) |
 | Asincronía | Kotlin Coroutines y Flow |
-| Pruebas | JUnit 4, Robolectric, `MigrationTestHelper` de Room (unas 490 pruebas) |
+| Pruebas | JUnit 4, Robolectric, `MigrationTestHelper` de Room (unas 630 pruebas) |
 | Build | Gradle Kotlin DSL con catálogo de versiones; `minSdk 29`, `targetSdk 35` |
 
 ## Arquitectura
@@ -137,7 +145,7 @@ app/src/main/kotlin/com/micuadre/app/
 Decisiones clave:
 
 - **Las migraciones de base de datos son reales y están probadas.** Cada versión del esquema (hoy
-  v3) trae una `Migration` y una prueba con `MigrationTestHelper` que la ejecuta sobre datos
+  v4) trae una `Migration` y una prueba con `MigrationTestHelper` que la ejecuta sobre datos
   existentes.
 - **El tiempo se inyecta.** Un `Clock` y la zona horaria los provee Hilt, así que los límites de
   día, semana y mes, el cambio de medianoche y los cambios de zona horaria tienen pruebas unitarias.
