@@ -56,6 +56,8 @@ class HomeDialogCoordinator(
                 // so the shift ends without asking for expenses.
                 emptyList()
             }
+            // The shift may have ended another way while the lookup ran: ask about nothing then.
+            if (!ui.value.hasOpenShift) return@launch
             if (deductions.isEmpty()) {
                 endShift(emptyMap())
             } else {
@@ -101,13 +103,22 @@ class HomeDialogCoordinator(
         cancelTrip(dialog.tripStartedAtMs)
     }
 
-    /** Must be called every time the shift state is (re)published; drops a cancel dialog whose ride is gone. */
+    /**
+     * Must be called every time the shift state is (re)published, after [HomeUiState.hasOpenShift]
+     * was refreshed: drops a cancel dialog whose ride is gone and the expenses sheet of a shift
+     * that is no longer open (a paused shift is still open).
+     */
     fun onShiftState(state: ShiftState) {
         ui.update {
             val dialog = it.dialog
-            val stale = dialog is HomeDialog.CancelTrip &&
+            val staleDialog = dialog is HomeDialog.CancelTrip &&
                 !(state is ShiftState.OnTrip && state.tripStartedAtMs == dialog.tripStartedAtMs)
-            if (stale) it.copy(dialog = null) else it
+            val staleSheet = it.shiftExpenses != null && !it.hasOpenShift
+            if (!staleDialog && !staleSheet) return@update it
+            it.copy(
+                dialog = if (staleDialog) null else dialog,
+                shiftExpenses = if (staleSheet) null else it.shiftExpenses
+            )
         }
     }
 

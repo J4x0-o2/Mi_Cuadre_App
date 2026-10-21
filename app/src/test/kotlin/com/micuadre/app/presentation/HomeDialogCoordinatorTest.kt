@@ -16,7 +16,7 @@ import java.io.IOException
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeDialogCoordinatorTest {
 
-    private val ui = MutableStateFlow(HomeUiState())
+    private val ui = MutableStateFlow(HomeUiState(hasOpenShift = true))
     private var endShifts = 0
     private val endedWith = mutableListOf<Map<Long, Long>>()
     private var visible: List<Deduction> = emptyList()
@@ -299,6 +299,54 @@ class HomeDialogCoordinatorTest {
         assertNull(ui.value.shiftExpenses)
     }
 
+
+    @Test
+    fun `a lookup that completes after the shift ended opens no sheet and ends nothing`() {
+        visible = listOf(fuel)
+        lookupGate = CompletableDeferred()
+        coordinator.onEndShiftTapped()
+        coordinator.onEndShiftConfirmed()
+
+        ui.value = ui.value.copy(hasOpenShift = false, shiftState = ShiftState.Disconnected)
+        lookupGate?.complete(Unit)
+
+        assertNull(ui.value.shiftExpenses)
+        assertEquals(0, endShifts)
+    }
+
+    @Test
+    fun `a lookup with no deductions that completes after the shift ended sends no end`() {
+        lookupGate = CompletableDeferred()
+        coordinator.onEndShiftTapped()
+        coordinator.onEndShiftConfirmed()
+
+        ui.value = ui.value.copy(hasOpenShift = false)
+        lookupGate?.complete(Unit)
+
+        assertEquals(0, endShifts)
+    }
+
+    @Test
+    fun `the sheet closes when the shift ends while it is open`() {
+        confirmWith(fuel)
+        ui.value = ui.value.copy(hasOpenShift = false)
+
+        coordinator.onShiftState(ShiftState.Disconnected)
+        coordinator.onShiftExpensesSaved()
+
+        assertNull(ui.value.shiftExpenses)
+        assertEquals(0, endShifts)
+    }
+
+    @Test
+    fun `the sheet stays open while the shift is paused`() {
+        confirmWith(fuel)
+        ui.value = ui.value.copy(shiftState = ShiftState.Disconnected, hasOpenShift = true)
+
+        coordinator.onShiftState(ShiftState.Disconnected)
+
+        assertEquals(1, ui.value.shiftExpenses?.fields?.size)
+    }
 
     private companion object {
         const val TRIP_A = 5_000L

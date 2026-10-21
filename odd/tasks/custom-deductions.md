@@ -175,6 +175,27 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         clamped; the total row shows "− $ X" only when something was spent ("$ 0" otherwise).
         Gross in the sheet is the live HomeUiState.totalMinor. ShiftServiceTest now uninstalls
         DeductionModule and binds FakeDeductionRepository.
+      - Review (base de15f6e): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-6fe587d920e3a2a8); advisories -> T4b.
+- [x] T4b T4 review advisories: stale expenses sheet and gross source.
+      Route: delegated writer.
+      - RED: 3 behavior failures in HomeDialogCoordinatorTest (36 run, 3 failed): lookup completes after
+        the shift ended -> sheet still opened; same with no deductions -> end still sent; shift ends
+        while the sheet is open -> sheet kept (Save would send an ignored end).
+      - GREEN: coordinator ends the lookup silently when HomeUiState.hasOpenShift is false (a paused
+        shift still counts as open, as the End button allows it), and onShiftState clears the sheet
+        when the shift is no longer open (same precedent as the cancel-trip dialog).
+        `./gradlew testDebugUnitTest` BUILD SUCCESSFUL, 603 tests, 0 failures; `assembleDebug` BUILD
+        SUCCESSFUL.
+      - Other end-shift paths: none. ShiftServiceController.endShift is called only from
+        MainViewModel (via this coordinator); the bubble and notification expose no end action and
+        EndShiftUseCase runs only in ShiftService.handleEndShift. A service restart/rehydration
+        never ends a session. The guard is defensive (lookup race, future paths).
+      - Gross source: HomeUiState.totalMinor comes from homeSnapshots = sum of the active session's
+        trips (current shift, not a period); pinned by a new HomeSnapshotFlowTest case (asks only the
+        active session id, ignores unpriced trips). The Compose wiring itself is not unit-testable.
+      - MainViewModel wiring (observeVisible().first() -> sheet / end): no MainViewModel test exists
+        and it needs an Android Context (clockChanges), so it stays covered at coordinator level only.
 - [ ] T5 Shift summary net: DailySummary deductions, ShiftSummaryModel + ShiftSummaryScreen.
       Route: delegated writer.
 - [ ] T6 Period sheet: PeriodSummary/buckets with expenses, PeriodSheetModel (gastos y neto,
