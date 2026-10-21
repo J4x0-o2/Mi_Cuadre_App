@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -156,5 +157,21 @@ class HomeSnapshotFlowTest {
         ).first()
 
         assertTrue(snapshot.connectedIntervals.isEmpty())
+    }
+
+    @Test
+    fun `the total is the gross of the active session only and ignores unpriced trips`() = runTest {
+        val asked = mutableListOf<Long>()
+        val snapshot = homeSnapshots(
+            shiftState = flowOf(ShiftState.Connected(connectedSinceMs = 1L)),
+            activeSessionId = { 7L },
+            observeTrips = { id ->
+                asked += id
+                MutableStateFlow(listOf(trip(1, 100L), trip(2, 250L), trip(3, 0L).copy(amountMinor = null)))
+            }
+        ).first()
+
+        assertEquals(listOf(7L), asked)
+        assertEquals(350L, snapshot.totalMinor)
     }
 }

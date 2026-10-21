@@ -17,6 +17,8 @@ import com.micuadre.app.domain.usecase.CancelTripUseCase
 import com.micuadre.app.domain.usecase.EndShiftUseCase
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
+import com.micuadre.app.domain.repository.DeductionRepository
+import com.micuadre.app.domain.repository.DeductionResult
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.StartShiftUseCase
 import com.micuadre.app.domain.usecase.StartTripUseCase
@@ -67,6 +69,7 @@ class ShiftService : Service() {
     @Inject lateinit var getDailySummary: GetDailySummaryUseCase
     @Inject lateinit var rehydrateShiftState: RehydrateShiftStateUseCase
     @Inject lateinit var repository: ShiftRepository
+    @Inject lateinit var deductions: DeductionRepository
     @Inject lateinit var bubblePreferences: BubblePreferenceRepository
     @Inject lateinit var overlayPermission: OverlayPermission
     @Inject lateinit var bubbleOverlay: BubbleOverlay
@@ -221,7 +224,7 @@ class ShiftService : Service() {
             ShiftServiceController.ACTION_START_TRIP -> handleStartTrip()
             ShiftServiceController.ACTION_FINISH_TRIP -> handleFinishTrip(intent)
             ShiftServiceController.ACTION_CANCEL_TRIP -> handleCancelTrip(intent)
-            ShiftServiceController.ACTION_END_SHIFT -> handleEndShift()
+            ShiftServiceController.ACTION_END_SHIFT -> handleEndShift(ShiftServiceController.deductionAmountsFrom(intent))
             else -> stopIfIdle()
         }
         return START_STICKY
@@ -396,7 +399,8 @@ class ShiftService : Service() {
         return tripStartedAtMs != null && state is ShiftState.OnTrip && state.tripStartedAtMs == tripStartedAtMs
     }
 
-    private fun handleEndShift() {
+    /** [amounts] (deduction id to minor units) are stored with the shift before its summary is built. */
+    private fun handleEndShift(amounts: Map<Long, Long>) {
         scope.launch {
             // After a pause this instance may be fresh: fall back to the open session in Room.
             val sessionId = activeSessionId ?: repository.activeSession()?.id
@@ -408,6 +412,7 @@ class ShiftService : Service() {
             }
             val now = clock.nowMs()
             endShift(sessionId, endedAt = now)
+            saveExpenses(sessionId, amounts)
             val summary = getDailySummary(sessionId)
             controller.publishSummary(summary)
             val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.EndShift)
@@ -418,6 +423,21 @@ class ShiftService : Service() {
             stopObservingTotals()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+        }
+    }
+
+    /** Best effort: losing the expenses must never keep the shift from ending. */
+    private suspend fun saveExpenses(sessionId: Long, amounts: Map<Long, Long>) {
+        if (amounts.isEmpty()) return
+        try {
+            val result = deductions.saveSessionAmounts(sessionId, amounts)
+            if (result != DeductionResult.Ok) {
+                Log.e(TAG, "Shift expenses were refused ($result); ending the shift without them")
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (t: Exception) {
+            Log.e(TAG, "Saving the shift expenses failed; ending the shift without them", t)
         }
     }
 

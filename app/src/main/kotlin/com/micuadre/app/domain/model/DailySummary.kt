@@ -5,7 +5,9 @@ package com.micuadre.app.domain.model
  *
  * [startedAt] / [endedAt] are the session boundaries (epoch ms; [startedAt] is null when the
  * session row no longer exists); [connectedIntervals] hold the real connected time; [trips] are the session's
- * trips, from which the presentation derives payment and per-platform breakdowns.
+ * trips, from which the presentation derives payment and per-platform breakdowns. [deductions] are the
+ * amounts the driver spent on the shift (names resolved, soft-deleted ones included); they are filled
+ * in by the use case, not by the trips repository.
  */
 data class DailySummary(
     val totalAmountMinor: Long,
@@ -15,5 +17,6 @@ data class DailySummary(
     val startedAt: Long? = null,
     val endedAt: Long? = null,
     val trips: List<Trip> = emptyList(),
-    val connectedIntervals: List<ConnectedInterval> = emptyList()
+    val connectedIntervals: List<ConnectedInterval> = emptyList(),
+    val deductions: List<SessionDeductionAmount> = emptyList()
 )

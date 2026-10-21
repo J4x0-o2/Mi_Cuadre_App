@@ -55,6 +55,7 @@ import com.micuadre.app.presentation.components.HeaderStatus
 import com.micuadre.app.presentation.components.MetricTile
 import com.micuadre.app.presentation.components.PeriodButtons
 import com.micuadre.app.presentation.components.PeriodSheet
+import com.micuadre.app.presentation.components.ShiftExpensesSheet
 import com.micuadre.app.presentation.components.PrimaryActionButton
 import com.micuadre.app.presentation.components.ScreenHeader
 import com.micuadre.app.presentation.components.SectionLabel
@@ -193,6 +194,17 @@ fun HomeScreen(
             }
         )
         null -> Unit
+    }
+
+    state.shiftExpenses?.let { sheet ->
+        ShiftExpensesSheet(
+            state = sheet,
+            grossMinor = state.totalMinor,
+            onEdited = viewModel::onShiftExpensesEdited,
+            onSkip = viewModel::onShiftExpensesSkipped,
+            onSave = viewModel::onShiftExpensesSaved,
+            onDismiss = viewModel::onShiftExpensesDismissed
+        )
     }
 
     state.finishSheet?.let { sheet ->

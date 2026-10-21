@@ -149,3 +149,42 @@ private class OldTrip(
 
 /** Case-insensitive identity of a platform name. */
 private fun key(name: String) = name.lowercase(Locale.ROOT)
+
+/**
+ * 3 -> 4: custom deductions. Creates `deductions` and `session_deductions` (the amount a shift
+ * spent on each deduction, unique per session and deduction). Nothing is rebuilt or seeded.
+ */
+val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `deductions` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`visible` INTEGER NOT NULL, " +
+                "`usualAmountMinor` INTEGER, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "`deletedAt` INTEGER)"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `session_deductions` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`sessionId` INTEGER NOT NULL, " +
+                "`deductionId` INTEGER NOT NULL, " +
+                "`amountMinor` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`deductionId`) REFERENCES `deductions`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_session_deductions_sessionId` " +
+                "ON `session_deductions` (`sessionId`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_session_deductions_deductionId` " +
+                "ON `session_deductions` (`deductionId`)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_session_deductions_sessionId_deductionId` " +
+                "ON `session_deductions` (`sessionId`, `deductionId`)"
+        )
+    }
+}

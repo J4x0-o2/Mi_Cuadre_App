@@ -163,6 +163,7 @@ fun PlatformsScreen(
             title = stringResource(R.string.platforms_add_title),
             initialName = "",
             error = dialog.error,
+            saving = state.saving,
             onNameEdited = viewModel::onNameEdited,
             onConfirm = viewModel::onConfirmAdd,
             onDismiss = viewModel::onDismissDialog
@@ -171,6 +172,7 @@ fun PlatformsScreen(
             title = stringResource(R.string.platforms_rename_title),
             initialName = dialog.currentName,
             error = dialog.error,
+            saving = state.saving,
             onNameEdited = viewModel::onNameEdited,
             onConfirm = viewModel::onConfirmRename,
             onDismiss = viewModel::onDismissDialog
@@ -180,7 +182,7 @@ fun PlatformsScreen(
             title = { Text(stringResource(R.string.platforms_delete_title, dialog.name)) },
             text = { Text(stringResource(R.string.platforms_delete_message)) },
             confirmButton = {
-                TextButton(onClick = viewModel::onConfirmDelete) {
+                TextButton(onClick = viewModel::onConfirmDelete, enabled = !state.saving) {
                     Text(
                         text = stringResource(R.string.platforms_delete_confirm),
                         color = MaterialTheme.colorScheme.error
@@ -249,6 +251,7 @@ private fun NameDialog(
     title: String,
     initialName: String,
     error: PlatformNameError?,
+    saving: Boolean,
     onNameEdited: () -> Unit,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
@@ -282,7 +285,7 @@ private fun NameDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(name) }) {
+            TextButton(onClick = { onConfirm(name) }, enabled = !saving) {
                 Text(stringResource(R.string.platforms_save))
             }
         },

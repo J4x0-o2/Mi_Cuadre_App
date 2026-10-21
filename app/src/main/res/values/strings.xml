@@ -19,6 +19,16 @@
     <string name="period_chart_by_week">Por semana</string>
     <string name="period_days_label">Días</string>
     <string name="period_average_label">Prom./día</string>
+    <string name="period_net_per_day_label">Neto/día</string>
+    <string name="period_days_worked">Días trabajados: %1$d</string>
+    <string name="period_costs_title">Gastos y neto</string>
+    <string name="period_costs_legend">Neto %1$d%% · Gastos %2$d%%</string>
+    <string name="period_costs_gross">Ganaste</string>
+    <string name="period_costs_total">Total gastos</string>
+    <string name="period_net_left">Te quedó</string>
+    <string name="period_chart_legend_net">Neto</string>
+    <string name="period_chart_legend_costs">Gastos</string>
+    <string name="period_chart_overrun_note">En algunas barras los gastos superan lo ganado.</string>
     <string name="paused_shift_title">Turno en pausa</string>
     <string name="connected_label">Conectado</string>
     <string name="trips_label">Carreras</string>
@@ -56,12 +66,23 @@
     <string name="save">Guardar</string>
     <string name="cancel">Cancelar</string>
 
+    <string name="shift_expenses_title">Gastos del turno</string>
+    <string name="shift_expenses_subtitle">Anota cuánto gastaste. Deja en blanco lo que no aplique.</string>
+    <string name="shift_expenses_earned">Ganaste</string>
+    <string name="shift_expenses_total">Total deducciones</string>
+    <string name="shift_expenses_left">Te queda</string>
+    <string name="shift_expenses_skip">Omitir</string>
+    <string name="shift_expenses_save">Guardar y cerrar</string>
+
     <string name="summary_closed">Turno cerrado</string>
     <string name="summary_range">Hoy · %1$s – %2$s</string>
     <string name="summary_range_day">%1$s · %2$s – %3$s</string>
     <string name="summary_range_span">%1$s %2$s – %3$s %4$s</string>
     <string name="summary_range_unknown">Horario no disponible</string>
     <string name="summary_earned">Ganaste</string>
+    <string name="summary_net_label">Te quedó</string>
+    <string name="summary_deductions_gross">Ganaste</string>
+    <string name="summary_deductions_total">Total deducciones</string>
     <string name="summary_by_platform">Por plataforma</string>
     <string name="summary_done">Listo</string>
 
@@ -103,6 +124,10 @@
         <item quantity="other">%1$d activas de %2$d</item>
     </plurals>
 
+    <string name="settings_deductions">Deducciones</string>
+    <string name="settings_deductions_manage">Administrar deducciones</string>
+    <string name="settings_deductions_none">Agrega combustible, tarifa, alimentación…</string>
+
     <string name="settings_quick_access">Acceso rápido</string>
     <string name="settings_bubble_title">Burbuja flotante</string>
     <string name="settings_bubble_subtitle">Muestra acciones rápidas sobre otras apps mientras hay un turno activo</string>
@@ -136,6 +161,33 @@
     <string name="platforms_error_duplicate">Ya existe una plataforma con ese nombre</string>
     <string name="platforms_error_too_long">Usá hasta %1$d caracteres</string>
     <string name="platforms_save_error">No se pudo guardar el cambio. Intentá de nuevo.</string>
+
+    <string name="deductions_title">Deducciones</string>
+    <string name="deductions_hint">Elige qué gastos te pregunta la app al terminar un turno. Se descuentan de lo que ganaste.</string>
+    <string name="deductions_empty">Todavía no tienes deducciones. Agrega la primera.</string>
+    <string name="deductions_add">Agregar deducción</string>
+    <string name="deductions_info">Eliminar una deducción no cambia tus turnos pasados: conservan sus montos.</string>
+    <string name="deductions_usual">%1$s habitual</string>
+    <string name="deductions_no_usual">Sin valor habitual</string>
+    <string name="deductions_hidden">Oculta: no se pregunta</string>
+    <string name="deductions_visible_cd">%1$s: se pregunta al terminar un turno</string>
+    <string name="deductions_edit_cd">Editar %1$s</string>
+    <string name="deductions_delete_cd">Eliminar %1$s</string>
+    <string name="deductions_name_label">Nombre</string>
+    <string name="deductions_amount_label">Valor habitual (opcional)</string>
+    <string name="deductions_amount_helper">Se propone al terminar el turno. Puedes cambiarlo cada vez.</string>
+    <string name="deductions_add_title">Nueva deducción</string>
+    <string name="deductions_edit_title">Editar deducción</string>
+    <string name="deductions_save">Guardar</string>
+    <string name="deductions_cancel">Cancelar</string>
+    <string name="deductions_delete_title">¿Eliminar %1$s?</string>
+    <string name="deductions_delete_message">Los turnos que ya registraste conservan los montos de esta deducción con su nombre.</string>
+    <string name="deductions_delete_confirm">Eliminar</string>
+    <string name="deductions_error_blank">Escribe un nombre</string>
+    <string name="deductions_error_duplicate">Ya existe una deducción con ese nombre</string>
+    <string name="deductions_error_too_long">Usa hasta %1$d caracteres</string>
+    <string name="deductions_error_amount">Ese valor no es válido</string>
+    <string name="deductions_save_error">No se pudo guardar el cambio. Inténtalo de nuevo.</string>
     <string name="theme_system">Según el sistema</string>
     <string name="theme_system_desc">Usa el modo del teléfono</string>
     <string name="theme_light">Claro</string>

@@ -201,4 +201,91 @@ class PeriodSummaryTest {
 
         assertEquals(emptyList<PeriodBucket>(), s.buckets)
     }
+
+    // ---- expenses ----
+
+    private fun cost(sessionId: Long, deductionId: Long, name: String, amount: Long) =
+        SessionDeductionAmount(sessionId, deductionId, name, amount)
+
+    private fun summaryWithCosts(period: Period, costs: List<SessionDeductionAmount>, vararg sessions: SessionActivity) =
+        PeriodSummary.of(PeriodRange.of(period, now, zone), sessions.toList(), now, zone, costs)
+
+    @Test
+    fun `without deduction amounts there are no costs`() {
+        val s = summary(Period.WEEK, session(1, ms("2026-10-13", "08:00"), trips = listOf(trip(1, 4_000))))
+
+        assertEquals(emptyList<DeductionTotal>(), s.costs)
+        assertEquals(0L, s.costsMinor)
+        assertEquals(listOf(0L), s.buckets.map { it.costsMinor }.distinct())
+    }
+
+    @Test
+    fun `costs are totalled per deduction ordered by deduction id and summed`() {
+        val s = summaryWithCosts(
+            Period.WEEK,
+            listOf(
+                cost(1, 7, "Fuel", 3_000), cost(1, 9, "Food", 500),
+                cost(2, 7, "Fuel", 2_000)
+            ),
+            session(1, ms("2026-10-13", "08:00")),
+            session(2, ms("2026-10-15", "08:00"))
+        )
+
+        assertEquals(listOf(DeductionTotal(7, "Fuel", 5_000), DeductionTotal(9, "Food", 500)), s.costs)
+        assertEquals(5_500L, s.costsMinor)
+    }
+
+    @Test
+    fun `a night shift attributes its costs to the day it started`() {
+        val night = session(
+            1, ms("2026-10-17", "20:00"), ms("2026-10-18", "02:00"),
+            trips = listOf(trip(1, 17_000))
+        )
+        val s = summaryWithCosts(Period.WEEK, listOf(cost(1, 1, "Fuel", 4_000)), night)
+
+        val saturday = s.buckets.single { it.startDate == date("2026-10-17") }
+        val sunday = s.buckets.single { it.startDate == date("2026-10-18") }
+        assertEquals(4_000L, saturday.costsMinor)
+        assertEquals(0L, sunday.costsMinor)
+        assertEquals(4_000L, s.costsMinor)
+    }
+
+    @Test
+    fun `month segments add up the costs of their days`() {
+        val s = summaryWithCosts(
+            Period.MONTH,
+            listOf(cost(1, 1, "Fuel", 1_000), cost(2, 1, "Fuel", 2_000), cost(3, 1, "Fuel", 4_000), cost(4, 2, "Food", 8_000)),
+            session(1, ms("2026-10-02", "08:00")),
+            session(2, ms("2026-10-05", "08:00")),
+            session(3, ms("2026-10-11", "23:00")),
+            session(4, ms("2026-10-18", "08:00"))
+        )
+
+        assertEquals(listOf(1_000L, 6_000L, 8_000L), s.buckets.map { it.costsMinor })
+        assertEquals(15_000L, s.costsMinor)
+    }
+
+    @Test
+    fun `costs of sessions outside the range or unknown are ignored`() {
+        val s = summaryWithCosts(
+            Period.TODAY,
+            listOf(cost(1, 1, "Fuel", 9_000), cost(2, 1, "Fuel", 3_000), cost(99, 1, "Fuel", 7_000)),
+            session(1, ms("2026-10-17", "23:00")),
+            session(2, ms("2026-10-18", "07:00"))
+        )
+
+        assertEquals(listOf(DeductionTotal(1, "Fuel", 3_000)), s.costs)
+        assertEquals(3_000L, s.costsMinor)
+    }
+
+    @Test
+    fun `a cost without trips still counts and the gross is untouched`() {
+        val s = summaryWithCosts(
+            Period.TODAY, listOf(cost(1, 1, "Fuel", 3_000)),
+            session(1, ms("2026-10-18", "07:00"), trips = listOf(trip(1, 10_000)))
+        )
+
+        assertEquals(10_000L, s.totalMinor)
+        assertEquals(3_000L, s.costsMinor)
+    }
 }

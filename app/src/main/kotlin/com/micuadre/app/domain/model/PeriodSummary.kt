@@ -12,18 +12,31 @@ data class SessionActivity(
     val intervals: List<ConnectedInterval>
 )
 
-/** Earnings of the local dates [startDate]..[endDate] (inclusive); one day for week buckets. */
+/** What a period spent on one deduction (name as currently stored, deleted deductions included). */
+data class DeductionTotal(
+    val deductionId: Long,
+    val name: String,
+    val totalMinor: Long
+)
+
+/**
+ * Earnings ([totalMinor], gross) and expenses ([costsMinor]) of the local dates
+ * [startDate]..[endDate] (inclusive); one day for week buckets.
+ */
 data class PeriodBucket(
     val startDate: LocalDate,
     val endDate: LocalDate,
-    val totalMinor: Long
+    val totalMinor: Long,
+    val costsMinor: Long = 0L
 )
 
 /**
  * Aggregate of every session that STARTED inside a [PeriodRange]: a session counts entirely for
  * the local date it started, so a night shift is never split at midnight. Only finished trips
  * count. [buckets] are the 7 days of the week, the calendar-week segments of the month, or
- * empty for today.
+ * empty for today. The deduction amounts of a session follow the session: they are attributed to
+ * the same day and bucket as its trips. [totalMinor] stays gross; [costs] (ordered by deduction id)
+ * and [costsMinor] hold the expenses.
  */
 data class PeriodSummary(
     val totalMinor: Long,
@@ -34,11 +47,24 @@ data class PeriodSummary(
     val sessionCount: Int,
     val workedDays: Int,
     val firstSessionStartMs: Long?,
-    val buckets: List<PeriodBucket>
+    val buckets: List<PeriodBucket>,
+    val costs: List<DeductionTotal> = emptyList()
 ) {
+    /** Everything the period spent on deductions. */
+    val costsMinor: Long get() = costs.sumOf { it.totalMinor }
+
     companion object {
-        /** Aggregates [sessions] (those started outside [range] are ignored) as of [nowMs]. */
-        fun of(range: PeriodRange, sessions: List<SessionActivity>, nowMs: Long, zone: ZoneId): PeriodSummary {
+        /**
+         * Aggregates [sessions] (those started outside [range] are ignored) as of [nowMs]. [amounts]
+         * are the deduction amounts of those sessions; the ones of sessions outside [range] are ignored.
+         */
+        fun of(
+            range: PeriodRange,
+            sessions: List<SessionActivity>,
+            nowMs: Long,
+            zone: ZoneId,
+            amounts: List<SessionDeductionAmount> = emptyList()
+        ): PeriodSummary {
             val inRange = sessions.filter { it.session.startedAt in range.fromMs until range.toMs }
             val finished = inRange.flatMap { it.trips }.filter { it.endedAt != null }
             fun sum(method: PaymentMethod) =
@@ -50,6 +76,12 @@ data class PeriodSummary(
                     day.sumOf { s -> s.trips.filter { it.endedAt != null }.sumOf { it.amountMinor ?: 0L } }
                 }
 
+            val dateBySession = inRange.associate { it.session.id to startDate(it, zone) }
+            val inRangeAmounts = amounts.filter { it.sessionId in dateBySession }
+            val costByDate = inRangeAmounts
+                .groupingBy { dateBySession.getValue(it.sessionId) }
+                .fold(0L) { sum, amount -> sum + amount.amountMinor }
+
             return PeriodSummary(
                 totalMinor = finished.sumOf { it.amountMinor ?: 0L },
                 cashMinor = sum(PaymentMethod.CASH),
@@ -59,26 +91,35 @@ data class PeriodSummary(
                 sessionCount = inRange.size,
                 workedDays = totalByDate.size,
                 firstSessionStartMs = inRange.minOfOrNull { it.session.startedAt },
-                buckets = buckets(range, totalByDate)
+                buckets = buckets(range, totalByDate, costByDate),
+                costs = inRangeAmounts.groupBy { it.deductionId }.toSortedMap().map { (id, rows) ->
+                    DeductionTotal(id, rows.first().name, rows.sumOf { it.amountMinor })
+                }
             )
         }
 
         private fun startDate(activity: SessionActivity, zone: ZoneId): LocalDate =
             Instant.ofEpochMilli(activity.session.startedAt).atZone(zone).toLocalDate()
 
-        private fun buckets(range: PeriodRange, totalByDate: Map<LocalDate, Long>): List<PeriodBucket> {
-            fun total(from: LocalDate, to: LocalDate) =
-                totalByDate.filterKeys { it >= from && it <= to }.values.sum()
+        private fun buckets(
+            range: PeriodRange,
+            totalByDate: Map<LocalDate, Long>,
+            costByDate: Map<LocalDate, Long>
+        ): List<PeriodBucket> {
+            fun sum(byDate: Map<LocalDate, Long>, from: LocalDate, to: LocalDate) =
+                byDate.filterKeys { it >= from && it <= to }.values.sum()
+            fun bucket(from: LocalDate, to: LocalDate) =
+                PeriodBucket(from, to, sum(totalByDate, from, to), sum(costByDate, from, to))
 
             return when (range.period) {
                 Period.TODAY -> emptyList()
                 // Always the full Monday..Sunday week; days after today simply hold zero.
                 Period.WEEK -> (0L until 7L).map { range.startDate.plusDays(it) }
-                    .map { PeriodBucket(it, it, total(it, it)) }
+                    .map { bucket(it, it) }
                 // Segments break after each Sunday and are clipped to the month and to today.
                 Period.MONTH -> generateSequence(range.startDate) { segmentEnd(it, range).plusDays(1) }
                     .takeWhile { it <= range.endDate }
-                    .map { start -> segmentEnd(start, range).let { PeriodBucket(start, it, total(start, it)) } }
+                    .map { start -> bucket(start, segmentEnd(start, range)) }
                     .toList()
             }
         }

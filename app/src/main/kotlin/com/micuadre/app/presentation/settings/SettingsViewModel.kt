@@ -7,6 +7,7 @@ import com.micuadre.app.R
 import com.micuadre.app.domain.model.PlatformCounts
 import com.micuadre.app.domain.model.ThemeMode
 import com.micuadre.app.domain.repository.BubblePreferenceRepository
+import com.micuadre.app.domain.repository.DeductionRepository
 import com.micuadre.app.domain.repository.PlatformRepository
 import com.micuadre.app.domain.repository.ThemePreferenceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,6 +34,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repository: ThemePreferenceRepository,
     platforms: PlatformRepository,
+    deductions: DeductionRepository,
     private val bubblePreferences: BubblePreferenceRepository,
     private val overlayPermission: OverlayPermission
 ) : ViewModel() {
@@ -43,6 +45,11 @@ class SettingsViewModel @Inject constructor(
     /** Visible-of-total platform counts for the Platforms row; null until the first load. */
     val platformCounts: StateFlow<PlatformCounts?> = platforms.observeActive()
         .map { PlatformCounts.of(it) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Names of the managed deductions for the Deducciones row; null until the first load. */
+    val deductionNames: StateFlow<List<String>?> = deductions.observeActive()
+        .map { list -> list.map { it.name } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val permissionGranted = MutableStateFlow(overlayPermission.canDrawOverlays())

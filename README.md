@@ -7,17 +7,15 @@ separado en efectivo y transferencia.
 
 ![MiCuadre: total del turno, ganancias de la semana y del mes](docs/images/cover.png)
 
-## Novedades en 0.4.0
+## Novedades en 1.0.0
 
-- **Burbuja flotante.** Un acceso rápido sobre otras apps (mapas, apps de viajes) mientras hay un
-  turno activo. Se arrastra, se pega al borde y al tocarla abre un panel con las acciones del
-  momento: *Iniciar carrera*, *Terminar carrera*, *Cancelar carrera* y *Abrir app*.
-- **Cancelar carrera.** Una carrera iniciada por error se puede descartar, con confirmación. No se
-  suma a los totales y el turno vuelve a "Conectado".
-- **Confirmación al terminar el turno.** *Terminar turno* pide confirmación, así un toque
-  accidental ya no cierra el turno.
-- **Nombre corregido.** La app se llama "MiCuadre" (sin tilde) y el encabezado de inicio muestra
-  solo el nombre.
+- **Deducciones personalizadas.** En *Ajustes › Deducciones* creas tus gastos (combustible, tarifa
+  de la app, alimentación…) con un valor habitual opcional.
+- **Gastos del turno.** Al terminar un turno, una hoja te pregunta cuánto gastaste en cada
+  deducción, con el total y el neto en vivo. Puedes omitirla.
+- **Lo que te quedó.** El resumen del turno muestra lo ganado, cada gasto y el neto.
+- **Gastos y neto en semana y mes.** La hoja de ganancias suma el detalle de gastos, barras que
+  separan neto y gastos, y el neto por día. Los botones de inicio siguen mostrando el bruto.
 
 ## Por qué existe
 
@@ -44,14 +42,20 @@ todos los datos se quedan en tu teléfono.
 - **Carreras.** Inicias una carrera y la terminas indicando la plataforma, el monto y el medio de
   pago. La última plataforma y el último medio de pago quedan preseleccionados. Si la iniciaste por
   error, la cancelas y no se registra.
+- **Deducciones.** En *Ajustes › Deducciones* creas tus propios gastos (combustible, tarifa de la
+  app, alimentación…), con un valor habitual opcional. Al terminar un turno la app te pregunta
+  cuánto gastaste en cada uno (puedes omitirlo) y el resumen del turno muestra lo que ganaste, cada
+  gasto y lo que **te quedó**. Ocultar o eliminar una deducción nunca cambia tus turnos pasados.
 - **Burbuja flotante.** Opcional, se activa en *Ajustes › Burbuja flotante* y requiere el permiso
   "Mostrar sobre otras apps". Solo aparece mientras hay un turno activo y desaparece al terminarlo.
 - **Resumen en inicio.**
   - *Conectado:* total del turno, tiempo conectado, cantidad de carreras y las carreras del turno.
   - *Desconectado:* resumen del día con todos los turnos, incluida la ganancia por hora.
-- **Semana y mes.** Dos botones abren una hoja con el total, efectivo frente a transferencia, un
-  gráfico de barras (por día en la semana, por semana en el mes), días trabajados y el promedio por
-  día trabajado.
+- **Semana y mes.** Los botones de inicio muestran lo ganado (bruto). Al abrirlos, una hoja
+  muestra el total, efectivo frente a transferencia, un gráfico de barras (por día en la semana, por
+  semana en el mes), días trabajados y el promedio por día trabajado. Si registraste gastos, suma
+  una tarjeta **Gastos y neto** con el detalle por deducción, barras que separan neto y gastos, y el
+  neto por día.
 - **Tus plataformas.** En *Ajustes › Plataformas* creas, renombras, muestras u ocultas y eliminas
   plataformas. Eliminar una nunca cambia tu historial: las carreras pasadas conservan su nombre y
   sus totales.
@@ -66,6 +70,8 @@ todos los datos se quedan en tu teléfono.
 | "Por hora" aparece solo después de una hora completa conectado | Evita tarifas absurdas extrapoladas de pocos minutos |
 | Una carrera debe terminarse o cancelarse antes de desconectarte | Ninguna carrera queda registrada a medias |
 | Una carrera cancelada no suma | Solo cuenta lo que realmente cobraste |
+| Los gastos de un turno cuentan para el día en que **empezó** el turno, igual que sus carreras | El neto de cada día y semana coincide con lo que ganaste ese día |
+| Neto = lo ganado − los gastos del período; puede ser negativo | Muestra la realidad, aunque un día cueste más de lo que dejó |
 
 ## Capturas
 
@@ -84,6 +90,14 @@ todos los datos se quedan en tu teléfono.
 | Mes | Plataformas | Modo oscuro |
 |---|---|---|
 | ![Mes](docs/images/month.png) | ![Plataformas](docs/images/platforms.png) | ![Modo oscuro](docs/images/home-dark.png) |
+
+| Deducciones | Nueva deducción | Gastos del turno |
+|---|---|---|
+| ![Deducciones](docs/images/deductions.png) | ![Nueva deducción](docs/images/deduction-dialog.png) | ![Gastos del turno](docs/images/shift-expenses.png) |
+
+| Te quedó | Neto semanal | Neto mensual |
+|---|---|---|
+| ![Resumen del turno con neto](docs/images/summary-net.png) | ![Semana con gastos y neto](docs/images/period-net-week.png) | ![Mes con gastos y neto](docs/images/period-net-month.png) |
 
 Las capturas usan datos de demostración.
 
@@ -111,10 +125,10 @@ toca los datos de una instalación de producción.
 | Lenguaje | Kotlin 2.0 |
 | UI | Jetpack Compose con Material 3 (tema propio, fuentes Sora y Manrope) |
 | Inyección de dependencias | Hilt |
-| Almacenamiento | Room (turnos, carreras, intervalos conectados, plataformas) y DataStore (preferencias) |
+| Almacenamiento | Room (turnos, carreras, intervalos conectados, plataformas, deducciones y sus montos por turno) y DataStore (preferencias) |
 | Trabajo en segundo plano | Un servicio en primer plano con acciones en la notificación y una ventana superpuesta (burbuja) |
 | Asincronía | Kotlin Coroutines y Flow |
-| Pruebas | JUnit 4, Robolectric, `MigrationTestHelper` de Room (unas 490 pruebas) |
+| Pruebas | JUnit 4, Robolectric, `MigrationTestHelper` de Room (unas 630 pruebas) |
 | Build | Gradle Kotlin DSL con catálogo de versiones; `minSdk 29`, `targetSdk 35` |
 
 ## Arquitectura
@@ -137,7 +151,7 @@ app/src/main/kotlin/com/micuadre/app/
 Decisiones clave:
 
 - **Las migraciones de base de datos son reales y están probadas.** Cada versión del esquema (hoy
-  v3) trae una `Migration` y una prueba con `MigrationTestHelper` que la ejecuta sobre datos
+  v4) trae una `Migration` y una prueba con `MigrationTestHelper` que la ejecuta sobre datos
   existentes.
 - **El tiempo se inyecta.** Un `Clock` y la zona horaria los provee Hilt, así que los límites de
   día, semana y mes, el cambio de medianoche y los cambios de zona horaria tienen pruebas unitarias.
@@ -150,7 +164,7 @@ Decisiones clave:
 La app sigue [Semantic Versioning](https://semver.org). La versión vive en un solo archivo,
 `version.properties`, y el `versionCode` de Android se deriva de ella como
 `major × 10000 + minor × 100 + patch`. La versión instalada se ve en *Ajustes › Acerca de*. Cada
-versión se etiqueta en git (`v0.4.1`) y los cambios se listan en [CHANGELOG.md](CHANGELOG.md).
+versión se etiqueta en git (`v1.0.0`) y los cambios se listan en [CHANGELOG.md](CHANGELOG.md).
 
 ## Hoja de ruta
 
@@ -159,5 +173,5 @@ versión se etiqueta en git (`v0.4.1`) y los cambios se listan en [CHANGELOG.md]
 
 ## Estado del proyecto
 
-MiCuadre está en desarrollo activo (versión actual **0.4.1**). Su autor la usa primero como
+MiCuadre está en desarrollo activo (versión actual **1.0.0**). Su autor la usa primero como
 herramienta diaria de conductor, con el objetivo de abrirla a cualquier conductor de plataformas.

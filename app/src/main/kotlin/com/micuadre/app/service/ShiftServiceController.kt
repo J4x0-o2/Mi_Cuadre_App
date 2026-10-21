@@ -41,6 +41,24 @@ class ShiftServiceController @Inject constructor(
         const val EXTRA_AMOUNT_MINOR = "extra_amount_minor"
         const val EXTRA_PAYMENT_METHOD = "extra_payment_method"
         const val EXTRA_TRIP_STARTED_AT_MS = "extra_trip_started_at_ms"
+        const val EXTRA_DEDUCTION_IDS = "extra_deduction_ids"
+        const val EXTRA_DEDUCTION_AMOUNTS = "extra_deduction_amounts"
+
+        /** Extras of an end-shift intent: parallel id and amount arrays (nothing when [amounts] is empty). */
+        fun endShiftExtras(amounts: Map<Long, Long>): Bundle = Bundle().apply {
+            if (amounts.isEmpty()) return@apply
+            putLongArray(EXTRA_DEDUCTION_IDS, amounts.keys.toLongArray())
+            putLongArray(EXTRA_DEDUCTION_AMOUNTS, amounts.values.toLongArray())
+        }
+
+        /** Deduction amounts carried by an end-shift intent; empty when absent or the arrays do not pair up. */
+        fun deductionAmountsFrom(intent: Intent): Map<Long, Long> {
+            val extras = intent.extras ?: return emptyMap()
+            val ids = extras.getLongArray(EXTRA_DEDUCTION_IDS) ?: return emptyMap()
+            val amounts = extras.getLongArray(EXTRA_DEDUCTION_AMOUNTS) ?: return emptyMap()
+            if (ids.size != amounts.size) return emptyMap()
+            return ids.indices.associate { ids[it] to amounts[it] }
+        }
 
         /** Platform id carried by a finish-trip intent, or null when absent, mistyped or not positive. */
         fun platformIdFrom(intent: Intent): Long? {
@@ -102,7 +120,9 @@ class ShiftServiceController @Inject constructor(
         sendAction(ACTION_CANCEL_TRIP, extras)
     }
 
-    fun endShift() = sendAction(ACTION_END_SHIFT)
+    /** Ends the shift; [amounts] (deduction id to minor units) are stored with it before its summary is built. */
+    fun endShift(amounts: Map<Long, Long> = emptyMap()) =
+        sendAction(ACTION_END_SHIFT, endShiftExtras(amounts))
 
     private fun sendAction(action: String, extras: Bundle? = null) {
         val intent = Intent(context, ShiftService::class.java).apply {

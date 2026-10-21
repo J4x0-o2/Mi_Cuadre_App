@@ -4,6 +4,7 @@ import com.micuadre.app.R
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.repository.PlatformRepository
 import com.micuadre.app.domain.repository.PlatformResult
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,9 @@ class PlatformsViewModelTest {
         var failure: Throwable? = null
         val calls = mutableListOf<String>()
 
+        /** When set, every write suspends until it completes, to model a write in flight. */
+        var gate: CompletableDeferred<Unit>? = null
+
         override fun observeActive(): Flow<List<Platform>> = platforms
 
         override suspend fun create(name: String): PlatformResult = answer("create:$name")
@@ -39,8 +43,9 @@ class PlatformsViewModelTest {
         override suspend fun setVisible(id: Long, visible: Boolean): PlatformResult = answer("visible:$id:$visible")
         override suspend fun delete(id: Long): PlatformResult = answer("delete:$id")
 
-        private fun answer(call: String): PlatformResult {
+        private suspend fun answer(call: String): PlatformResult {
             calls += call
+            gate?.await()
             failure?.let { throw it }
             return next
         }
@@ -70,6 +75,136 @@ class PlatformsViewModelTest {
         val vm = PlatformsViewModel(FakeRepo(listOf(beat, uber)))
 
         assertFalse(vm.state.value.showNoneVisibleHint)
+    }
+
+    @Test
+    fun `a double confirm writes once and closes the dialog`() = runTest {
+        val repo = FakeRepo()
+        val vm = PlatformsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+
+        vm.onConfirmAdd("Didi")
+        assertTrue(vm.state.value.saving)
+        vm.onConfirmAdd("Didi")
+        repo.gate!!.complete(Unit)
+
+        assertEquals(listOf("create:Didi"), repo.calls)
+        assertNull(vm.state.value.dialog)
+        assertFalse(vm.state.value.saving)
+    }
+
+    @Test
+    fun `dismissing during a write keeps the dialog dismissed`() = runTest {
+        val repo = FakeRepo()
+        val vm = PlatformsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+        vm.onConfirmAdd("Didi")
+
+        vm.onDismissDialog()
+        repo.next = PlatformResult.Duplicate
+        repo.gate!!.complete(Unit)
+
+        assertNull(vm.state.value.dialog)
+    }
+
+    @Test
+    fun `typing after an inline error during a write still closes on success`() = runTest {
+        val repo = FakeRepo()
+        val vm = PlatformsViewModel(repo)
+        vm.onAddClick()
+        repo.next = PlatformResult.Duplicate
+        vm.onConfirmAdd("Didi")
+        repo.next = PlatformResult.Ok
+        repo.gate = CompletableDeferred()
+        vm.onConfirmAdd("Didi 2")
+
+        vm.onNameEdited()
+        repo.gate!!.complete(Unit)
+
+        assertNull(vm.state.value.dialog)
+        vm.onConfirmAdd("Didi 2")
+        assertEquals(2, repo.calls.size)
+    }
+
+    @Test
+    fun `an error result lands on the current rename dialog`() = runTest {
+        val repo = FakeRepo(listOf(beat))
+        val vm = PlatformsViewModel(repo)
+        vm.onRenameClick(beat.id)
+        repo.next = PlatformResult.Duplicate
+        vm.onConfirmRename("x")
+        repo.gate = CompletableDeferred()
+        vm.onConfirmRename("y")
+        vm.onNameEdited()
+        repo.gate!!.complete(Unit)
+
+        assertEquals(
+            PlatformDialog.Rename(id = 1, currentName = "Beat", error = PlatformNameError.Duplicate),
+            vm.state.value.dialog
+        )
+    }
+
+    @Test
+    fun `a stale result does not touch an equal dialog reopened after dismissing`() = runTest {
+        val repo = FakeRepo()
+        val vm = PlatformsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+        vm.onConfirmAdd("Didi")
+
+        vm.onDismissDialog()
+        vm.onAddClick()
+        repo.next = PlatformResult.Duplicate
+        repo.gate!!.complete(Unit)
+
+        assertEquals(PlatformDialog.Add(), vm.state.value.dialog)
+    }
+
+    @Test
+    fun `a double confirm of a rename writes once`() = runTest {
+        val repo = FakeRepo(listOf(beat))
+        val vm = PlatformsViewModel(repo)
+        vm.onRenameClick(beat.id)
+        repo.gate = CompletableDeferred()
+
+        vm.onConfirmRename("Cabify")
+        vm.onConfirmRename("Cabify")
+        repo.gate!!.complete(Unit)
+
+        assertEquals(listOf("rename:1:Cabify"), repo.calls)
+        assertNull(vm.state.value.dialog)
+    }
+
+    @Test
+    fun `a double confirm of a delete writes once`() = runTest {
+        val repo = FakeRepo(listOf(beat))
+        val vm = PlatformsViewModel(repo)
+        vm.onDeleteClick(beat.id)
+        repo.gate = CompletableDeferred()
+
+        vm.onConfirmDelete()
+        vm.onConfirmDelete()
+        repo.gate!!.complete(Unit)
+
+        assertEquals(listOf("delete:1"), repo.calls)
+        assertNull(vm.state.value.dialog)
+        assertFalse(vm.state.value.saving)
+    }
+
+    @Test
+    fun `dismissing during a delete keeps the dialog dismissed`() = runTest {
+        val repo = FakeRepo(listOf(beat))
+        val vm = PlatformsViewModel(repo)
+        vm.onDeleteClick(beat.id)
+        repo.gate = CompletableDeferred()
+        vm.onConfirmDelete()
+
+        vm.onDismissDialog()
+        repo.gate!!.complete(Unit)
+
+        assertNull(vm.state.value.dialog)
     }
 
     @Test

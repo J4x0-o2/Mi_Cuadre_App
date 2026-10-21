@@ -79,6 +79,7 @@ fun ShiftSummaryScreen(
                 verticalArrangement = Arrangement.SpaceEvenly
             ) {
                 SummaryHeader(model)
+                DeductionsSection(model)
                 MetricsGrid(model)
                 PlatformSection(model.bars)
             }
@@ -115,15 +116,70 @@ private fun SummaryHeader(model: ShiftSummaryModel) {
         textAlign = TextAlign.Center
     )
     SectionLabel(
-        text = stringResource(R.string.summary_earned),
+        text = stringResource(if (model.hasDeductions) R.string.summary_net_label else R.string.summary_earned),
         modifier = Modifier.padding(top = 12.dp)
     )
     Text(
-        text = Formatters.moneyNoDecimals(model.totalMinor),
+        text = if (model.hasDeductions) model.netLabel else Formatters.moneyNoDecimals(model.totalMinor),
         style = MiCuadreTheme.typography.moneyLarge.copy(fontSize = 50.sp, lineHeight = 58.sp),
-        color = MaterialTheme.colorScheme.primary,
+        color = if (model.netMinor < 0L) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         textAlign = TextAlign.Center
     )
+}
+
+/** Gross, each deduction and their total; only shown when the shift had deductions. */
+@Composable
+private fun DeductionsSection(model: ShiftSummaryModel) {
+    if (!model.hasDeductions) return
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .cardSurface(MaterialTheme.shapes.large)
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        FigureRow(
+            label = stringResource(R.string.summary_deductions_gross),
+            value = Formatters.moneyNoDecimals(model.totalMinor)
+        )
+        model.deductionLines.forEach { line ->
+            FigureRow(
+                label = line.name,
+                value = ShiftSummaryModel.signedMoney(-line.amountMinor)
+            )
+        }
+        FigureRow(
+            label = stringResource(R.string.summary_deductions_total),
+            value = model.deductionsTotalLabel,
+            strong = true
+        )
+    }
+}
+
+@Composable
+private fun FigureRow(label: String, value: String, strong: Boolean = false) {
+    val tone = if (strong) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = if (strong) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyLarge,
+            color = if (strong) tone else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 12.dp)
+        )
+        Text(
+            text = value,
+            style = MiCuadreTheme.typography.moneySmall,
+            color = tone
+        )
+    }
 }
 
 @Composable

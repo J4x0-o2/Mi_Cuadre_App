@@ -6,6 +6,7 @@ import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.PeriodSummary
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
+import com.micuadre.app.presentation.expenses.ShiftExpensesState
 import com.micuadre.app.presentation.finish.FinishSheetState
 import java.time.LocalDate
 
@@ -39,6 +40,8 @@ data class HomeUiState(
     val finishSheet: FinishSheetState? = null,
     /** Confirmation dialog currently shown over Home, or null. */
     val dialog: HomeDialog? = null,
+    /** "Gastos del turno" sheet shown after confirming the end of a shift, or null. */
+    val shiftExpenses: ShiftExpensesState? = null,
     val needsNotificationPermission: Boolean = false,
     val pendingMessage: UiMessage? = null
 )
