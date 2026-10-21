@@ -263,6 +263,14 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
       - The rounding test passed at once (it covers existing behavior; no RED). The bar fix is Compose
         only and has no unit test (no Compose UI test setup) -> verify on device.
       - GREEN: `./gradlew testDebugUnitTest assembleDebug` BUILD SUCCESSFUL, 635 tests, 0 failures.
+      - Review (base 5586c62): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-10ba47788edf6bfb). WARNING: per-segment minimums could make a stacked bar taller than
+        the bar area -> T6c, which also adopts the suggested pure, JVM-tested segment function.
+- [x] T6c Stacked segment heights moved to a pure function `StackedSegments.of(cost, net, min)`:
+      non-zero segments reach the minimum, the added height comes out of the larger segment, and the
+      bar never exceeds the area. PeriodSheet uses it. Route: inline (one pure function + caller).
+      - RED: compile failure, then with a stub returning the inputs, 6 tests, 3 failed on behavior.
+      - GREEN: `./gradlew testDebugUnitTest assembleDebug` BUILD SUCCESSFUL, 641 tests, 0 failures.
 - [ ] T7 Docs: README (features + screenshots), CHANGELOG. Route: inline.
 
 ## Follow-ups (non-blocking review suggestions)

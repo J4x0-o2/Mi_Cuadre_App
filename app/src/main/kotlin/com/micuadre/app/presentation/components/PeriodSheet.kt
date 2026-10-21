@@ -49,6 +49,7 @@ import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.PeriodSummary
 import com.micuadre.app.presentation.period.BarModel
 import com.micuadre.app.presentation.period.PeriodSheetModel
+import com.micuadre.app.presentation.period.StackedSegments
 import com.micuadre.app.presentation.summary.ShiftSummaryModel
 import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.util.Formatters
@@ -470,21 +471,13 @@ private fun Bar(bar: BarModel, stacked: Boolean, modifier: Modifier = Modifier) 
                 Box(barModifier.height(StubHeight).background(MaterialTheme.colorScheme.outlineVariant, corners))
             stacked ->
                 Column(barModifier.clip(corners)) {
-                    // Each drawn segment keeps the stub height, like the single bar, so a small day
-                    // next to a tall one never shrinks into an invisible bar.
-                    if (bar.costFraction > 0f) {
-                        Box(
-                            Modifier.fillMaxWidth()
-                                .height((BarAreaHeight * bar.costFraction).coerceAtLeast(StubHeight))
-                                .background(tone(gold))
-                        )
+                    // A small segment keeps the stub height without the bar outgrowing the area.
+                    val segments = StackedSegments.of(bar.costFraction, bar.netFraction, StubHeight / BarAreaHeight)
+                    if (segments.cost > 0f) {
+                        Box(Modifier.fillMaxWidth().height(BarAreaHeight * segments.cost).background(tone(gold)))
                     }
-                    if (bar.netFraction > 0f) {
-                        Box(
-                            Modifier.fillMaxWidth()
-                                .height((BarAreaHeight * bar.netFraction).coerceAtLeast(StubHeight))
-                                .background(tone(money))
-                        )
+                    if (segments.net > 0f) {
+                        Box(Modifier.fillMaxWidth().height(BarAreaHeight * segments.net).background(tone(money)))
                     }
                 }
             else ->
