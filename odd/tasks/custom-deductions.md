@@ -120,6 +120,20 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         back, so 1.500,50 pesos is no longer truncated to 1.500 by an untouched edit.
       - PlatformsViewModel had the same root cause (no in-flight guard, unconditional settle); same guard
         and `saving` flag applied there, with two tests; PlatformsScreen disables the buttons too.
+      - Review (base e5e16cc): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-4189234899bea447); warnings -> T3c.
+- [x] T3c T3b review advisories: dialog opening identity, clearable sub-peso amount, guard coverage.
+      Route: delegated writer.
+      - RED: new tests first; `testDebugUnitTest --tests *DeductionsViewModelTest *PlatformsViewModelTest`
+        60 tests, 7 failed on behavior (empty field kept sub-peso amount; typing during a write left the
+        dialog open; stale result applied to an equal reopened dialog, both VMs). Double confirm on
+        delete/rename and dismiss-during-delete tests passed at once (coverage only).
+      - GREEN: `./gradlew testDebugUnitTest` BUILD SUCCESSFUL, 570 tests, 0 failures/errors;
+        `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      - Fix: each dialog opening gets a monotonically increasing openId (VM-private, set by open());
+        confirms capture it and settle/delete apply only if it is still current, updating the CURRENT
+        dialog (user's latest text kept when showing an error). An empty amount field always clears the
+        usual amount; only a non-empty untouched field keeps the exact stored minor value.
 - [ ] T4 End-shift sheet: dialog/sheet state in HomeDialogCoordinator, sheet composable, amounts
       through ShiftServiceController -> ShiftService.handleEndShift (written before the summary).
       Route: delegated writer.
@@ -146,4 +160,4 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
   recorded per task below.
 
 ## Progress
-- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b done. Next: T4.
+- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b, T3c done. Next: T4.

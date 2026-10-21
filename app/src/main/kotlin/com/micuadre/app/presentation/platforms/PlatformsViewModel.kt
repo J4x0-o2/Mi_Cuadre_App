@@ -57,6 +57,18 @@ class PlatformsViewModel @Inject constructor(
 
     private val saving = MutableStateFlow(false)
 
+    /**
+     * Identity of the dialog opening currently shown. Every opening gets a fresh id, so a write
+     * result can tell its own dialog from an equal one opened later, whatever the user typed since.
+     */
+    private var openSeq = 0L
+    private var openId = 0L
+
+    private fun open(next: PlatformDialog) {
+        openId = ++openSeq
+        dialog.value = next
+    }
+
     val state: StateFlow<PlatformsUiState> = combine(repository.observeActive(), dialog, saving) { platforms, dialog, saving ->
         PlatformsUiState(platforms = platforms, dialog = dialog, saving = saving, isLoading = false)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, PlatformsUiState())
@@ -77,17 +89,17 @@ class PlatformsViewModel @Inject constructor(
     }
 
     fun onAddClick() {
-        dialog.value = PlatformDialog.Add()
+        open(PlatformDialog.Add())
     }
 
     fun onRenameClick(id: Long) {
         val platform = state.value.platforms.firstOrNull { it.id == id } ?: return
-        dialog.value = PlatformDialog.Rename(id = platform.id, currentName = platform.name)
+        open(PlatformDialog.Rename(id = platform.id, currentName = platform.name))
     }
 
     fun onDeleteClick(id: Long) {
         val platform = state.value.platforms.firstOrNull { it.id == id } ?: return
-        dialog.value = PlatformDialog.Delete(id = platform.id, name = platform.name)
+        open(PlatformDialog.Delete(id = platform.id, name = platform.name))
     }
 
     fun onDismissDialog() {
@@ -109,10 +121,11 @@ class PlatformsViewModel @Inject constructor(
     fun onConfirmAdd(name: String) {
         val current = dialog.value as? PlatformDialog.Add ?: return
         if (!saving.compareAndSet(expect = false, update = true)) return
+        val id = openId
         viewModelScope.launch {
             try {
                 val result = write { repository.create(name) } ?: return@launch
-                settle(current, result) { PlatformDialog.Add(error = it) }
+                settle(id, result) { dialog, error -> (dialog as? PlatformDialog.Add)?.copy(error = error) ?: dialog }
             } finally {
                 saving.value = false
             }
@@ -122,10 +135,11 @@ class PlatformsViewModel @Inject constructor(
     fun onConfirmRename(name: String) {
         val current = dialog.value as? PlatformDialog.Rename ?: return
         if (!saving.compareAndSet(expect = false, update = true)) return
+        val id = openId
         viewModelScope.launch {
             try {
                 val result = write { repository.rename(current.id, name) } ?: return@launch
-                settle(current, result) { current.copy(error = it) }
+                settle(id, result) { dialog, error -> (dialog as? PlatformDialog.Rename)?.copy(error = error) ?: dialog }
             } finally {
                 saving.value = false
             }
@@ -135,11 +149,12 @@ class PlatformsViewModel @Inject constructor(
     fun onConfirmDelete() {
         val current = dialog.value as? PlatformDialog.Delete ?: return
         if (!saving.compareAndSet(expect = false, update = true)) return
+        val id = openId
         viewModelScope.launch {
             try {
                 // Already deleted elsewhere is as good as deleted: either way the dialog is done.
                 write { repository.delete(current.id) }
-                dialog.compareAndSet(current, null)
+                closeIfStillOpen(id)
             } finally {
                 saving.value = false
             }
@@ -147,18 +162,28 @@ class PlatformsViewModel @Inject constructor(
     }
 
     /**
-     * Closes the dialog on success, or reopens it with the inline error the result maps to. Does
-     * nothing when the user already dismissed or replaced [opened] while the write was running.
+     * Closes the dialog on success, or shows the inline error the result maps to on the CURRENT
+     * dialog (keeping what the user typed since). Does nothing unless the dialog opening [id] is
+     * still the one open: a dismissed or reopened dialog is never touched by a stale result.
      */
-    private fun settle(opened: PlatformDialog, result: PlatformResult, withError: (PlatformNameError) -> PlatformDialog) {
-        val next = when (result) {
-            PlatformResult.Blank -> withError(PlatformNameError.Blank)
-            PlatformResult.TooLong -> withError(PlatformNameError.TooLong)
-            PlatformResult.Duplicate -> withError(PlatformNameError.Duplicate)
+    private fun settle(
+        id: Long,
+        result: PlatformResult,
+        withError: (PlatformDialog, PlatformNameError) -> PlatformDialog
+    ) {
+        val error = when (result) {
+            PlatformResult.Blank -> PlatformNameError.Blank
+            PlatformResult.TooLong -> PlatformNameError.TooLong
+            PlatformResult.Duplicate -> PlatformNameError.Duplicate
             // NotFound: the platform vanished while the dialog was open, nothing left to edit.
             PlatformResult.Ok, PlatformResult.NotFound -> null
         }
-        dialog.compareAndSet(opened, next)
+        if (id != openId) return
+        if (error == null) dialog.value = null else dialog.update { current -> current?.let { withError(it, error) } }
+    }
+
+    private fun closeIfStillOpen(id: Long) {
+        if (id == openId) dialog.value = null
     }
 
     /** Runs a repository write; on a storage failure posts a message, closes any dialog, returns null. */

@@ -76,6 +76,18 @@ class DeductionsViewModel @Inject constructor(
 
     private val saving = MutableStateFlow(false)
 
+    /**
+     * Identity of the dialog opening currently shown. Every opening gets a fresh id, so a write
+     * result can tell its own dialog from an equal one opened later, whatever the user typed since.
+     */
+    private var openSeq = 0L
+    private var openId = 0L
+
+    private fun open(next: DeductionDialog) {
+        openId = ++openSeq
+        dialog.value = next
+    }
+
     val state: StateFlow<DeductionsUiState> = combine(repository.observeActive(), dialog, saving) { deductions, dialog, saving ->
         DeductionsUiState(deductions = deductions, dialog = dialog, saving = saving, isLoading = false)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, DeductionsUiState())
@@ -96,22 +108,22 @@ class DeductionsViewModel @Inject constructor(
     }
 
     fun onAddClick() {
-        dialog.value = DeductionDialog.Add()
+        open(DeductionDialog.Add())
     }
 
     fun onEditClick(id: Long) {
         val deduction = state.value.deductions.firstOrNull { it.id == id } ?: return
-        dialog.value = DeductionDialog.Edit(
+        open(DeductionDialog.Edit(
             id = deduction.id,
             currentName = deduction.name,
             currentAmount = deduction.usualAmountMinor?.let { AmountInput.format((it / 100L).toString()) }.orEmpty(),
             usualAmountMinor = deduction.usualAmountMinor
-        )
+        ))
     }
 
     fun onDeleteClick(id: Long) {
         val deduction = state.value.deductions.firstOrNull { it.id == id } ?: return
-        dialog.value = DeductionDialog.Delete(id = deduction.id, name = deduction.name)
+        open(DeductionDialog.Delete(id = deduction.id, name = deduction.name))
     }
 
     fun onDismissDialog() {
@@ -134,10 +146,11 @@ class DeductionsViewModel @Inject constructor(
     fun onConfirmAdd(name: String, amount: String) {
         val current = dialog.value as? DeductionDialog.Add ?: return
         if (!saving.compareAndSet(expect = false, update = true)) return
+        val id = openId
         viewModelScope.launch {
             try {
                 val result = write { repository.create(name, AmountInput.toMinor(amount)) } ?: return@launch
-                settle(current, result) { DeductionDialog.Add(error = it) }
+                settle(id, result) { dialog, error -> (dialog as? DeductionDialog.Add)?.copy(error = error) ?: dialog }
             } finally {
                 saving.value = false
             }
@@ -147,12 +160,17 @@ class DeductionsViewModel @Inject constructor(
     fun onConfirmEdit(name: String, amount: String) {
         val current = dialog.value as? DeductionDialog.Edit ?: return
         if (!saving.compareAndSet(expect = false, update = true)) return
+        val id = openId
         viewModelScope.launch {
             try {
-                // The field holds whole pesos only: untouched text keeps the exact stored amount.
-                val usual = if (amount == current.currentAmount) current.usualAmountMinor else AmountInput.toMinor(amount)
+                // The field holds whole pesos only: an empty field clears, untouched text keeps the exact stored amount.
+                val usual = when {
+                    amount.isEmpty() -> null
+                    amount == current.currentAmount -> current.usualAmountMinor
+                    else -> AmountInput.toMinor(amount)
+                }
                 val result = write { repository.update(current.id, name, usual) } ?: return@launch
-                settle(current, result) { current.copy(error = it) }
+                settle(id, result) { dialog, error -> (dialog as? DeductionDialog.Edit)?.copy(error = error) ?: dialog }
             } finally {
                 saving.value = false
             }
@@ -162,11 +180,12 @@ class DeductionsViewModel @Inject constructor(
     fun onConfirmDelete() {
         val current = dialog.value as? DeductionDialog.Delete ?: return
         if (!saving.compareAndSet(expect = false, update = true)) return
+        val id = openId
         viewModelScope.launch {
             try {
                 // Already deleted elsewhere is as good as deleted: either way the dialog is done.
                 write { repository.delete(current.id) }
-                dialog.compareAndSet(current, null)
+                closeIfStillOpen(id)
             } finally {
                 saving.value = false
             }
@@ -174,23 +193,29 @@ class DeductionsViewModel @Inject constructor(
     }
 
     /**
-     * Closes the dialog on success, or reopens it with the inline error the result maps to. Does
-     * nothing when the user already dismissed or replaced [opened] while the write was running.
+     * Closes the dialog on success, or shows the inline error the result maps to on the CURRENT
+     * dialog (keeping what the user typed since). Does nothing unless the dialog opening [id] is
+     * still the one open: a dismissed or reopened dialog is never touched by a stale result.
      */
     private fun settle(
-        opened: DeductionDialog,
+        id: Long,
         result: DeductionResult,
-        withError: (DeductionFormError) -> DeductionDialog
+        withError: (DeductionDialog, DeductionFormError) -> DeductionDialog
     ) {
-        val next = when (result) {
-            DeductionResult.Blank -> withError(DeductionFormError.Blank)
-            DeductionResult.TooLong -> withError(DeductionFormError.TooLong)
-            DeductionResult.Duplicate -> withError(DeductionFormError.Duplicate)
-            DeductionResult.InvalidAmount -> withError(DeductionFormError.InvalidAmount)
+        val error = when (result) {
+            DeductionResult.Blank -> DeductionFormError.Blank
+            DeductionResult.TooLong -> DeductionFormError.TooLong
+            DeductionResult.Duplicate -> DeductionFormError.Duplicate
+            DeductionResult.InvalidAmount -> DeductionFormError.InvalidAmount
             // NotFound: the deduction vanished while the dialog was open, nothing left to edit.
             DeductionResult.Ok, DeductionResult.NotFound -> null
         }
-        dialog.compareAndSet(opened, next)
+        if (id != openId) return
+        if (error == null) dialog.value = null else dialog.update { current -> current?.let { withError(it, error) } }
+    }
+
+    private fun closeIfStillOpen(id: Long) {
+        if (id == openId) dialog.value = null
     }
 
     /** Runs a repository write; on a storage failure posts a message, closes any dialog, returns null. */

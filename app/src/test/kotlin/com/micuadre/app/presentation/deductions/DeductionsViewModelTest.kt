@@ -357,7 +357,7 @@ class DeductionsViewModelTest {
     }
 
     @Test
-    fun `a sub-peso usual amount is kept when the field stays empty`() = runTest {
+    fun `an empty amount field clears a sub-peso usual amount`() = runTest {
         val tiny = Deduction(id = 6, name = "Peajes", usualAmountMinor = 50L)
         val repo = FakeRepo(listOf(tiny))
         val vm = DeductionsViewModel(repo)
@@ -366,7 +366,7 @@ class DeductionsViewModelTest {
 
         vm.onConfirmEdit("Peajes", "")
 
-        assertEquals(listOf("update:6:Peajes:50"), repo.calls)
+        assertEquals(listOf("update:6:Peajes:null"), repo.calls)
     }
 
     @Test
@@ -457,6 +457,96 @@ class DeductionsViewModelTest {
         assertEquals(R.string.deductions_save_error, vm.message.value?.textRes)
         assertNull(vm.state.value.dialog)
         assertFalse(vm.state.value.saving)
+    }
+
+    @Test
+    fun `typing after an inline error during a write still closes on success`() = runTest {
+        val repo = FakeRepo()
+        val vm = DeductionsViewModel(repo)
+        vm.onAddClick()
+        repo.next = DeductionResult.Duplicate
+        vm.onConfirmAdd("Peajes", "")
+        assertEquals(DeductionFormError.Duplicate, (vm.state.value.dialog as DeductionDialog.Add).error)
+        repo.next = DeductionResult.Ok
+        repo.gate = CompletableDeferred()
+        vm.onConfirmAdd("Peajes 2", "")
+
+        vm.onFormEdited()
+        repo.gate!!.complete(Unit)
+
+        assertNull(vm.state.value.dialog)
+        vm.onConfirmAdd("Peajes 2", "")
+        assertEquals(2, repo.calls.size)
+    }
+
+    @Test
+    fun `an error result lands on the current dialog and keeps nothing stale`() = runTest {
+        val repo = FakeRepo(listOf(fuel))
+        val vm = DeductionsViewModel(repo)
+        vm.onEditClick(fuel.id)
+        repo.next = DeductionResult.Duplicate
+        vm.onConfirmEdit("x", "1.000")
+        repo.gate = CompletableDeferred()
+        vm.onConfirmEdit("y", "1.000")
+        vm.onFormEdited()
+        repo.gate!!.complete(Unit)
+
+        assertEquals(
+            DeductionDialog.Edit(
+                id = 1,
+                currentName = "Combustible",
+                currentAmount = "15.000",
+                usualAmountMinor = 1_500_000L,
+                error = DeductionFormError.Duplicate
+            ),
+            vm.state.value.dialog
+        )
+    }
+
+    @Test
+    fun `a stale result does not touch an equal dialog reopened after dismissing`() = runTest {
+        val repo = FakeRepo()
+        val vm = DeductionsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+        vm.onConfirmAdd("Peajes", "")
+
+        vm.onDismissDialog()
+        vm.onAddClick()
+        repo.next = DeductionResult.Duplicate
+        repo.gate!!.complete(Unit)
+
+        assertEquals(DeductionDialog.Add(), vm.state.value.dialog)
+    }
+
+    @Test
+    fun `a double confirm of a delete writes once`() = runTest {
+        val repo = FakeRepo(listOf(fuel))
+        val vm = DeductionsViewModel(repo)
+        vm.onDeleteClick(fuel.id)
+        repo.gate = CompletableDeferred()
+
+        vm.onConfirmDelete()
+        vm.onConfirmDelete()
+        repo.gate!!.complete(Unit)
+
+        assertEquals(listOf("delete:1"), repo.calls)
+        assertNull(vm.state.value.dialog)
+        assertFalse(vm.state.value.saving)
+    }
+
+    @Test
+    fun `dismissing during a delete keeps the dialog dismissed`() = runTest {
+        val repo = FakeRepo(listOf(fuel))
+        val vm = DeductionsViewModel(repo)
+        vm.onDeleteClick(fuel.id)
+        repo.gate = CompletableDeferred()
+        vm.onConfirmDelete()
+
+        vm.onDismissDialog()
+        repo.gate!!.complete(Unit)
+
+        assertNull(vm.state.value.dialog)
     }
 
     @Test
