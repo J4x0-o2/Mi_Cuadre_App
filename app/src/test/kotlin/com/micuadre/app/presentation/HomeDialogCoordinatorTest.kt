@@ -1,20 +1,43 @@
 package com.micuadre.app.presentation
 
+import com.micuadre.app.domain.model.Deduction
 import com.micuadre.app.domain.model.ShiftState
+import com.micuadre.app.presentation.expenses.ExpenseField
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.io.IOException
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeDialogCoordinatorTest {
 
     private val ui = MutableStateFlow(HomeUiState())
     private var endShifts = 0
+    private val endedWith = mutableListOf<Map<Long, Long>>()
+    private var visible: List<Deduction> = emptyList()
+    private var lookups = 0
+    private var lookupGate: CompletableDeferred<Unit>? = null
+    private var lookupFailure: Throwable? = null
     private var cancels = 0
     private val cancelledTrips = mutableListOf<Long>()
     private val coordinator = HomeDialogCoordinator(
         ui = ui,
-        endShift = { endShifts++ },
+        scope = TestScope(UnconfinedTestDispatcher()),
+        visibleDeductions = {
+            lookups++
+            lookupGate?.await()
+            lookupFailure?.let { throw it }
+            visible
+        },
+        endShift = { amounts ->
+            endShifts++
+            endedWith += amounts
+        },
         cancelTrip = { tripStartedAtMs ->
             cancels++
             cancelledTrips += tripStartedAtMs
@@ -158,6 +181,124 @@ class HomeDialogCoordinatorTest {
 
         assertEquals(HomeDialog.EndShift, ui.value.dialog)
     }
+
+    private val fuel = Deduction(id = 1L, name = "Gasolina", usualAmountMinor = 1_500_000L)
+    private val food = Deduction(id = 2L, name = "Almuerzo")
+
+    private fun confirmWith(vararg deductions: Deduction) {
+        visible = deductions.toList()
+        coordinator.onEndShiftTapped()
+        coordinator.onEndShiftConfirmed()
+    }
+
+    @Test
+    fun `confirming with no visible deductions ends the shift at once without a sheet`() {
+        confirmWith()
+
+        assertEquals(listOf(emptyMap<Long, Long>()), endedWith)
+        assertNull(ui.value.shiftExpenses)
+        assertNull(ui.value.dialog)
+    }
+
+    @Test
+    fun `confirming with visible deductions opens the prefilled sheet and keeps the shift open`() {
+        confirmWith(fuel, food)
+
+        assertEquals(0, endShifts)
+        assertNull(ui.value.dialog)
+        assertEquals(
+            listOf(ExpenseField(1L, "Gasolina", "15.000"), ExpenseField(2L, "Almuerzo", "")),
+            ui.value.shiftExpenses?.fields
+        )
+    }
+
+    @Test
+    fun `skipping ends the shift with no amounts and closes the sheet`() {
+        confirmWith(fuel, food)
+
+        coordinator.onShiftExpensesSkipped()
+
+        assertEquals(listOf(emptyMap<Long, Long>()), endedWith)
+        assertNull(ui.value.shiftExpenses)
+    }
+
+    @Test
+    fun `saving sends the typed amounts in minor units and drops blanks`() {
+        confirmWith(fuel, food)
+        coordinator.onShiftExpensesEdited(1L, "")
+        coordinator.onShiftExpensesEdited(2L, "8500")
+
+        coordinator.onShiftExpensesSaved()
+
+        assertEquals(listOf(mapOf(2L to 850_000L)), endedWith)
+        assertNull(ui.value.shiftExpenses)
+    }
+
+    @Test
+    fun `saving prefilled usual amounts sends them untouched`() {
+        confirmWith(fuel, food)
+
+        coordinator.onShiftExpensesSaved()
+
+        assertEquals(listOf(mapOf(1L to 1_500_000L)), endedWith)
+    }
+
+    @Test
+    fun `a double tap on save and skip together sends a single end action`() {
+        confirmWith(fuel)
+
+        coordinator.onShiftExpensesSaved()
+        coordinator.onShiftExpensesSaved()
+        coordinator.onShiftExpensesSkipped()
+
+        assertEquals(1, endShifts)
+    }
+
+    @Test
+    fun `dismissing the sheet cancels and the shift stays open`() {
+        confirmWith(fuel)
+
+        coordinator.onShiftExpensesDismissed()
+        coordinator.onShiftExpensesSaved()
+        coordinator.onShiftExpensesSkipped()
+
+        assertEquals(0, endShifts)
+        assertNull(ui.value.shiftExpenses)
+    }
+
+    @Test
+    fun `editing without an open sheet does nothing`() {
+        coordinator.onShiftExpensesEdited(1L, "5")
+
+        assertNull(ui.value.shiftExpenses)
+    }
+
+    @Test
+    fun `repeated confirms while the deductions load open one sheet and look up once`() {
+        visible = listOf(fuel)
+        lookupGate = CompletableDeferred()
+        coordinator.onEndShiftTapped()
+        coordinator.onEndShiftConfirmed()
+        coordinator.onEndShiftTapped()
+        coordinator.onEndShiftConfirmed()
+
+        lookupGate?.complete(Unit)
+
+        assertEquals(1, lookups)
+        assertEquals(0, endShifts)
+        assertEquals(1, ui.value.shiftExpenses?.fields?.size)
+    }
+
+    @Test
+    fun `a failing lookup still ends the shift with no amounts`() {
+        lookupFailure = IOException("disk")
+
+        confirmWith(fuel)
+
+        assertEquals(listOf(emptyMap<Long, Long>()), endedWith)
+        assertNull(ui.value.shiftExpenses)
+    }
+
 
     private companion object {
         const val TRIP_A = 5_000L

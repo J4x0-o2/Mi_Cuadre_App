@@ -9,6 +9,7 @@ import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.ShiftState
+import com.micuadre.app.domain.repository.DeductionRepository
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.GetDailySummaryUseCase
 import com.micuadre.app.domain.usecase.GetLastUsedPlatformUseCase
@@ -38,6 +39,7 @@ class MainViewModel @Inject constructor(
     private val observeShiftState: ObserveShiftStateUseCase,
     private val getDailySummary: GetDailySummaryUseCase,
     private val getLastUsedPlatform: GetLastUsedPlatformUseCase,
+    private val deductions: DeductionRepository,
     private val repository: ShiftRepository,
     private val observePeriodSummary: ObservePeriodSummaryUseCase,
     private val clock: Clock,
@@ -65,7 +67,11 @@ class MainViewModel @Inject constructor(
         clockChanges = clockChanges(context),
         observe = { period, zone -> observePeriodSummary(period, zone) }
     )
-    private val dialogs = HomeDialogCoordinator(ui = _ui, endShift = controller::endShift,
+    private val dialogs = HomeDialogCoordinator(
+        ui = _ui,
+        scope = viewModelScope,
+        visibleDeductions = { deductions.observeVisible().first() },
+        endShift = { amounts -> controller.endShift(amounts) },
         cancelTrip = controller::cancelTrip
     )
     private val connectCoordinator = ConnectCoordinator(startShift = controller::connect)
@@ -218,6 +224,14 @@ class MainViewModel @Inject constructor(
     fun onEndShiftConfirmed() = dialogs.onEndShiftConfirmed()
 
     fun onDialogDismissed() = dialogs.onDialogDismissed()
+
+    fun onShiftExpensesEdited(deductionId: Long, raw: String) = dialogs.onShiftExpensesEdited(deductionId, raw)
+
+    fun onShiftExpensesSaved() = dialogs.onShiftExpensesSaved()
+
+    fun onShiftExpensesSkipped() = dialogs.onShiftExpensesSkipped()
+
+    fun onShiftExpensesDismissed() = dialogs.onShiftExpensesDismissed()
 
     fun onCancelTripTapped() = dialogs.onCancelTripTapped()
 

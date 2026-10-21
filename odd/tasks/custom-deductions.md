@@ -146,18 +146,43 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
       - GREEN: 3 existing tests used sub-peso filler values (1L, 150_050L) and were moved to whole
         pesos without changing what they assert; `./gradlew testDebugUnitTest assembleDebug`
         BUILD SUCCESSFUL, 571 tests, 0 failures.
+      - Review (base f3418d0): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-6d8b63633626266b). Note: the deductions table is new in this unreleased branch, so no
+        legacy sub-peso rows can exist; the guarantee applies to all rows written by any build.
 
-## Follow-ups (non-blocking review suggestions)
-- T3c: a stale Ok/NotFound result after dismiss + reopening an equal dialog is not tested.
-
-- [ ] T4 End-shift sheet: dialog/sheet state in HomeDialogCoordinator, sheet composable, amounts
+- [x] T4 End-shift sheet: dialog/sheet state in HomeDialogCoordinator, sheet composable, amounts
       through ShiftServiceController -> ShiftService.handleEndShift (written before the summary).
       Route: delegated writer.
+      - RED: ShiftExpensesTest (7), HomeDialogCoordinatorTest (+9 cases, new constructor),
+        ShiftServiceControllerTest (5) and ShiftServiceTest (+5) written first; `testDebugUnitTest`
+        failed to compile (unresolved ExpenseField, ShiftExpensesState/Model, shiftExpenses,
+        onShiftExpenses*, endShiftExtras, deductionAmountsFrom, EXTRA_DEDUCTION_*). One behavior RED
+        after implementing: the lookup-failure test failed because android.util.Log is not mocked in
+        plain JVM tests, so the coordinator does not log (it just ends the shift).
+      - GREEN: `./gradlew testDebugUnitTest` BUILD SUCCESSFUL, 598 tests, 0 failures/errors;
+        `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      - Flow: confirming "Terminar turno" looks up the visible deductions (one in-flight lookup);
+        none -> end at once as before (no sheet); otherwise HomeUiState.shiftExpenses opens the sheet
+        (ShiftExpensesState: fields prefilled from usualAmountMinor via AmountInput, blank = 0).
+        Save/Skip take the sheet out of the state atomically (getAndUpdate), so a double tap sends one
+        end action; dismiss clears it and the shift stays open. A failing lookup ends the shift
+        without asking (the user already confirmed).
+      - Transport: ShiftServiceController.endShift(amounts) puts parallel long arrays in the intent
+        (endShiftExtras / deductionAmountsFrom; mismatched arrays are discarded). handleEndShift runs
+        endShift -> saveExpenses -> getDailySummary -> publish. Empty amounts skip the write; a thrown
+        or refused write is logged and the shift still ends; the no-session fallback ignores amounts.
+      - Decisions: a negative net (expenses above gross) is shown honestly as "− $ X" instead of
+        clamped; the total row shows "− $ X" only when something was spent ("$ 0" otherwise).
+        Gross in the sheet is the live HomeUiState.totalMinor. ShiftServiceTest now uninstalls
+        DeductionModule and binds FakeDeductionRepository.
 - [ ] T5 Shift summary net: DailySummary deductions, ShiftSummaryModel + ShiftSummaryScreen.
       Route: delegated writer.
 - [ ] T6 Period sheet: PeriodSummary/buckets with expenses, PeriodSheetModel (gastos y neto,
       stacked bars, NETO/DÍA), PeriodSheet fixed header + scroll. Route: delegated writer.
 - [ ] T7 Docs: README (features + screenshots), CHANGELOG. Route: inline.
+
+## Follow-ups (non-blocking review suggestions)
+- T3c: a stale Ok/NotFound result after dismiss + reopening an equal dialog is not tested.
 
 ## Acceptance criteria
 - Deductions can be managed in Settings; deleting one keeps past amounts and names.
@@ -176,4 +201,4 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
   recorded per task below.
 
 ## Progress
-- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b, T3c done. Next: T4.
+- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b, T3c, T3d, T4 done. Next: T5.

@@ -56,6 +56,14 @@
     <string name="save">Guardar</string>
     <string name="cancel">Cancelar</string>
 
+    <string name="shift_expenses_title">Gastos del turno</string>
+    <string name="shift_expenses_subtitle">Anota cuánto gastaste. Deja en blanco lo que no aplique.</string>
+    <string name="shift_expenses_earned">Ganaste</string>
+    <string name="shift_expenses_total">Total deducciones</string>
+    <string name="shift_expenses_left">Te queda</string>
+    <string name="shift_expenses_skip">Omitir</string>
+    <string name="shift_expenses_save">Guardar y cerrar</string>
+
     <string name="summary_closed">Turno cerrado</string>
     <string name="summary_range">Hoy · %1$s – %2$s</string>
     <string name="summary_range_day">%1$s · %2$s – %3$s</string>

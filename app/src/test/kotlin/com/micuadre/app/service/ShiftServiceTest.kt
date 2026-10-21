@@ -8,15 +8,20 @@ import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.di.BubbleModule
 import com.micuadre.app.di.ClockModule
+import com.micuadre.app.di.DeductionModule
 import com.micuadre.app.di.RepositoryModule
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
+import com.micuadre.app.domain.model.Deduction
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Session
+import com.micuadre.app.domain.model.SessionDeductionAmount
 import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.repository.BubblePreferenceRepository
+import com.micuadre.app.domain.repository.DeductionRepository
+import com.micuadre.app.domain.repository.DeductionResult
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.overlay.BubbleOverlay
 import com.micuadre.app.overlay.OverlayPermission
@@ -53,7 +58,7 @@ import org.robolectric.annotation.Config
  * of a freshly created service is exercised instead of being resolved synchronously.
  */
 @HiltAndroidTest
-@UninstallModules(RepositoryModule::class, ClockModule::class, BubbleModule::class)
+@UninstallModules(RepositoryModule::class, ClockModule::class, BubbleModule::class, DeductionModule::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [34])
 class ShiftServiceTest {
@@ -67,6 +72,12 @@ class ShiftServiceTest {
     @BindValue
     @JvmField
     val shiftRepository: ShiftRepository = repository
+
+    private val deductionRepository = FakeDeductionRepository(repository)
+
+    @BindValue
+    @JvmField
+    val deductions: DeductionRepository = deductionRepository
 
     private val fakeClock = FakeClock(now = NOW)
 
@@ -592,6 +603,76 @@ class ShiftServiceTest {
         assertEquals(null, shadowOf(controller.get()).lastForegroundNotification)
     }
 
+    private fun ServiceController<ShiftService>.deliverEndShift(amounts: Map<Long, Long>) {
+        deliver(ShiftServiceController.ACTION_END_SHIFT, ShiftServiceController.endShiftExtras(amounts))
+    }
+
+    @Test
+    fun `end shift writes the amounts before the summary is built`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverEndShiftDuringRehydration(mapOf(1L to 1_500_000L, 2L to 850_000L))
+
+        assertEquals(
+            listOf(FakeDeductionRepository.Save(7L, mapOf(1L to 1_500_000L, 2L to 850_000L), summariesBefore = 0)),
+            deductionRepository.saves
+        )
+        assertEquals(listOf(7L), repository.summarized)
+        assertEquals(listOf(7L to NOW), repository.endedSessions)
+    }
+
+    @Test
+    fun `a failing amounts write does not stop the shift from ending`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        deductionRepository.failure = IllegalStateException("disk full")
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverEndShiftDuringRehydration(mapOf(1L to 100L))
+
+        assertEquals(listOf(7L to NOW), repository.endedSessions)
+        assertEquals(listOf(7L), repository.summarized)
+        assertTrue(controller.get().controller.state.value is ShiftState.Disconnected)
+    }
+
+    @Test
+    fun `a refused amounts write does not stop the shift from ending`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        deductionRepository.result = DeductionResult.NotFound
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverEndShiftDuringRehydration(mapOf(99L to 100L))
+
+        assertEquals(listOf(7L to NOW), repository.endedSessions)
+        assertEquals(listOf(7L), repository.summarized)
+    }
+
+    @Test
+    fun `end shift without amounts writes nothing`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+
+        val controller = newServiceWithSlowRoom()
+        controller.deliverDuringRehydration(ShiftServiceController.ACTION_END_SHIFT)
+
+        assertTrue(deductionRepository.saves.isEmpty())
+        assertEquals(listOf(7L), repository.summarized)
+    }
+
+    @Test
+    fun `end shift with no open session ignores the amounts`() {
+        val controller = newService()
+        controller.deliverEndShift(mapOf(1L to 100L))
+
+        assertTrue(deductionRepository.saves.isEmpty())
+        assertTrue(repository.summarized.isEmpty())
+    }
+
+    private fun ServiceController<ShiftService>.deliverEndShiftDuringRehydration(amounts: Map<Long, Long>) {
+        deliverDuringRehydrationWith(
+            intent(ShiftServiceController.ACTION_END_SHIFT, ShiftServiceController.endShiftExtras(amounts))
+        )
+    }
+
     private companion object {
         const val HOUR = 3_600_000L
         const val MINUTE = 60_000L
@@ -720,4 +801,33 @@ class FakeBubbleOverlay : BubbleOverlay {
     override fun hide() {
         visible = false
     }
+}
+
+/** Records session amount writes and how many summaries existed when each happened. */
+class FakeDeductionRepository(private val shifts: InMemoryShiftRepository) : DeductionRepository {
+    data class Save(val sessionId: Long, val amounts: Map<Long, Long>, val summariesBefore: Int)
+
+    val saves = mutableListOf<Save>()
+    var failure: Throwable? = null
+    var result: DeductionResult = DeductionResult.Ok
+
+    override suspend fun saveSessionAmounts(sessionId: Long, amounts: Map<Long, Long>): DeductionResult {
+        saves += Save(sessionId, amounts, shifts.summarized.size)
+        failure?.let { throw it }
+        return result
+    }
+
+    override fun observeActive(): Flow<List<Deduction>> = flowOf(emptyList())
+    override fun observeVisible(): Flow<List<Deduction>> = flowOf(emptyList())
+    override suspend fun create(name: String, usualAmountMinor: Long?) = unused()
+    override suspend fun rename(id: Long, name: String) = unused()
+    override suspend fun update(id: Long, name: String, usualAmountMinor: Long?) = unused()
+    override suspend fun setVisible(id: Long, visible: Boolean) = unused()
+    override suspend fun setUsualAmount(id: Long, amountMinor: Long?) = unused()
+    override suspend fun delete(id: Long) = unused()
+    override suspend fun sessionAmounts(sessionId: Long): List<SessionDeductionAmount> = emptyList()
+    override fun observeAmountsStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionDeductionAmount>> =
+        flowOf(emptyList())
+
+    private fun unused(): Nothing = error("not used by the shift service")
 }
