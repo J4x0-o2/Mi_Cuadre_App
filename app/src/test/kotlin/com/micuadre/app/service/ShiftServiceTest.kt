@@ -35,6 +35,10 @@ import dagger.hilt.android.testing.UninstallModules
 import java.time.Duration
 import java.time.ZoneId
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -623,6 +627,40 @@ class ShiftServiceTest {
     }
 
     @Test
+    fun `the published summary carries the deductions saved just before`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+
+        val controller = newServiceWithSlowRoom()
+        val published = mutableListOf<DailySummary>()
+        val collector = CoroutineScope(Dispatchers.Unconfined)
+        collector.launch { controller.get().controller.summaryEvents.collect { published += it } }
+        controller.deliverEndShiftDuringRehydration(mapOf(1L to 1_500_000L, 2L to 850_000L))
+        collector.cancel()
+
+        assertEquals(
+            listOf(
+                SessionDeductionAmount(7L, 1L, "Deduction 1", 1_500_000L),
+                SessionDeductionAmount(7L, 2L, "Deduction 2", 850_000L)
+            ),
+            published.single().deductions
+        )
+    }
+
+    @Test
+    fun `a shift ended without amounts publishes a summary without deductions`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+
+        val controller = newServiceWithSlowRoom()
+        val published = mutableListOf<DailySummary>()
+        val collector = CoroutineScope(Dispatchers.Unconfined)
+        collector.launch { controller.get().controller.summaryEvents.collect { published += it } }
+        controller.deliverDuringRehydration(ShiftServiceController.ACTION_END_SHIFT)
+        collector.cancel()
+
+        assertTrue(published.single().deductions.isEmpty())
+    }
+
+    @Test
     fun `a failing amounts write does not stop the shift from ending`() {
         repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
         deductionRepository.failure = IllegalStateException("disk full")
@@ -810,10 +848,16 @@ class FakeDeductionRepository(private val shifts: InMemoryShiftRepository) : Ded
     val saves = mutableListOf<Save>()
     var failure: Throwable? = null
     var result: DeductionResult = DeductionResult.Ok
+    private val stored = mutableMapOf<Long, List<SessionDeductionAmount>>()
 
     override suspend fun saveSessionAmounts(sessionId: Long, amounts: Map<Long, Long>): DeductionResult {
         saves += Save(sessionId, amounts, shifts.summarized.size)
         failure?.let { throw it }
+        if (result == DeductionResult.Ok) {
+            stored[sessionId] = amounts.filterValues { it > 0L }.map { (id, amount) ->
+                SessionDeductionAmount(sessionId, id, "Deduction $id", amount)
+            }
+        }
         return result
     }
 
@@ -825,7 +869,8 @@ class FakeDeductionRepository(private val shifts: InMemoryShiftRepository) : Ded
     override suspend fun setVisible(id: Long, visible: Boolean) = unused()
     override suspend fun setUsualAmount(id: Long, amountMinor: Long?) = unused()
     override suspend fun delete(id: Long) = unused()
-    override suspend fun sessionAmounts(sessionId: Long): List<SessionDeductionAmount> = emptyList()
+    override suspend fun sessionAmounts(sessionId: Long): List<SessionDeductionAmount> =
+        stored[sessionId].orEmpty()
     override fun observeAmountsStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionDeductionAmount>> =
         flowOf(emptyList())
 

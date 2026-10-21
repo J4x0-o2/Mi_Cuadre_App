@@ -3,9 +3,12 @@ package com.micuadre.app.presentation.summary
 import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.DailySummary
 import com.micuadre.app.domain.model.PaymentMethod
+import com.micuadre.app.domain.model.SessionDeductionAmount
 import com.micuadre.app.domain.model.Trip
+import com.micuadre.app.util.Formatters
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -38,7 +41,8 @@ class ShiftSummaryModelTest {
         trips: List<Trip>,
         startedAt: Long? = t0,
         endedAt: Long? = t0 + 2 * hour + 5 * minute + 7_000L,
-        intervals: List<ConnectedInterval> = emptyList()
+        intervals: List<ConnectedInterval> = emptyList(),
+        deductions: List<SessionDeductionAmount> = emptyList()
     ) = DailySummary(
         totalAmountMinor = trips.sumOf { it.amountMinor ?: 0L },
         tripCount = trips.size,
@@ -47,8 +51,12 @@ class ShiftSummaryModelTest {
         startedAt = startedAt,
         endedAt = endedAt,
         trips = trips,
-        connectedIntervals = intervals
+        connectedIntervals = intervals,
+        deductions = deductions
     )
+
+    private fun spent(deductionId: Long, name: String, amount: Long) =
+        SessionDeductionAmount(sessionId = 1L, deductionId = deductionId, name = name, amountMinor = amount)
 
     private fun interval(start: Long, end: Long?) =
         ConnectedInterval(sessionId = 1L, startedAt = start, endedAt = end)
@@ -189,5 +197,83 @@ class ShiftSummaryModelTest {
         val bars = ShiftSummaryModel.from(summary(trips), utc).bars
 
         assertEquals(0f, bars.single().fraction, 0.0001f)
+    }
+
+    @Test
+    fun `without deductions the summary stays gross`() {
+        val model = ShiftSummaryModel.from(summary(listOf(trip(didi, 10_000L))), utc)
+
+        assertFalse(model.hasDeductions)
+        assertTrue(model.deductionLines.isEmpty())
+        assertEquals(0L, model.deductionsTotalMinor)
+        assertEquals(10_000L, model.totalMinor)
+        assertEquals(10_000L, model.netMinor)
+    }
+
+    @Test
+    fun `deductions list their lines in order with the total and the net`() {
+        val deductions = listOf(spent(1L, "Gasolina", 15_000L), spent(2L, "Comida", 3_000L))
+
+        val model = ShiftSummaryModel.from(summary(listOf(trip(didi, 50_000L)), deductions = deductions), utc)
+
+        assertTrue(model.hasDeductions)
+        assertEquals(
+            listOf("Gasolina" to 15_000L, "Comida" to 3_000L),
+            model.deductionLines.map { it.name to it.amountMinor }
+        )
+        assertEquals(18_000L, model.deductionsTotalMinor)
+        assertEquals(50_000L, model.totalMinor)
+        assertEquals(32_000L, model.netMinor)
+    }
+
+    @Test
+    fun `a net below zero is kept negative`() {
+        val deductions = listOf(spent(1L, "Gasolina", 30_000L))
+
+        val model = ShiftSummaryModel.from(summary(listOf(trip(didi, 10_000L)), deductions = deductions), utc)
+
+        assertEquals(-20_000L, model.netMinor)
+    }
+
+    @Test
+    fun `labels show a minus sign for expenses and for a negative net`() {
+        val deductions = listOf(spent(1L, "Gasolina", 30_000L))
+
+        val model = ShiftSummaryModel.from(summary(listOf(trip(didi, 10_000L)), deductions = deductions), utc)
+
+        assertEquals("− ${Formatters.moneyNoDecimals(20_000L)}", model.netLabel)
+        assertEquals("− ${Formatters.moneyNoDecimals(30_000L)}", model.deductionsTotalLabel)
+    }
+
+    @Test
+    fun `a positive net has no sign`() {
+        val deductions = listOf(spent(1L, "Gasolina", 3_000L))
+
+        val model = ShiftSummaryModel.from(summary(listOf(trip(didi, 10_000L)), deductions = deductions), utc)
+
+        assertEquals(Formatters.moneyNoDecimals(7_000L), model.netLabel)
+    }
+
+    @Test
+    fun `a deleted deduction keeps the name it was saved with`() {
+        // The repository resolves names including soft-deleted deductions; the model shows them as given.
+        val deductions = listOf(spent(4L, "Peaje", 2_000L))
+
+        val model = ShiftSummaryModel.from(summary(listOf(trip(didi, 10_000L)), deductions = deductions), utc)
+
+        assertEquals("Peaje", model.deductionLines.single().name)
+    }
+
+    @Test
+    fun `cash and transfer stay gross when there are deductions`() {
+        val trips = listOf(
+            trip(didi, 10_000L, PaymentMethod.CASH, id = 1),
+            trip(didi, 5_000L, PaymentMethod.TRANSFER, id = 2)
+        )
+
+        val model = ShiftSummaryModel.from(summary(trips, deductions = listOf(spent(1L, "Gasolina", 4_000L))), utc)
+
+        assertEquals(10_000L, model.cashMinor)
+        assertEquals(5_000L, model.transferMinor)
     }
 }

@@ -70,6 +70,9 @@
     <string name="summary_range_span">%1$s %2$s – %3$s %4$s</string>
     <string name="summary_range_unknown">Horario no disponible</string>
     <string name="summary_earned">Ganaste</string>
+    <string name="summary_net_label">Te quedó</string>
+    <string name="summary_deductions_gross">Ganaste</string>
+    <string name="summary_deductions_total">Total deducciones</string>
     <string name="summary_by_platform">Por plataforma</string>
     <string name="summary_done">Listo</string>
 

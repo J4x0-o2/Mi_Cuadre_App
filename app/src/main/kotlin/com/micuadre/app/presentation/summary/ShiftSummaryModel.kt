@@ -16,7 +16,14 @@ data class PlatformBar(
     val fraction: Float
 )
 
-/** Everything the shift summary screen shows, already derived and formatted. */
+/** One "− $ X" line of the deductions card. */
+data class DeductionLine(val name: String, val amountMinor: Long)
+
+/**
+ * Everything the shift summary screen shows, already derived and formatted. [totalMinor] is gross;
+ * [netMinor] is gross minus [deductionsTotalMinor] and may be negative, which is shown as it is.
+ * Cash and transfer describe how the money was received, so they stay gross.
+ */
 data class ShiftSummaryModel(
     val range: SummaryRange,
     val totalMinor: Long,
@@ -24,9 +31,28 @@ data class ShiftSummaryModel(
     val tripCount: Int,
     val cashMinor: Long,
     val transferMinor: Long,
-    val bars: List<PlatformBar>
+    val bars: List<PlatformBar>,
+    val deductionLines: List<DeductionLine> = emptyList()
 ) {
+    val hasDeductions: Boolean get() = deductionLines.isNotEmpty()
+
+    val deductionsTotalMinor: Long get() = deductionLines.sumOf { it.amountMinor }
+
+    val netMinor: Long get() = totalMinor - deductionsTotalMinor
+
+    /** Net as shown on screen: "− $ X" when below zero, never clamped. */
+    val netLabel: String get() = signedMoney(netMinor)
+
+    /** Total of the deductions as shown on screen: "− $ X" when something was spent. */
+    val deductionsTotalLabel: String get() = signedMoney(-deductionsTotalMinor)
+
     companion object {
+        /** Formats [minor] with whole pesos, prefixing "−" when it is below zero. */
+        fun signedMoney(minor: Long): String =
+            if (minor < 0L) "$MINUS ${Formatters.moneyNoDecimals(-minor)}" else Formatters.moneyNoDecimals(minor)
+
+        private const val MINUS = "−"
+
         fun from(
             summary: DailySummary,
             zone: ZoneId = ZoneId.systemDefault(),
@@ -45,7 +71,8 @@ data class ShiftSummaryModel(
                 tripCount = day.tripCount,
                 cashMinor = day.cashMinor,
                 transferMinor = day.transferMinor,
-                bars = platformBars(finished)
+                bars = platformBars(finished),
+                deductionLines = summary.deductions.map { DeductionLine(it.name, it.amountMinor) }
             )
         }
 

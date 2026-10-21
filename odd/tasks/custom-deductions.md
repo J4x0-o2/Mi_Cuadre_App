@@ -208,8 +208,24 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         refreshed yet`: first a compile failure (no parameter), then with the parameter added but
         unused, 28 tests, 1 failed on behavior.
       - GREEN: `./gradlew testDebugUnitTest assembleDebug` BUILD SUCCESSFUL, 604 tests, 0 failures.
-- [ ] T5 Shift summary net: DailySummary deductions, ShiftSummaryModel + ShiftSummaryScreen.
+      - Review (base fd017d2): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-4f10a5522c415ae6), no findings.
+- [x] T5 Shift summary net: DailySummary deductions, ShiftSummaryModel + ShiftSummaryScreen.
       Route: delegated writer.
+      - RED: GetDailySummaryUseCaseTest (3), ShiftSummaryModelTest (+7) and ShiftServiceTest (+2: published
+        summary carries the saved deductions; none without amounts) written first; compile failure
+        (unresolved hasDeductions, deductionLines, netMinor, ...). With the field added but unused, 56
+        tests ran and 2 failed on behavior (use case did not add the amounts; the published summary had none).
+      - GREEN: `./gradlew testDebugUnitTest` BUILD SUCCESSFUL, 616 tests, 0 failures/errors;
+        `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      - Layering: DailySummary gained `deductions: List<SessionDeductionAmount>` (default empty, so existing
+        constructions are untouched). ShiftRepository stays about trips/intervals; GetDailySummaryUseCase
+        combines `ShiftRepository.summary` with `DeductionRepository.sessionAmounts`, read on every call, so
+        a summary built after `saveSessionAmounts` (T4 order) carries them. A failing read degrades to the
+        gross summary (cancellation is rethrown).
+      - UI: with deductions the big number is the net under "TE QUEDÓ" (error tone when negative, "− $ X"),
+        and a card lists "Ganaste", each "− $ x" and "Total deducciones" (error tone); metrics, cash/transfer
+        (still gross) and platform section unchanged. Without deductions the screen is as before.
 - [ ] T6 Period sheet: PeriodSummary/buckets with expenses, PeriodSheetModel (gastos y neto,
       stacked bars, NETO/DÍA), PeriodSheet fixed header + scroll. Route: delegated writer.
 - [ ] T7 Docs: README (features + screenshots), CHANGELOG. Route: inline.
@@ -235,4 +251,4 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
   recorded per task below.
 
 ## Progress
-- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b, T3c, T3d, T4 done. Next: T5.
+- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b, T3c, T3d, T4, T5 done. Next: T6.
