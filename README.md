@@ -63,7 +63,7 @@ todos los datos se quedan en tu teléfono.
 |-------|---------|
 | Un turno cuenta completo para el día en que **empezó** | Un turno nocturno de 20:00 a 02:00 es un día de trabajo, no dos |
 | La semana va de lunes a hoy; el mes, del día 1 a hoy | Coincide con calendarios, cuentas y metas |
-| "Por hora" aparece solo después de un minuto completo conectado | Evita tarifas absurdas extrapoladas de pocos segundos |
+| "Por hora" aparece solo después de una hora completa conectado | Evita tarifas absurdas extrapoladas de pocos minutos |
 | Una carrera debe terminarse o cancelarse antes de desconectarte | Ninguna carrera queda registrada a medias |
 | Una carrera cancelada no suma | Solo cuenta lo que realmente cobraste |
 
@@ -150,7 +150,7 @@ Decisiones clave:
 La app sigue [Semantic Versioning](https://semver.org). La versión vive en un solo archivo,
 `version.properties`, y el `versionCode` de Android se deriva de ella como
 `major × 10000 + minor × 100 + patch`. La versión instalada se ve en *Ajustes › Acerca de*. Cada
-versión se etiqueta en git (`v0.4.0`) y los cambios se listan en [CHANGELOG.md](CHANGELOG.md).
+versión se etiqueta en git (`v0.4.1`) y los cambios se listan en [CHANGELOG.md](CHANGELOG.md).
 
 ## Hoja de ruta
 
@@ -159,5 +159,5 @@ versión se etiqueta en git (`v0.4.0`) y los cambios se listan en [CHANGELOG.md]
 
 ## Estado del proyecto
 
-MiCuadre está en desarrollo activo (versión actual **0.4.0**). Su autor la usa primero como
+MiCuadre está en desarrollo activo (versión actual **0.4.1**). Su autor la usa primero como
 herramienta diaria de conductor, con el objetivo de abrirla a cualquier conductor de plataformas.

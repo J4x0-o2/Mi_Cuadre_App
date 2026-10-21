@@ -7,6 +7,7 @@ import com.micuadre.app.domain.model.ShiftState
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.presentation.HomeUiState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DisconnectedContentTest {
@@ -61,10 +62,22 @@ class DisconnectedContentTest {
         val breakdown = DayBreakdown(totalMinor = 1_000_000L, cashMinor = 1_000_000L, transferMinor = 0L, tripCount = 1)
         val intervals = listOf(ConnectedInterval(sessionId = 1, startedAt = t0, endedAt = null))
 
-        val model = TodaySummaryModel.ofOpenShift(breakdown, intervals, nowMs = t0 + 1_800_000L)
+        val model = TodaySummaryModel.ofOpenShift(breakdown, intervals, nowMs = t0 + 7_200_000L)
 
-        assertEquals(1_800L, model.connectedSeconds)
-        assertEquals(2_000_000L, model.perHourMinor)
+        assertEquals(7_200L, model.connectedSeconds)
+        assertEquals(500_000L, model.perHourMinor)
+    }
+
+    @Test
+    fun `an open shift under one connected hour has no per hour rate`() {
+        val t0 = 1_760_000_000_000L
+        val breakdown = DayBreakdown(totalMinor = 1_500_000L, cashMinor = 1_500_000L, transferMinor = 0L, tripCount = 1)
+        val intervals = listOf(ConnectedInterval(sessionId = 1, startedAt = t0, endedAt = null))
+
+        val model = TodaySummaryModel.ofOpenShift(breakdown, intervals, nowMs = t0 + 120_000L)
+
+        assertEquals(120L, model.connectedSeconds)
+        assertNull(model.perHourMinor)
     }
 
     // ---- assembly of what the disconnected Home renders ----
