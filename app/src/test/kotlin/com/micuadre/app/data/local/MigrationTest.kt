@@ -14,7 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Runs the real [MIGRATION_1_2] and [MIGRATION_2_3] against the exported schemas 1, 2 and 3. */
+/** Runs the real migrations against the exported schemas 1 to 4. */
 @RunWith(RobolectricTestRunner::class)
 // The exported schemas are copied into the unit-test assets of every variant by build.gradle.kts.
 @Config(sdk = [34])
@@ -289,6 +289,140 @@ class MigrationTest {
             assertTrue(it.moveToFirst())
             assertEquals(1, it.getInt(0))
         }
+    }
+
+    // ---- 3 -> 4: custom deductions ----
+
+    private fun createV3(block: (SupportSQLiteDatabase) -> Unit = {}) {
+        helper.createDatabase(DB_NAME, 3).apply {
+            execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            execSQL(
+                "INSERT INTO platforms (id, name, visible, createdAt, deletedAt) VALUES (1, 'Didi', 1, $START_1, NULL)"
+            )
+            execSQL(
+                "INSERT INTO trips (sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (1, 1, $START_1, $END_1, 5000, 'CASH')"
+            )
+            execSQL("INSERT INTO connected_intervals (sessionId, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            block(this)
+            close()
+        }
+    }
+
+    private fun migrate4(): SupportSQLiteDatabase =
+        helper.runMigrationsAndValidate(DB_NAME, 4, true, MIGRATION_3_4)
+
+    private fun SupportSQLiteDatabase.count(table: String): Int =
+        query("SELECT COUNT(*) FROM $table").use {
+            assertTrue(it.moveToFirst())
+            it.getInt(0)
+        }
+
+    private fun SupportSQLiteDatabase.insertFuel() {
+        execSQL("INSERT INTO deductions (id, name, visible, createdAt) VALUES (1, 'Combustible', 1, $START_1)")
+        execSQL("INSERT INTO session_deductions (sessionId, deductionId, amountMinor) VALUES (1, 1, 1500)")
+    }
+
+    @Test
+    fun `3 to 4 keeps sessions, trips, intervals and platforms`() {
+        createV3()
+
+        val db = migrate4()
+
+        assertEquals(1, db.count("sessions"))
+        assertEquals(1, db.count("connected_intervals"))
+        assertEquals(listOf("Didi"), db.platforms().map { it.second })
+        db.query("SELECT sessionId, platformId, amountMinor FROM trips").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(listOf(1L, 1L, 5_000L), (0..2).map { c -> it.getLong(c) })
+        }
+    }
+
+    @Test
+    fun `3 to 4 creates empty deduction tables without seeding rows`() {
+        createV3()
+
+        val db = migrate4()
+
+        assertEquals(0, db.count("deductions"))
+        assertEquals(0, db.count("session_deductions"))
+    }
+
+    @Test
+    fun `3 to 4 tables accept deductions and per shift amounts`() {
+        createV3()
+        val db = migrate4()
+
+        db.insertFuel()
+
+        db.query("SELECT amountMinor FROM session_deductions WHERE sessionId = 1 AND deductionId = 1").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(1_500L, it.getLong(0))
+        }
+    }
+
+    @Test
+    fun `session deductions cascade when their session is deleted`() {
+        createV3()
+        val db = migrate4()
+        db.insertFuel()
+
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.execSQL("DELETE FROM sessions WHERE id = 1")
+
+        assertEquals(0, db.count("session_deductions"))
+        assertEquals(1, db.count("deductions"))
+    }
+
+    @Test
+    fun `a deduction with recorded amounts cannot be hard deleted`() {
+        createV3()
+        val db = migrate4()
+        db.insertFuel()
+
+        db.execSQL("PRAGMA foreign_keys = ON")
+        try {
+            db.execSQL("DELETE FROM deductions WHERE id = 1")
+            fail("expected the foreign key to block the delete")
+        } catch (expected: SQLiteConstraintException) {
+            // history keeps a valid deduction
+        }
+    }
+
+    @Test
+    fun `a deduction can be recorded only once per session`() {
+        createV3()
+        val db = migrate4()
+        db.insertFuel()
+
+        try {
+            db.execSQL("INSERT INTO session_deductions (sessionId, deductionId, amountMinor) VALUES (1, 1, 900)")
+            fail("expected the unique index to reject the duplicate")
+        } catch (expected: SQLiteConstraintException) {
+            // one amount per (session, deduction)
+        }
+    }
+
+    @Test
+    fun `1 to 4 chain validates and keeps the old trips`() {
+        helper.createDatabase(DB_NAME, 1).apply {
+            execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            execSQL(
+                "INSERT INTO trips (sessionId, platform, platformOtherLabel, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (1, 'OTHER', 'Uber', $START_1, $END_1, 5000, 'CASH')"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            DB_NAME, 4, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4
+        )
+
+        assertEquals(listOf("InDriver", "Didi", "Uber"), db.platforms().map { it.second })
+        assertEquals(listOf(1L to "Uber"), db.tripPlatforms())
+        assertEquals(1, db.count("connected_intervals"))
+        assertEquals(0, db.count("deductions"))
+        assertEquals(0, db.count("session_deductions"))
     }
 
     private companion object {
