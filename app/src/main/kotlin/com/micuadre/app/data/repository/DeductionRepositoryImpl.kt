@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.micuadre.app.data.local.MiCuadreDatabase
 import com.micuadre.app.data.local.entity.DeductionEntity
 import com.micuadre.app.data.local.entity.SessionDeductionEntity
+import com.micuadre.app.data.local.entity.SessionDeductionRow
 import com.micuadre.app.domain.model.Deduction
 import com.micuadre.app.domain.model.DeductionName
 import com.micuadre.app.domain.model.SessionDeductionAmount
@@ -11,7 +12,6 @@ import com.micuadre.app.domain.repository.DeductionRepository
 import com.micuadre.app.domain.repository.DeductionResult
 import com.micuadre.app.util.Clock
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -72,6 +72,7 @@ class DeductionRepositoryImpl @Inject constructor(
     override suspend fun saveSessionAmounts(sessionId: Long, amounts: Map<Long, Long>): DeductionResult {
         if (amounts.values.any { it < 0 }) return DeductionResult.InvalidAmount
         return db.withTransaction {
+            if (db.sessionDao().byId(sessionId) == null) return@withTransaction DeductionResult.NotFound
             if (amounts.keys.any { dao.byId(it) == null }) return@withTransaction DeductionResult.NotFound
             amountDao.deleteBySession(sessionId)
             val rows = amounts.filterValues { it > 0 }.map { (deductionId, amount) ->
@@ -82,16 +83,11 @@ class DeductionRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sessionAmounts(sessionId: Long): List<SessionDeductionAmount> {
-        val names = dao.listAll().associate { it.id to it.name }
-        return amountDao.listBySession(sessionId).map { it.toDomain(names) }
-    }
+    override suspend fun sessionAmounts(sessionId: Long): List<SessionDeductionAmount> =
+        amountDao.namedBySession(sessionId).map { it.toDomain() }
 
     override fun observeAmountsStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionDeductionAmount>> =
-        combine(amountDao.observeStartedBetween(fromMs, toMs), dao.observeAll()) { rows, all ->
-            val names = all.associate { it.id to it.name }
-            rows.map { it.toDomain(names) }
-        }
+        amountDao.observeNamedStartedBetween(fromMs, toMs).map { rows -> rows.map { it.toDomain() } }
 
     private fun validate(normalized: String, usualAmountMinor: Long?): DeductionResult? = when {
         normalized.isEmpty() -> DeductionResult.Blank
@@ -113,10 +109,10 @@ class DeductionRepositoryImpl @Inject constructor(
         deletedAt = deletedAt
     )
 
-    private fun SessionDeductionEntity.toDomain(names: Map<Long, String>) = SessionDeductionAmount(
+    private fun SessionDeductionRow.toDomain() = SessionDeductionAmount(
         sessionId = sessionId,
         deductionId = deductionId,
-        name = names.getValue(deductionId),
+        name = name,
         amountMinor = amountMinor
     )
 }

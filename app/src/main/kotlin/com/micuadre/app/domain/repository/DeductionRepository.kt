@@ -20,7 +20,7 @@ sealed interface DeductionResult {
     /** Another non-deleted deduction already has this name (case-insensitive). */
     data object Duplicate : DeductionResult
 
-    /** The deduction does not exist or was already deleted. */
+    /** The deduction (or, when saving shift amounts, the session) does not exist or was already deleted. */
     data object NotFound : DeductionResult
 
     /** A usual or session amount is negative. */
@@ -58,8 +58,8 @@ interface DeductionRepository {
 
     /**
      * Replaces every amount of [sessionId] with [amounts] (deduction id to minor units). Zero
-     * amounts are not stored. Nothing is written when an amount is negative or a deduction is
-     * unknown; deleted deductions are accepted so a stale sheet can still be saved.
+     * amounts are not stored. Nothing is written when an amount is negative, the session is unknown
+     * or a deduction is unknown; deleted deductions are accepted so a stale sheet can still be saved.
      */
     suspend fun saveSessionAmounts(sessionId: Long, amounts: Map<Long, Long>): DeductionResult
 

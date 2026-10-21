@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.data.local.entity.DeductionEntity
 import com.micuadre.app.data.local.entity.SessionDeductionEntity
+import com.micuadre.app.data.local.entity.SessionDeductionRow
 import com.micuadre.app.data.local.entity.SessionEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -126,7 +127,7 @@ class DeductionDaoTest {
             )
         )
 
-        val rows = amounts.listBySession(s).associate { it.deductionId to it.amountMinor }
+        val rows = amounts.namedBySession(s).associate { it.deductionId to it.amountMinor }
         assertEquals(mapOf(fuel to 2_500L, food to 800L), rows)
     }
 
@@ -144,8 +145,8 @@ class DeductionDaoTest {
 
         amounts.deleteBySession(s1)
 
-        assertTrue(amounts.listBySession(s1).isEmpty())
-        assertEquals(listOf(2L), amounts.listBySession(s2).map { it.amountMinor })
+        assertTrue(amounts.namedBySession(s1).isEmpty())
+        assertEquals(listOf(2L), amounts.namedBySession(s2).map { it.amountMinor })
     }
 
     @Test
@@ -158,7 +159,7 @@ class DeductionDaoTest {
             amounts.upsert(listOf(SessionDeductionEntity(sessionId = it, deductionId = fuel, amountMinor = it)))
         }
 
-        val rows = amounts.observeStartedBetween(T0, T0 + 100).first()
+        val rows = amounts.observeNamedStartedBetween(T0, T0 + 100).first()
 
         assertEquals(listOf(inside), rows.map { it.sessionId })
     }
@@ -179,10 +180,31 @@ class DeductionDaoTest {
             )
         )
 
-        val range = amounts.observeStartedBetween(T0, T0 + 100).first().map { it.sessionId to it.deductionId }
+        val range = amounts.observeNamedStartedBetween(T0, T0 + 100).first().map { it.sessionId to it.deductionId }
 
         assertEquals(listOf(s1 to fuel, s1 to food, s2 to fuel, s2 to food), range)
-        assertEquals(listOf(fuel, food), amounts.listBySession(s2).map { it.deductionId })
+        assertEquals(listOf(fuel, food), amounts.namedBySession(s2).map { it.deductionId })
+    }
+
+    @Test
+    fun `named reads resolve the name of deleted deductions in one statement`() = runBlocking {
+        val s = session(T0)
+        val fuel = deduction("Combustible")
+        val food = deduction("Comida")
+        amounts.upsert(
+            listOf(
+                SessionDeductionEntity(sessionId = s, deductionId = food, amountMinor = 2L),
+                SessionDeductionEntity(sessionId = s, deductionId = fuel, amountMinor = 1L)
+            )
+        )
+        deductions.softDelete(fuel, T0 + 1)
+
+        val expected = listOf(
+            SessionDeductionRow(s, fuel, "Combustible", 1L),
+            SessionDeductionRow(s, food, "Comida", 2L)
+        )
+        assertEquals(expected, amounts.namedBySession(s))
+        assertEquals(expected, amounts.observeNamedStartedBetween(T0, T0 + 100).first())
     }
 
     @Test
@@ -199,7 +221,7 @@ class DeductionDaoTest {
         }
 
         db.openHelper.writableDatabase.execSQL("DELETE FROM sessions WHERE id = $s")
-        assertTrue(amounts.listBySession(s).isEmpty())
+        assertTrue(amounts.namedBySession(s).isEmpty())
     }
 
     private companion object {

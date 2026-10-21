@@ -72,6 +72,20 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         deductionId, name, amountMinor) ordered by session then deduction.
       - Name rules: DeductionName delegates to PlatformName (same max length 30, trim,
         case-insensitive compare done in Kotlin).
+      - Review (base f11bc9b): medium, granted (standing consent), reliability APPROVED +
+        acknowledged (review-8d27e3bb10377c1b); advisories -> T2b.
+- [x] T2b Review advisories on T2: names resolved in SQL. Route: delegated writer.
+      - RED: new tests written first (DAO named reads with a deleted deduction, repository save for a
+        deleted deduction and for an unknown session); `testDebugUnitTest` failed to compile
+        (unresolved SessionDeductionRow, namedBySession, observeNamedStartedBetween).
+      - GREEN: `./gradlew testDebugUnitTest` BUILD SUCCESSFUL, 520 tests, 0 failures;
+        `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      - Fix: SessionDeductionDao.namedBySession / observeNamedStartedBetween JOIN deductions (and
+        sessions for the range) in one statement returning SessionDeductionRow, so getValue and the
+        two-flow combine are gone. The raw listBySession/observeStartedBetween were removed and the
+        T1 tests moved to the named reads, keeping the ordering assertions.
+      - Decision: saveSessionAmounts for an unknown sessionId returns DeductionResult.NotFound
+        (checked in the transaction, nothing written) instead of an SQLiteConstraintException.
 - [ ] T3 Settings › Deducciones screen + ViewModel + dialogs, Settings entry row, AppScreen route.
       Route: delegated writer.
 - [ ] T4 End-shift sheet: dialog/sheet state in HomeDialogCoordinator, sheet composable, amounts

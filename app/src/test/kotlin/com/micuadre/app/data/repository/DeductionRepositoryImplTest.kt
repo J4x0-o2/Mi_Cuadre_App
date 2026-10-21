@@ -197,6 +197,32 @@ class DeductionRepositoryImplTest {
     }
 
     @Test
+    fun `saving amounts for a deleted deduction succeeds and keeps its name`() = runBlocking {
+        repository.create("Combustible")
+        val fuel = idOf("Combustible")
+        val s = session(T0)
+        repository.delete(fuel)
+
+        assertEquals(DeductionResult.Ok, repository.saveSessionAmounts(s, mapOf(fuel to 700L)))
+
+        assertEquals(
+            listOf(SessionDeductionAmount(s, fuel, "Combustible", 700L)),
+            repository.sessionAmounts(s)
+        )
+    }
+
+    @Test
+    fun `saving amounts for an unknown session is not found and writes nothing`() = runBlocking {
+        repository.create("Combustible")
+        val fuel = idOf("Combustible")
+
+        assertEquals(DeductionResult.NotFound, repository.saveSessionAmounts(999L, mapOf(fuel to 5L)))
+        assertEquals(DeductionResult.NotFound, repository.saveSessionAmounts(999L, emptyMap()))
+
+        assertTrue(repository.sessionAmounts(999L).isEmpty())
+    }
+
+    @Test
     fun `history keeps deleted deductions and shows renames`() = runBlocking {
         repository.create("Combustible")
         val fuel = idOf("Combustible")
