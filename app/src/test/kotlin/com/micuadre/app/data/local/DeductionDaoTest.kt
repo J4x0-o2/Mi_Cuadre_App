@@ -9,6 +9,10 @@ import com.micuadre.app.data.local.entity.SessionDeductionEntity
 import com.micuadre.app.data.local.entity.SessionDeductionRow
 import com.micuadre.app.data.local.entity.SessionEntity
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -205,6 +209,23 @@ class DeductionDaoTest {
         )
         assertEquals(expected, amounts.namedBySession(s))
         assertEquals(expected, amounts.observeNamedStartedBetween(T0, T0 + 100).first())
+    }
+
+    @Test
+    fun `range stream re-emits with the new name after a rename`() = runBlocking {
+        val s = session(T0)
+        val fuel = deduction("Combustible")
+        amounts.upsert(listOf(SessionDeductionEntity(sessionId = s, deductionId = fuel, amountMinor = 1L)))
+
+        // Rename after the first emission: Room must invalidate the joined deductions table.
+        val emissions = withTimeout(5_000) {
+            amounts.observeNamedStartedBetween(T0, T0 + 100)
+                .onEach { if (it.single().name == "Combustible") deductions.rename(fuel, "Gasolina") }
+                .take(2)
+                .toList()
+        }
+
+        assertEquals(listOf("Combustible", "Gasolina"), emissions.map { it.single().name })
     }
 
     @Test

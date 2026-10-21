@@ -86,8 +86,21 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         T1 tests moved to the named reads, keeping the ordering assertions.
       - Decision: saveSessionAmounts for an unknown sessionId returns DeductionResult.NotFound
         (checked in the transaction, nothing written) instead of an SQLiteConstraintException.
-- [ ] T3 Settings › Deducciones screen + ViewModel + dialogs, Settings entry row, AppScreen route.
+      - Review (base ae385f1): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-7e7fc9a3e2b53c50); rename-reactivity suggestion folded into T3.
+- [x] T3 Settings › Deducciones screen + ViewModel + dialogs, Settings entry row, AppScreen route.
       Route: delegated writer.
+      - RED: DeductionsViewModelTest (22 cases) and SettingsViewModelTest deductionNames cases written
+        first; `testDebugUnitTest` failed to compile (unresolved DeductionsViewModel,
+        DeductionsUiState, DeductionDialog, DeductionFormError).
+      - GREEN: `./gradlew testDebugUnitTest` BUILD SUCCESSFUL, 544 tests, 0 failures/errors;
+        `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      - Housekeeping from T2b review: DeductionDaoTest gained "range stream re-emits with the new name
+        after a rename" (passed on first run: Room invalidates the joined table).
+      - Design: edit dialog does rename then setUsualAmount (skipped when the rename is refused); the
+        amount field reuses AmountInput (digits only, so InvalidAmount is a defensive error). Settings
+        summary is the names list (SettingsViewModel.deductionNames) or the hint when none.
+        SettingsScreen's PlatformsRow now shares a private SettingsLinkRow with the new row.
 - [ ] T4 End-shift sheet: dialog/sheet state in HomeDialogCoordinator, sheet composable, amounts
       through ShiftServiceController -> ShiftService.handleEndShift (written before the summary).
       Route: delegated writer.
@@ -114,4 +127,4 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
   recorded per task below.
 
 ## Progress
-- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2 done. Next: T3.
+- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3 done. Next: T4.

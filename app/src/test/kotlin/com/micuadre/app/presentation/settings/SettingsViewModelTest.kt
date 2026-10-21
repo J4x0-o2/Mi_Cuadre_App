@@ -1,10 +1,14 @@
 package com.micuadre.app.presentation.settings
 
 import com.micuadre.app.R
+import com.micuadre.app.domain.model.Deduction
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PlatformCounts
+import com.micuadre.app.domain.model.SessionDeductionAmount
 import com.micuadre.app.domain.model.ThemeMode
 import com.micuadre.app.domain.repository.BubblePreferenceRepository
+import com.micuadre.app.domain.repository.DeductionRepository
+import com.micuadre.app.domain.repository.DeductionResult
 import com.micuadre.app.domain.repository.PlatformRepository
 import com.micuadre.app.domain.repository.PlatformResult
 import com.micuadre.app.domain.repository.ThemePreferenceRepository
@@ -55,8 +59,23 @@ class SettingsViewModelTest {
         theme: ThemePreferenceRepository = FakeRepo(),
         platforms: PlatformRepository = NoPlatforms,
         bubble: BubblePreferenceRepository = FakeBubbleRepo(),
-        permission: OverlayPermission = FakePermission()
-    ) = SettingsViewModel(theme, platforms, bubble, permission)
+        permission: OverlayPermission = FakePermission(),
+        deductions: DeductionRepository = NoDeductions
+    ) = SettingsViewModel(theme, platforms, deductions, bubble, permission)
+
+    private object NoDeductions : DeductionRepository {
+        override fun observeActive(): Flow<List<Deduction>> = flowOf(emptyList())
+        override fun observeVisible(): Flow<List<Deduction>> = flowOf(emptyList())
+        override suspend fun create(name: String, usualAmountMinor: Long?) = DeductionResult.Ok
+        override suspend fun rename(id: Long, name: String) = DeductionResult.Ok
+        override suspend fun setVisible(id: Long, visible: Boolean) = DeductionResult.Ok
+        override suspend fun setUsualAmount(id: Long, amountMinor: Long?) = DeductionResult.Ok
+        override suspend fun delete(id: Long) = DeductionResult.Ok
+        override suspend fun saveSessionAmounts(sessionId: Long, amounts: Map<Long, Long>) = DeductionResult.Ok
+        override suspend fun sessionAmounts(sessionId: Long): List<SessionDeductionAmount> = emptyList()
+        override fun observeAmountsStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionDeductionAmount>> =
+            flowOf(emptyList())
+    }
 
     private object NoPlatforms : PlatformRepository {
         override fun observeActive(): Flow<List<Platform>> = flowOf(emptyList())
@@ -139,6 +158,21 @@ class SettingsViewModelTest {
         }
         val vm = viewModel(platforms = platforms)
         assertEquals(PlatformCounts(visible = 2, total = 3), vm.platformCounts.value)
+    }
+
+    @Test
+    fun deductionNamesListActiveDeductionsInOrderHiddenOnesIncluded() = runTest {
+        val deductions = object : DeductionRepository by NoDeductions {
+            override fun observeActive(): Flow<List<Deduction>> =
+                flowOf(listOf(Deduction(1, "Combustible"), Deduction(2, "Comida", visible = false)))
+        }
+        val vm = viewModel(deductions = deductions)
+        assertEquals(listOf("Combustible", "Comida"), vm.deductionNames.value)
+    }
+
+    @Test
+    fun deductionNamesAreEmptyWhenThereAreNoDeductions() = runTest {
+        assertEquals(emptyList<String>(), viewModel().deductionNames.value)
     }
 
     @Test

@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -55,10 +58,12 @@ import com.micuadre.app.presentation.settings.ThemeOptions
 fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPlatforms: () -> Unit,
+    onOpenDeductions: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val selected by viewModel.themeMode.collectAsStateWithLifecycle()
     val platformCounts by viewModel.platformCounts.collectAsStateWithLifecycle()
+    val deductionNames by viewModel.deductionNames.collectAsStateWithLifecycle()
     val bubble by viewModel.bubble.collectAsStateWithLifecycle()
     BackHandler(onBack = onBack)
 
@@ -152,6 +157,15 @@ fun SettingsScreen(
                 },
                 onClick = onOpenPlatforms
             )
+            // Same card shape as the platforms row, separated by the 8 dp gap used between sibling cards.
+            Spacer(Modifier.height(8.dp))
+            SettingsLinkRow(
+                title = stringResource(R.string.settings_deductions_manage),
+                summary = deductionNames?.let { names ->
+                    if (names.isEmpty()) stringResource(R.string.settings_deductions_none) else names.joinToString(", ")
+                },
+                onClick = onOpenDeductions
+            )
             SectionLabel(
                 text = stringResource(R.string.settings_about),
                 modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
@@ -217,7 +231,11 @@ private fun BubbleRow(
 }
 
 @Composable
-private fun PlatformsRow(summary: String?, onClick: () -> Unit) {
+private fun PlatformsRow(summary: String?, onClick: () -> Unit) =
+    SettingsLinkRow(title = stringResource(R.string.settings_platforms_manage), summary = summary, onClick = onClick)
+
+@Composable
+private fun SettingsLinkRow(title: String, summary: String?, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -231,7 +249,7 @@ private fun PlatformsRow(summary: String?, onClick: () -> Unit) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.settings_platforms_manage),
+                text = title,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -239,7 +257,9 @@ private fun PlatformsRow(summary: String?, onClick: () -> Unit) {
                 Text(
                     text = summary,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
