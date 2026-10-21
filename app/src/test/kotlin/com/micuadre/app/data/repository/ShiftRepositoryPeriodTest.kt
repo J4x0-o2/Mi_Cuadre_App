@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.data.local.MiCuadreDatabase
 import com.micuadre.app.data.local.entity.PlatformEntity
+import com.micuadre.app.data.local.entity.DeductionEntity
 import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.usecase.ObservePeriodSummaryUseCase
@@ -34,6 +35,7 @@ class ShiftRepositoryPeriodTest {
     private val zone = ZoneId.of("America/Bogota")
     private lateinit var db: MiCuadreDatabase
     private lateinit var repository: ShiftRepositoryImpl
+    private lateinit var deductions: DeductionRepositoryImpl
     private var didiId = 0L
 
     private fun ms(date: String, time: String = "00:00"): Long =
@@ -46,6 +48,7 @@ class ShiftRepositoryPeriodTest {
             MiCuadreDatabase::class.java
         ).allowMainThreadQueries().build()
         repository = ShiftRepositoryImpl(db.sessionDao(), db.tripDao(), db.connectedIntervalDao(), db.platformDao())
+        deductions = DeductionRepositoryImpl(db, FakeClock(0L))
         didiId = runBlocking {
             db.platformDao().insert(PlatformEntity(name = "Didi", visible = true, createdAt = 0L))
         }
@@ -127,7 +130,7 @@ class ShiftRepositoryPeriodTest {
         val lastWeek = repository.createSession(ms("2026-10-11", "10:00"))
         finishedTrip(lastWeek, "11:00", 50_000, PaymentMethod.CASH)
 
-        val summary = ObservePeriodSummaryUseCase(repository, clock)(Period.WEEK, zone).first()
+        val summary = ObservePeriodSummaryUseCase(repository, deductions, clock)(Period.WEEK, zone).first()
 
         assertEquals(26_000L, summary.totalMinor)
         assertEquals(20_000L, summary.cashMinor)
@@ -136,5 +139,49 @@ class ShiftRepositoryPeriodTest {
         assertEquals(2, summary.workedDays)
         assertEquals(1_800L, summary.connectedSeconds)
         assertEquals(7, summary.buckets.size)
+    }
+
+    @Test
+    fun `use case carries the expenses of the sessions started in the week`() = runBlocking {
+        val clock = FakeClock(ms("2026-10-18", "15:30"))
+        val fuel = db.deductionDao().insert(DeductionEntity(name = "Fuel", visible = true, createdAt = 0L))
+        val monday = repository.createSession(ms("2026-10-12", "20:00"))
+        repository.endSession(monday, ms("2026-10-13", "02:00"))
+        finishedTrip(monday, "21:00", 20_000, PaymentMethod.CASH)
+        val lastWeek = repository.createSession(ms("2026-10-11", "10:00"))
+        deductions.saveSessionAmounts(monday, mapOf(fuel to 5_000L))
+        deductions.saveSessionAmounts(lastWeek, mapOf(fuel to 9_000L))
+
+        val summary = ObservePeriodSummaryUseCase(repository, deductions, clock)(Period.WEEK, zone).first()
+
+        assertEquals(20_000L, summary.totalMinor)
+        assertEquals(5_000L, summary.costsMinor)
+        assertEquals(listOf("Fuel"), summary.costs.map { it.name })
+        assertEquals(5_000L, summary.buckets.first().costsMinor)
+    }
+
+    @Test
+    fun `use case re-emits when the expenses change`() = runBlocking {
+        val clock = FakeClock(ms("2026-10-18", "15:30"))
+        val fuel = db.deductionDao().insert(DeductionEntity(name = "Fuel", visible = true, createdAt = 0L))
+        val session = repository.createSession(ms("2026-10-18", "09:00"))
+        val seen = CopyOnWriteArrayList<Long>()
+        val first = CompletableDeferred<Unit>()
+        val second = CompletableDeferred<Unit>()
+        val collector = launch(Dispatchers.Default) {
+            ObservePeriodSummaryUseCase(repository, deductions, clock)(Period.TODAY, zone).collect {
+                seen += it.costsMinor
+                first.complete(Unit)
+                if (seen.size >= 2) second.complete(Unit)
+            }
+        }
+        withTimeout(5_000L) { first.await() }
+
+        deductions.saveSessionAmounts(session, mapOf(fuel to 7_000L))
+        withTimeout(5_000L) { second.await() }
+        collector.cancel()
+
+        assertEquals(0L, seen.first())
+        assertEquals(7_000L, seen.last())
     }
 }

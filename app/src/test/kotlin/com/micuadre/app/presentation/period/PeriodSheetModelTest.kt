@@ -1,5 +1,6 @@
 package com.micuadre.app.presentation.period
 
+import com.micuadre.app.domain.model.DeductionTotal
 import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.PeriodBucket
 import com.micuadre.app.domain.model.PeriodSummary
@@ -21,11 +22,12 @@ class PeriodSheetModelTest {
         buckets: List<PeriodBucket>,
         total: Long = buckets.sumOf { it.totalMinor },
         trips: Int = 0,
-        workedDays: Int = 0
+        workedDays: Int = 0,
+        costs: List<DeductionTotal> = emptyList()
     ) = PeriodSummary(
         totalMinor = total, cashMinor = total / 2, transferMinor = total - total / 2,
         tripCount = trips, connectedSeconds = 0L, sessionCount = workedDays, workedDays = workedDays,
-        firstSessionStartMs = null, buckets = buckets
+        firstSessionStartMs = null, buckets = buckets, costs = costs
     )
 
     /** Mon 12 .. Sun 18 Oct 2026; Fri 16 earned 92.000, Sat 17 earned 46.000, rest nothing. */
@@ -173,5 +175,141 @@ class PeriodSheetModelTest {
     @Test
     fun `an unknown date yields an empty range text`() {
         assertEquals("", PeriodSheetModel.from(Period.MONTH, summary = null, today = null).rangeText)
+    }
+
+    // ---- expenses and net ----
+
+    private fun costed(day: LocalDate, gross: Long, costs: Long) =
+        PeriodBucket(day, day, pesos(gross), pesos(costs))
+
+    private val fuelAndFood = listOf(DeductionTotal(1, "Fuel", pesos(30_000)), DeductionTotal(2, "Food", pesos(10_000)))
+
+    @Test
+    fun `a period without costs keeps the gross view`() {
+        val model = PeriodSheetModel.from(Period.WEEK, summary(weekBuckets(), workedDays = 2), today = d(18))
+
+        assertFalse(model.hasCosts)
+        assertEquals(emptyList<CostLine>(), model.costLines)
+        assertEquals(0L, model.costsMinor)
+        assertNull(model.netPercent)
+        assertNull(model.costsPercent)
+        assertNull(model.netPerDayMinor)
+        assertEquals(1f, model.bars[4].fraction, 0.0001f)
+        assertEquals(0f, model.bars[4].costFraction, 0.0001f)
+        assertEquals("Viernes: $ 92.000", model.bars[4].description)
+    }
+
+    @Test
+    fun `costs give lines total net and the ratio of the gross`() {
+        val model = PeriodSheetModel.from(
+            Period.WEEK, summary(weekBuckets(), total = pesos(160_000), workedDays = 4, costs = fuelAndFood), today = d(18)
+        )
+
+        assertTrue(model.hasCosts)
+        assertEquals(listOf(CostLine("Fuel", pesos(30_000)), CostLine("Food", pesos(10_000))), model.costLines)
+        assertEquals(pesos(40_000), model.costsMinor)
+        assertEquals(pesos(120_000), model.netMinor)
+        assertEquals(75, model.netPercent)
+        assertEquals(25, model.costsPercent)
+        assertEquals(pesos(160_000), model.totalMinor)
+    }
+
+    @Test
+    fun `net per day divides by the worked days and rounds like the average`() {
+        // net 120.000 / 7 days = 17.142,86 -> 17.143
+        val model = PeriodSheetModel.from(
+            Period.WEEK, summary(weekBuckets(), total = pesos(160_000), workedDays = 7, costs = fuelAndFood), today = d(18)
+        )
+
+        assertEquals(1_714_286L, model.netPerDayMinor)
+    }
+
+    @Test
+    fun `percentages always add up to one hundred`() {
+        val costs = listOf(DeductionTotal(1, "Fuel", pesos(1)))
+        val model = PeriodSheetModel.from(
+            Period.WEEK, summary(weekBuckets(), total = pesos(3), workedDays = 1, costs = costs), today = d(18)
+        )
+
+        assertEquals(33, model.costsPercent)
+        assertEquals(67, model.netPercent)
+    }
+
+    @Test
+    fun `costs above the gross show a negative net and a full cost bar`() {
+        val costs = listOf(DeductionTotal(1, "Fuel", pesos(50_000)))
+        val model = PeriodSheetModel.from(
+            Period.WEEK, summary(weekBuckets(), total = pesos(40_000), workedDays = 2, costs = costs), today = d(18)
+        )
+
+        assertEquals(-pesos(10_000), model.netMinor)
+        assertEquals(100, model.costsPercent)
+        assertEquals(0, model.netPercent)
+        assertEquals(-pesos(5_000), model.netPerDayMinor)
+    }
+
+    @Test
+    fun `a period with costs but no gross has lines and no ratio`() {
+        val costs = listOf(DeductionTotal(1, "Fuel", pesos(5_000)))
+        val model = PeriodSheetModel.from(
+            Period.WEEK, summary(weekBuckets(amounts = emptyMap()), workedDays = 1, costs = costs), today = d(18)
+        )
+
+        assertTrue(model.hasCosts)
+        assertEquals(-pesos(5_000), model.netMinor)
+        assertNull(model.netPercent)
+        assertNull(model.costsPercent)
+    }
+
+    @Test
+    fun `bars stack net and costs to the gross height`() {
+        val buckets = listOf(costed(d(1), 100_000, 25_000), costed(d(2), 50_000, 25_000), costed(d(3), 0, 0))
+        val model = PeriodSheetModel.from(
+            Period.MONTH, summary(buckets, costs = fuelAndFood), today = d(3)
+        )
+
+        assertEquals(0.75f, model.bars[0].netFraction, 0.0001f)
+        assertEquals(0.25f, model.bars[0].costFraction, 0.0001f)
+        assertEquals(1f, model.bars[0].fraction, 0.0001f)
+        assertEquals(0.25f, model.bars[1].netFraction, 0.0001f)
+        assertEquals(0.25f, model.bars[1].costFraction, 0.0001f)
+        assertEquals("$ 100k", model.bars[0].valueText)
+        assertTrue(model.bars[2].isEmpty)
+        assertEquals("Día 1: $ 100.000, gastos $ 25.000, neto $ 75.000", model.bars[0].description)
+    }
+
+    @Test
+    fun `a bucket whose costs exceed its gross is clamped to the costs and flagged`() {
+        val buckets = listOf(costed(d(1), 100_000, 0), costed(d(2), 20_000, 50_000), costed(d(3), 0, 10_000))
+        val model = PeriodSheetModel.from(Period.MONTH, summary(buckets, costs = fuelAndFood), today = d(3))
+
+        assertEquals(0f, model.bars[1].netFraction, 0.0001f)
+        assertEquals(0.5f, model.bars[1].costFraction, 0.0001f)
+        assertTrue(model.bars[1].costsExceedGross)
+        assertFalse(model.bars[0].costsExceedGross)
+        assertTrue(model.hasBarOverrun)
+        assertEquals("Día 2: $ 20.000, gastos $ 50.000, neto − $ 30.000", model.bars[1].description)
+        // Costs without any gross still draw a bar, with no value label.
+        assertFalse(model.bars[2].isEmpty)
+        assertNull(model.bars[2].valueText)
+        assertEquals(0.1f, model.bars[2].costFraction, 0.0001f)
+    }
+
+    @Test
+    fun `bar scale grows to the biggest cost when it passes every gross`() {
+        val buckets = listOf(costed(d(1), 10_000, 40_000))
+        val model = PeriodSheetModel.from(Period.MONTH, summary(buckets, costs = fuelAndFood), today = d(1))
+
+        assertEquals(1f, model.bars.single().costFraction, 0.0001f)
+        assertEquals(1f, model.bars.single().fraction, 0.0001f)
+    }
+
+    @Test
+    fun `a missing summary has no costs`() {
+        val model = PeriodSheetModel.from(Period.WEEK, summary = null, today = d(18))
+
+        assertFalse(model.hasCosts)
+        assertNull(model.netMinor)
+        assertNull(model.netPerDayMinor)
     }
 }

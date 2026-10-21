@@ -19,6 +19,16 @@
     <string name="period_chart_by_week">Por semana</string>
     <string name="period_days_label">Días</string>
     <string name="period_average_label">Prom./día</string>
+    <string name="period_net_per_day_label">Neto/día</string>
+    <string name="period_days_worked">Días trabajados: %1$d</string>
+    <string name="period_costs_title">Gastos y neto</string>
+    <string name="period_costs_legend">Neto %1$d%% · Gastos %2$d%%</string>
+    <string name="period_costs_gross">Ganaste</string>
+    <string name="period_costs_total">Total gastos</string>
+    <string name="period_net_left">Te quedó</string>
+    <string name="period_chart_legend_net">Neto</string>
+    <string name="period_chart_legend_costs">Gastos</string>
+    <string name="period_chart_overrun_note">En algunas barras los gastos superan lo ganado.</string>
     <string name="paused_shift_title">Turno en pausa</string>
     <string name="connected_label">Conectado</string>
     <string name="trips_label">Carreras</string>

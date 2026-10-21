@@ -226,13 +226,38 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
       - UI: with deductions the big number is the net under "TE QUEDÓ" (error tone when negative, "− $ X"),
         and a card lists "Ganaste", each "− $ x" and "Total deducciones" (error tone); metrics, cash/transfer
         (still gross) and platform section unchanged. Without deductions the screen is as before.
-- [ ] T6 Period sheet: PeriodSummary/buckets with expenses, PeriodSheetModel (gastos y neto,
+      - Review (base 508d4e9): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-9a801e92dd70f592).
+- [x] T6 Period sheet: PeriodSummary/buckets with expenses, PeriodSheetModel (gastos y neto,
       stacked bars, NETO/DÍA), PeriodSheet fixed header + scroll. Route: delegated writer.
+      - RED: tests written first (PeriodSummaryTest +6, PeriodSheetModelTest +10, ShiftRepositoryPeriodTest
+        +2 use case combine cases); with the main sources stashed `testDebugUnitTest` failed to compile
+        (ObservePeriodSummaryUseCase constructor, unresolved costs, costsMinor, DeductionTotal, CostLine).
+        One test-only race found and fixed in the re-emit test (wait for the first emission before saving).
+      - GREEN: `./gradlew testDebugUnitTest` BUILD SUCCESSFUL, 634 tests, 0 failures/errors;
+        `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      - Data: PeriodSummary.of takes the session deduction amounts and attributes them to the day/bucket
+        of the session start (same rule as its trips; amounts of sessions outside the range are ignored).
+        PeriodSummary gained `costs` (DeductionTotal per deduction, ordered by deductionId) and `costsMinor`;
+        PeriodBucket gained `costsMinor`. ObservePeriodSummaryUseCase combines
+        ShiftRepository.observeSessionActivity with DeductionRepository.observeAmountsStartedBetween for
+        the same [from, to). `totalMinor` stays gross, so the Home tiles are unchanged.
+      - Model: costLines, costsMinor, netMinor, netPercent/costsPercent (add up to 100; null when the
+        gross is 0), netPerDayMinor (rounded like the average, half away from zero for negatives),
+        hasCosts, per-bar netFraction/costFraction/costsExceedGross. Bar scale = tallest of gross or costs.
+      - Decisions: (1) no costs -> the "Gastos y neto" card, the legend and the NETO/DÍA tile are hidden
+        and bars stay single-color, so the sheet looks as before. (2) Tiles: with costs the row is
+        CARRERAS, PROM./DÍA, NETO/DÍA and "Días trabajados: N" moves to a caption below; without costs
+        it stays CARRERAS, DÍAS, PROM./DÍA. (3) A bucket whose costs exceed its gross is clamped to its
+        costs (no net part), flagged in its description and the chart shows a one-line note. (4) The
+        header (title, close, tabs) is fixed; the range text scrolls with the content.
 - [ ] T7 Docs: README (features + screenshots), CHANGELOG. Route: inline.
 
 ## Follow-ups (non-blocking review suggestions)
 - T3c: a stale Ok/NotFound result after dismiss + reopening an equal dialog is not tested.
 - T4b: no assertion that a later End tap + confirm still works after the guarded lookup return.
+- T5: cancellation rethrow in GetDailySummaryUseCase untested; ShiftSummaryScreen branching (net vs gross label, negative tone, section hidden) has no Compose UI test.
+- T6: PeriodSheet Compose branching (card hidden without costs, stacked vs single bars, tile layout) has no Compose UI test.
 
 ## Acceptance criteria
 - Deductions can be managed in Settings; deleting one keeps past amounts and names.
@@ -251,4 +276,4 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
   recorded per task below.
 
 ## Progress
-- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b, T3c, T3d, T4, T5 done. Next: T6.
+- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b, T3c, T3d, T4, T5, T6 done. Next: T7.
