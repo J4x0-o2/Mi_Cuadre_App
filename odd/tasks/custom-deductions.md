@@ -1,0 +1,77 @@
+# Feature: custom-deductions
+
+## Objective
+Let drivers define their own deductions (fuel, app fee, food...), record what they spent on each
+when a shift ends, and see net earnings next to gross in the shift summary and in the week/month
+sheet.
+
+## Problem / Why
+MiCuadre shows only gross earnings. A driver's real result is gross minus what the shift cost
+(fuel, app fee, food). Today that subtraction happens outside the app, so the "cuadre" is
+incomplete.
+
+## Scope (authorized, user decisions 2026-10-20)
+Designs validated by the user: https://claude.ai/artifact/EkfCuVnMor1pGrU5LP152u (boards 1-7).
+1. Settings › Deducciones: create, rename, show/hide, delete; optional usual amount (prefill).
+   Same UX as Settings › Plataformas. Deleting keeps history (soft delete).
+2. Ending a shift: after the confirmation dialog, a bottom sheet "Gastos del turno" asks an
+   optional amount per visible deduction (blank = 0), live total and "Te queda"; "Omitir" or
+   "Guardar y cerrar". Amounts are stored per shift.
+3. "Turno cerrado" shows net ("Te quedó") with gross, each deduction and the total.
+4. Home week/month tiles keep GROSS. The "Mis ingresos" sheet adds a "Gastos y neto" card (ratio
+   bar, gross, per-deduction totals, total, net), stacked bars (net + expenses, label = gross) and
+   a NETO/DÍA tile. Header (title + tabs) fixed; content scrolls.
+Out of scope: no default deductions are seeded; voseo cleanup of existing copy; Google Sheets.
+
+## Decisions
+- Ordering: the sheet opens BEFORE the shift ends; the amounts travel with the end-shift action
+  and are written in `handleEndShift` before the summary is built. "Omitir" ends with no amounts.
+  Rejected: end first then ask (the summary would show gross and need a re-publish).
+- Storage: Room v4. `deductions(id, name, visible, usualAmountMinor?, createdAt, deletedAt)` and
+  `session_deductions(id, sessionId FK CASCADE, deductionId FK NO ACTION, amountMinor,
+  UNIQUE(sessionId, deductionId))`. Real `MIGRATION_3_4` + MigrationTestHelper tests.
+- Hidden or deleted deductions still count in past totals; only visible ones appear in the sheet.
+- Net per day = net / worked days, rounded like the existing average.
+
+## Constraints
+- Strict TDD (source: global config). Runner: `./gradlew testDebugUnitTest` with
+  `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"`; also `assembleDebug`.
+- Amounts are Long minor units; reuse `AmountInput` / `Formatters`.
+- New UI copy in neutral Spanish; code, comments and docs in English.
+- Conventional Commits, no AI attribution trailers. Never commit `.codegraph/` or `.idea/vcs.xml`.
+- One work-unit commit (or more) per task on feat/custom-deductions.
+
+## Tasks
+- [ ] T1 Room v4: entities, DAOs, MIGRATION_3_4, schema 4.json, DatabaseModule, migration tests
+      (3->4 and full chain). Route: delegated writer.
+- [ ] T2 Domain + repository: Deduction model, name rules, DeductionRepository (observe, create,
+      rename, setVisible, setUsualAmount, delete) and session amounts write/read. Route: delegated.
+- [ ] T3 Settings › Deducciones screen + ViewModel + dialogs, Settings entry row, AppScreen route.
+      Route: delegated writer.
+- [ ] T4 End-shift sheet: dialog/sheet state in HomeDialogCoordinator, sheet composable, amounts
+      through ShiftServiceController -> ShiftService.handleEndShift (written before the summary).
+      Route: delegated writer.
+- [ ] T5 Shift summary net: DailySummary deductions, ShiftSummaryModel + ShiftSummaryScreen.
+      Route: delegated writer.
+- [ ] T6 Period sheet: PeriodSummary/buckets with expenses, PeriodSheetModel (gastos y neto,
+      stacked bars, NETO/DÍA), PeriodSheet fixed header + scroll. Route: delegated writer.
+- [ ] T7 Docs: README (features + screenshots), CHANGELOG. Route: inline.
+
+## Acceptance criteria
+- Deductions can be managed in Settings; deleting one keeps past amounts and names.
+- Ending a shift shows the sheet; "Guardar y cerrar" stores amounts, "Omitir" stores none.
+- The shift summary shows gross, each deduction, total and net.
+- Week/month tiles on Home still show gross; the sheet shows gross, expenses and net, with
+  stacked bars and NETO/DÍA, and scrolls with a fixed header.
+- Upgrading from v3 keeps every existing session, trip, interval and platform.
+
+## Delivery
+- Forecast: about 2,000-2,500 authored changed lines (7 tasks), above the ~400 line budget.
+- Strategy: ask-on-risk; chain strategy feature-branch-chain (user 2026-10-20): each task is a
+  reviewed slice on feat/custom-deductions; main receives the complete feature at the end.
+- User instruction 2026-10-20: work continuously and run a gentle-ai review after EVERY task
+  (standing consent for each task's candidate); push to GitHub when done. Slice boundaries are
+  recorded per task below.
+
+## Progress
+- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. Next: T1.
