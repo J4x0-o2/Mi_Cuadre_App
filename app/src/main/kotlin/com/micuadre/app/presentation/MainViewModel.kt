@@ -102,7 +102,7 @@ class MainViewModel @Inject constructor(
                 }
                 syncTicker(snapshot.shiftState)
                 finishSheets.onShiftState(snapshot.shiftState)
-                dialogs.onShiftState(snapshot.shiftState)
+                dialogs.onShiftState(snapshot.shiftState, snapshot.hasOpenShift)
             }
         }
     }

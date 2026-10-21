@@ -196,6 +196,18 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         active session id, ignores unpriced trips). The Compose wiring itself is not unit-testable.
       - MainViewModel wiring (observeVisible().first() -> sheet / end): no MainViewModel test exists
         and it needs an Android Context (clockChanges), so it stays covered at coordinator level only.
+      - Review (base 0c1957a): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-bedcb741826da38e). WARNING: onShiftState read openness from the stored UI flag, so it
+        relied on the caller refreshing it first -> T4c. Suggestion (coordinator usable after the
+        guarded return) -> follow-ups.
+- [x] T4c onShiftState takes the snapshot's openness as an explicit argument (a paused and an ended
+      shift are both Disconnected, so ShiftState alone cannot tell them apart); MainViewModel passes
+      snapshot.hasOpenShift. The stale-sheet rule no longer depends on update ordering.
+      Route: inline (one coordinator + its caller + its test, already understood).
+      - RED: new test `the sheet closes from the published openness even if the stored flag is not
+        refreshed yet`: first a compile failure (no parameter), then with the parameter added but
+        unused, 28 tests, 1 failed on behavior.
+      - GREEN: `./gradlew testDebugUnitTest assembleDebug` BUILD SUCCESSFUL, 604 tests, 0 failures.
 - [ ] T5 Shift summary net: DailySummary deductions, ShiftSummaryModel + ShiftSummaryScreen.
       Route: delegated writer.
 - [ ] T6 Period sheet: PeriodSummary/buckets with expenses, PeriodSheetModel (gastos y neto,
@@ -204,6 +216,7 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
 
 ## Follow-ups (non-blocking review suggestions)
 - T3c: a stale Ok/NotFound result after dismiss + reopening an equal dialog is not tested.
+- T4b: no assertion that a later End tap + confirm still works after the guarded lookup return.
 
 ## Acceptance criteria
 - Deductions can be managed in Settings; deleting one keeps past amounts and names.

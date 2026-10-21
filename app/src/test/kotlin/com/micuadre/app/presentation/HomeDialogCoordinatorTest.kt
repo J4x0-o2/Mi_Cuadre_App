@@ -146,7 +146,7 @@ class HomeDialogCoordinatorTest {
         onTrip()
         coordinator.onCancelTripTapped()
 
-        coordinator.onShiftState(ShiftState.Connected(connectedSinceMs = 1L))
+        coordinator.onShiftState(ShiftState.Connected(connectedSinceMs = 1L), hasOpenShift = true)
 
         assertNull(ui.value.dialog)
         coordinator.onCancelTripConfirmed()
@@ -158,7 +158,7 @@ class HomeDialogCoordinatorTest {
         onTrip(TRIP_A)
         coordinator.onCancelTripTapped()
 
-        coordinator.onShiftState(ShiftState.OnTrip(connectedSinceMs = 1L, tripStartedAtMs = TRIP_B))
+        coordinator.onShiftState(ShiftState.OnTrip(connectedSinceMs = 1L, tripStartedAtMs = TRIP_B), hasOpenShift = true)
 
         assertNull(ui.value.dialog)
     }
@@ -168,7 +168,7 @@ class HomeDialogCoordinatorTest {
         onTrip(TRIP_A)
         coordinator.onCancelTripTapped()
 
-        coordinator.onShiftState(ShiftState.OnTrip(connectedSinceMs = 1L, tripStartedAtMs = TRIP_A))
+        coordinator.onShiftState(ShiftState.OnTrip(connectedSinceMs = 1L, tripStartedAtMs = TRIP_A), hasOpenShift = true)
 
         assertEquals(HomeDialog.CancelTrip(TRIP_A), ui.value.dialog)
     }
@@ -177,7 +177,7 @@ class HomeDialogCoordinatorTest {
     fun `state changes leave the end shift dialog alone`() {
         coordinator.onEndShiftTapped()
 
-        coordinator.onShiftState(ShiftState.Connected(connectedSinceMs = 1L))
+        coordinator.onShiftState(ShiftState.Connected(connectedSinceMs = 1L), hasOpenShift = true)
 
         assertEquals(HomeDialog.EndShift, ui.value.dialog)
     }
@@ -331,7 +331,7 @@ class HomeDialogCoordinatorTest {
         confirmWith(fuel)
         ui.value = ui.value.copy(hasOpenShift = false)
 
-        coordinator.onShiftState(ShiftState.Disconnected)
+        coordinator.onShiftState(ShiftState.Disconnected, hasOpenShift = false)
         coordinator.onShiftExpensesSaved()
 
         assertNull(ui.value.shiftExpenses)
@@ -339,11 +339,22 @@ class HomeDialogCoordinatorTest {
     }
 
     @Test
+    fun `the sheet closes from the published openness even if the stored flag is not refreshed yet`() {
+        confirmWith(fuel)
+        // The caller has not copied the new snapshot into the UI state yet.
+        assertEquals(true, ui.value.hasOpenShift)
+
+        coordinator.onShiftState(ShiftState.Disconnected, hasOpenShift = false)
+
+        assertNull(ui.value.shiftExpenses)
+    }
+
+    @Test
     fun `the sheet stays open while the shift is paused`() {
         confirmWith(fuel)
         ui.value = ui.value.copy(shiftState = ShiftState.Disconnected, hasOpenShift = true)
 
-        coordinator.onShiftState(ShiftState.Disconnected)
+        coordinator.onShiftState(ShiftState.Disconnected, hasOpenShift = true)
 
         assertEquals(1, ui.value.shiftExpenses?.fields?.size)
     }

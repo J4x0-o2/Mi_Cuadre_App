@@ -104,16 +104,17 @@ class HomeDialogCoordinator(
     }
 
     /**
-     * Must be called every time the shift state is (re)published, after [HomeUiState.hasOpenShift]
-     * was refreshed: drops a cancel dialog whose ride is gone and the expenses sheet of a shift
-     * that is no longer open (a paused shift is still open).
+     * Must be called every time the shift state is (re)published, with the openness of that same
+     * snapshot: drops a cancel dialog whose ride is gone and the expenses sheet of a shift that is
+     * no longer open. Openness is passed in because [state] alone cannot tell a paused shift (still
+     * open) from an ended one: both are Disconnected.
      */
-    fun onShiftState(state: ShiftState) {
+    fun onShiftState(state: ShiftState, hasOpenShift: Boolean) {
         ui.update {
             val dialog = it.dialog
             val staleDialog = dialog is HomeDialog.CancelTrip &&
                 !(state is ShiftState.OnTrip && state.tripStartedAtMs == dialog.tripStartedAtMs)
-            val staleSheet = it.shiftExpenses != null && !it.hasOpenShift
+            val staleSheet = it.shiftExpenses != null && !hasOpenShift
             if (!staleDialog && !staleSheet) return@update it
             it.copy(
                 dialog = if (staleDialog) null else dialog,
