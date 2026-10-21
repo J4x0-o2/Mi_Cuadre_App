@@ -307,6 +307,8 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
 - Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. All tasks done:
   T1, T2, T2b, T3, T3b, T3c, T3d, T4, T4b, T4c, T5, T6, T6b, T6c, T7; every code slice reviewed
   (gentle-ai reliability, APPROVED + acknowledged). 641 unit tests green, assembleDebug green.
-- Next (user): manual device check (Settings › Deducciones, end-shift sheet incl. Omitir and the
-  no-deductions path, Turno cerrado net, week/month sheet with and without costs, scroll with fixed
-  header, stacked bars), then merge into main as 0.5.0 with new screenshots.
+- Device QA on the emulator: 8/8 checks PASS (real v3→v4 migration, CRUD, expenses sheet, Omitir,
+  no-deductions path, week/month net, deleted deduction keeps history, dark theme), no crashes.
+- Released as 1.0.0 (user chose 1.0.0 instead of 0.5.0): bb3a35f chore(release): 1.0.0 (version,
+  CHANGELOG, README "Novedades en 1.0.0" and 6 new screenshots). Assess: medium, under_budget, no
+  review due. Merged into main with --no-ff, tagged v1.0.0, pushed.
