@@ -4,6 +4,7 @@ import com.micuadre.app.R
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.repository.PlatformRepository
 import com.micuadre.app.domain.repository.PlatformResult
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,9 @@ class PlatformsViewModelTest {
         var failure: Throwable? = null
         val calls = mutableListOf<String>()
 
+        /** When set, every write suspends until it completes, to model a write in flight. */
+        var gate: CompletableDeferred<Unit>? = null
+
         override fun observeActive(): Flow<List<Platform>> = platforms
 
         override suspend fun create(name: String): PlatformResult = answer("create:$name")
@@ -39,8 +43,9 @@ class PlatformsViewModelTest {
         override suspend fun setVisible(id: Long, visible: Boolean): PlatformResult = answer("visible:$id:$visible")
         override suspend fun delete(id: Long): PlatformResult = answer("delete:$id")
 
-        private fun answer(call: String): PlatformResult {
+        private suspend fun answer(call: String): PlatformResult {
             calls += call
+            gate?.await()
             failure?.let { throw it }
             return next
         }
@@ -70,6 +75,38 @@ class PlatformsViewModelTest {
         val vm = PlatformsViewModel(FakeRepo(listOf(beat, uber)))
 
         assertFalse(vm.state.value.showNoneVisibleHint)
+    }
+
+    @Test
+    fun `a double confirm writes once and closes the dialog`() = runTest {
+        val repo = FakeRepo()
+        val vm = PlatformsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+
+        vm.onConfirmAdd("Didi")
+        assertTrue(vm.state.value.saving)
+        vm.onConfirmAdd("Didi")
+        repo.gate!!.complete(Unit)
+
+        assertEquals(listOf("create:Didi"), repo.calls)
+        assertNull(vm.state.value.dialog)
+        assertFalse(vm.state.value.saving)
+    }
+
+    @Test
+    fun `dismissing during a write keeps the dialog dismissed`() = runTest {
+        val repo = FakeRepo()
+        val vm = PlatformsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+        vm.onConfirmAdd("Didi")
+
+        vm.onDismissDialog()
+        repo.next = PlatformResult.Duplicate
+        repo.gate!!.complete(Unit)
+
+        assertNull(vm.state.value.dialog)
     }
 
     @Test

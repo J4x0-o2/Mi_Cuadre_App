@@ -167,6 +167,7 @@ fun DeductionsScreen(
             initialName = "",
             initialAmount = "",
             error = dialog.error,
+            saving = state.saving,
             onEdited = viewModel::onFormEdited,
             onConfirm = viewModel::onConfirmAdd,
             onDismiss = viewModel::onDismissDialog
@@ -176,6 +177,7 @@ fun DeductionsScreen(
             initialName = dialog.currentName,
             initialAmount = dialog.currentAmount,
             error = dialog.error,
+            saving = state.saving,
             onEdited = viewModel::onFormEdited,
             onConfirm = viewModel::onConfirmEdit,
             onDismiss = viewModel::onDismissDialog
@@ -185,7 +187,7 @@ fun DeductionsScreen(
             title = { Text(stringResource(R.string.deductions_delete_title, dialog.name)) },
             text = { Text(stringResource(R.string.deductions_delete_message)) },
             confirmButton = {
-                TextButton(onClick = viewModel::onConfirmDelete) {
+                TextButton(onClick = viewModel::onConfirmDelete, enabled = !state.saving) {
                     Text(
                         text = stringResource(R.string.deductions_delete_confirm),
                         color = MaterialTheme.colorScheme.error
@@ -268,6 +270,7 @@ private fun DeductionFormDialog(
     initialName: String,
     initialAmount: String,
     error: DeductionFormError?,
+    saving: Boolean,
     onEdited: () -> Unit,
     onConfirm: (name: String, amount: String) -> Unit,
     onDismiss: () -> Unit
@@ -328,7 +331,7 @@ private fun DeductionFormDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(name, amount) }) {
+            TextButton(onClick = { onConfirm(name, amount) }, enabled = !saving) {
                 Text(stringResource(R.string.deductions_save))
             }
         },

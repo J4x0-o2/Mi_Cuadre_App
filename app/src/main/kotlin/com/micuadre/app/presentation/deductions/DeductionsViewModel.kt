@@ -29,11 +29,16 @@ enum class DeductionFormError { Blank, TooLong, Duplicate, InvalidAmount }
 sealed interface DeductionDialog {
     data class Add(val error: DeductionFormError? = null) : DeductionDialog
 
-    /** [currentAmount] is the usual amount as the field shows it ("15.000"), empty when none. */
+    /**
+     * [currentAmount] is the usual amount as the field shows it ("15.000"), empty when none. The
+     * field only holds whole pesos, so [usualAmountMinor] keeps the exact stored value: confirming
+     * with the field untouched writes it back instead of the truncated text.
+     */
     data class Edit(
         val id: Long,
         val currentName: String,
         val currentAmount: String,
+        val usualAmountMinor: Long? = null,
         val error: DeductionFormError? = null
     ) : DeductionDialog
 
@@ -43,6 +48,8 @@ sealed interface DeductionDialog {
 data class DeductionsUiState(
     val deductions: List<Deduction> = emptyList(),
     val dialog: DeductionDialog? = null,
+    /** A dialog write is in flight: further confirms are ignored and the button can be disabled. */
+    val saving: Boolean = false,
     val isLoading: Boolean = true
 )
 
@@ -67,8 +74,10 @@ class DeductionsViewModel @Inject constructor(
 
     private val dialog = MutableStateFlow<DeductionDialog?>(null)
 
-    val state: StateFlow<DeductionsUiState> = combine(repository.observeActive(), dialog) { deductions, dialog ->
-        DeductionsUiState(deductions = deductions, dialog = dialog, isLoading = false)
+    private val saving = MutableStateFlow(false)
+
+    val state: StateFlow<DeductionsUiState> = combine(repository.observeActive(), dialog, saving) { deductions, dialog, saving ->
+        DeductionsUiState(deductions = deductions, dialog = dialog, saving = saving, isLoading = false)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, DeductionsUiState())
 
     private val _message = MutableStateFlow<UiMessage?>(null)
@@ -95,7 +104,8 @@ class DeductionsViewModel @Inject constructor(
         dialog.value = DeductionDialog.Edit(
             id = deduction.id,
             currentName = deduction.name,
-            currentAmount = deduction.usualAmountMinor?.let { AmountInput.format((it / 100L).toString()) }.orEmpty()
+            currentAmount = deduction.usualAmountMinor?.let { AmountInput.format((it / 100L).toString()) }.orEmpty(),
+            usualAmountMinor = deduction.usualAmountMinor
         )
     }
 
@@ -110,10 +120,11 @@ class DeductionsViewModel @Inject constructor(
 
     /** The user is typing again: the previous inline error no longer applies. */
     fun onFormEdited() {
+        // Keeps the same instance when there is no error, so a write in flight still finds its dialog.
         dialog.update {
-            when (it) {
-                is DeductionDialog.Add -> it.copy(error = null)
-                is DeductionDialog.Edit -> it.copy(error = null)
+            when {
+                it is DeductionDialog.Add && it.error != null -> it.copy(error = null)
+                it is DeductionDialog.Edit && it.error != null -> it.copy(error = null)
                 else -> it
             }
         }
@@ -121,41 +132,57 @@ class DeductionsViewModel @Inject constructor(
 
     /** [amount] is the field text; empty or zero means no usual amount. */
     fun onConfirmAdd(name: String, amount: String) {
-        if (dialog.value !is DeductionDialog.Add) return
+        val current = dialog.value as? DeductionDialog.Add ?: return
+        if (!saving.compareAndSet(expect = false, update = true)) return
         viewModelScope.launch {
-            val result = write { repository.create(name, AmountInput.toMinor(amount)) } ?: return@launch
-            settle(result) { DeductionDialog.Add(error = it) }
+            try {
+                val result = write { repository.create(name, AmountInput.toMinor(amount)) } ?: return@launch
+                settle(current, result) { DeductionDialog.Add(error = it) }
+            } finally {
+                saving.value = false
+            }
         }
     }
 
     fun onConfirmEdit(name: String, amount: String) {
         val current = dialog.value as? DeductionDialog.Edit ?: return
+        if (!saving.compareAndSet(expect = false, update = true)) return
         viewModelScope.launch {
-            // The amount is only written once the name was accepted, so a refused name changes nothing.
-            val result = write {
-                val renamed = repository.rename(current.id, name)
-                if (renamed == DeductionResult.Ok) {
-                    repository.setUsualAmount(current.id, AmountInput.toMinor(amount))
-                } else {
-                    renamed
-                }
-            } ?: return@launch
-            settle(result) { current.copy(error = it) }
+            try {
+                // The field holds whole pesos only: untouched text keeps the exact stored amount.
+                val usual = if (amount == current.currentAmount) current.usualAmountMinor else AmountInput.toMinor(amount)
+                val result = write { repository.update(current.id, name, usual) } ?: return@launch
+                settle(current, result) { current.copy(error = it) }
+            } finally {
+                saving.value = false
+            }
         }
     }
 
     fun onConfirmDelete() {
         val current = dialog.value as? DeductionDialog.Delete ?: return
+        if (!saving.compareAndSet(expect = false, update = true)) return
         viewModelScope.launch {
-            // Already deleted elsewhere is as good as deleted: either way the dialog is done.
-            write { repository.delete(current.id) }
-            dialog.value = null
+            try {
+                // Already deleted elsewhere is as good as deleted: either way the dialog is done.
+                write { repository.delete(current.id) }
+                dialog.compareAndSet(current, null)
+            } finally {
+                saving.value = false
+            }
         }
     }
 
-    /** Closes the dialog on success, or reopens it with the inline error the result maps to. */
-    private fun settle(result: DeductionResult, withError: (DeductionFormError) -> DeductionDialog) {
-        dialog.value = when (result) {
+    /**
+     * Closes the dialog on success, or reopens it with the inline error the result maps to. Does
+     * nothing when the user already dismissed or replaced [opened] while the write was running.
+     */
+    private fun settle(
+        opened: DeductionDialog,
+        result: DeductionResult,
+        withError: (DeductionFormError) -> DeductionDialog
+    ) {
+        val next = when (result) {
             DeductionResult.Blank -> withError(DeductionFormError.Blank)
             DeductionResult.TooLong -> withError(DeductionFormError.TooLong)
             DeductionResult.Duplicate -> withError(DeductionFormError.Duplicate)
@@ -163,6 +190,7 @@ class DeductionsViewModel @Inject constructor(
             // NotFound: the deduction vanished while the dialog was open, nothing left to edit.
             DeductionResult.Ok, DeductionResult.NotFound -> null
         }
+        dialog.compareAndSet(opened, next)
     }
 
     /** Runs a repository write; on a storage failure posts a message, closes any dialog, returns null. */

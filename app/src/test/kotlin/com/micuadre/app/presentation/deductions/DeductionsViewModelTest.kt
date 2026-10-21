@@ -5,6 +5,8 @@ import com.micuadre.app.domain.model.Deduction
 import com.micuadre.app.domain.model.SessionDeductionAmount
 import com.micuadre.app.domain.repository.DeductionRepository
 import com.micuadre.app.domain.repository.DeductionResult
+import android.database.sqlite.SQLiteException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -33,11 +35,16 @@ class DeductionsViewModelTest {
         var failure: Throwable? = null
         val calls = mutableListOf<String>()
 
+        /** When set, every write suspends until it completes, to model a write in flight. */
+        var gate: CompletableDeferred<Unit>? = null
+
         override fun observeActive(): Flow<List<Deduction>> = deductions
         override fun observeVisible(): Flow<List<Deduction>> = deductions
 
         override suspend fun create(name: String, usualAmountMinor: Long?) = answer("create:$name:$usualAmountMinor")
         override suspend fun rename(id: Long, name: String) = answer("rename:$id:$name")
+        override suspend fun update(id: Long, name: String, usualAmountMinor: Long?) =
+            answer("update:$id:$name:$usualAmountMinor")
         override suspend fun setVisible(id: Long, visible: Boolean) = answer("visible:$id:$visible")
         override suspend fun setUsualAmount(id: Long, amountMinor: Long?) = answer("usual:$id:$amountMinor")
         override suspend fun delete(id: Long) = answer("delete:$id")
@@ -46,8 +53,9 @@ class DeductionsViewModelTest {
         override fun observeAmountsStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionDeductionAmount>> =
             MutableStateFlow(emptyList())
 
-        private fun answer(call: String): DeductionResult {
+        private suspend fun answer(call: String): DeductionResult {
             calls += call
+            gate?.await()
             failure?.let { throw it }
             return next
         }
@@ -174,7 +182,12 @@ class DeductionsViewModelTest {
 
         vm.onEditClick(fuel.id)
         assertEquals(
-            DeductionDialog.Edit(id = 1, currentName = "Combustible", currentAmount = "15.000"),
+            DeductionDialog.Edit(
+                id = 1,
+                currentName = "Combustible",
+                currentAmount = "15.000",
+                usualAmountMinor = 1_500_000L
+            ),
             vm.state.value.dialog
         )
 
@@ -195,14 +208,14 @@ class DeductionsViewModelTest {
     }
 
     @Test
-    fun `confirming an edit renames then sets the usual amount`() = runTest {
+    fun `confirming an edit updates name and usual amount in one call`() = runTest {
         val repo = FakeRepo(listOf(fuel))
         val vm = DeductionsViewModel(repo)
         vm.onEditClick(fuel.id)
 
         vm.onConfirmEdit("Gasolina", "20.000")
 
-        assertEquals(listOf("rename:1:Gasolina", "usual:1:2000000"), repo.calls)
+        assertEquals(listOf("update:1:Gasolina:2000000"), repo.calls)
         assertNull(vm.state.value.dialog)
     }
 
@@ -214,11 +227,11 @@ class DeductionsViewModelTest {
 
         vm.onConfirmEdit("Combustible", "")
 
-        assertEquals(listOf("rename:1:Combustible", "usual:1:null"), repo.calls)
+        assertEquals(listOf("update:1:Combustible:null"), repo.calls)
     }
 
     @Test
-    fun `a refused rename keeps the edit dialog open and skips the amount`() = runTest {
+    fun `a refused edit keeps the dialog open`() = runTest {
         val repo = FakeRepo(listOf(fuel, food))
         val vm = DeductionsViewModel(repo)
         vm.onEditClick(food.id)
@@ -226,7 +239,7 @@ class DeductionsViewModelTest {
 
         vm.onConfirmEdit("combustible", "5.000")
 
-        assertEquals(listOf("rename:2:combustible"), repo.calls)
+        assertEquals(listOf("update:2:combustible:500000"), repo.calls)
         assertEquals(
             DeductionDialog.Edit(
                 id = 2,
@@ -317,6 +330,133 @@ class DeductionsViewModelTest {
         assertEquals(second, vm.message.value)
         vm.onMessageShown(second.id)
         assertNull(vm.message.value)
+    }
+
+    @Test
+    fun `leaving the amount untouched keeps a usual amount that is not a whole peso`() = runTest {
+        val odd = Deduction(id = 5, name = "Peajes", usualAmountMinor = 150_050L)
+        val repo = FakeRepo(listOf(odd))
+        val vm = DeductionsViewModel(repo)
+        vm.onEditClick(odd.id)
+
+        vm.onConfirmEdit("Peajes", (vm.state.value.dialog as DeductionDialog.Edit).currentAmount)
+
+        assertEquals(listOf("update:5:Peajes:150050"), repo.calls)
+    }
+
+    @Test
+    fun `changing the amount replaces a usual amount that is not a whole peso`() = runTest {
+        val odd = Deduction(id = 5, name = "Peajes", usualAmountMinor = 150_050L)
+        val repo = FakeRepo(listOf(odd))
+        val vm = DeductionsViewModel(repo)
+        vm.onEditClick(odd.id)
+
+        vm.onConfirmEdit("Peajes", "2.000")
+
+        assertEquals(listOf("update:5:Peajes:200000"), repo.calls)
+    }
+
+    @Test
+    fun `a sub-peso usual amount is kept when the field stays empty`() = runTest {
+        val tiny = Deduction(id = 6, name = "Peajes", usualAmountMinor = 50L)
+        val repo = FakeRepo(listOf(tiny))
+        val vm = DeductionsViewModel(repo)
+        vm.onEditClick(tiny.id)
+        assertEquals("", (vm.state.value.dialog as DeductionDialog.Edit).currentAmount)
+
+        vm.onConfirmEdit("Peajes", "")
+
+        assertEquals(listOf("update:6:Peajes:50"), repo.calls)
+    }
+
+    @Test
+    fun `a double confirm writes once and closes the dialog`() = runTest {
+        val repo = FakeRepo()
+        val vm = DeductionsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+
+        vm.onConfirmAdd("Peajes", "")
+        assertTrue(vm.state.value.saving)
+        vm.onConfirmAdd("Peajes", "")
+        repo.gate!!.complete(Unit)
+
+        assertEquals(listOf("create:Peajes:null"), repo.calls)
+        assertNull(vm.state.value.dialog)
+        assertFalse(vm.state.value.saving)
+    }
+
+    @Test
+    fun `a double confirm of an edit writes once`() = runTest {
+        val repo = FakeRepo(listOf(fuel))
+        val vm = DeductionsViewModel(repo)
+        vm.onEditClick(fuel.id)
+        repo.gate = CompletableDeferred()
+
+        vm.onConfirmEdit("Gasolina", "")
+        vm.onConfirmEdit("Gasolina", "")
+        repo.gate!!.complete(Unit)
+
+        assertEquals(listOf("update:1:Gasolina:null"), repo.calls)
+    }
+
+    @Test
+    fun `dismissing during a write keeps the dialog dismissed`() = runTest {
+        val repo = FakeRepo()
+        val vm = DeductionsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+        vm.onConfirmAdd("Peajes", "")
+
+        vm.onDismissDialog()
+        repo.next = DeductionResult.Duplicate
+        repo.gate!!.complete(Unit)
+
+        assertNull(vm.state.value.dialog)
+        assertFalse(vm.state.value.saving)
+    }
+
+    @Test
+    fun `typing during a write does not stop the dialog from closing`() = runTest {
+        val repo = FakeRepo()
+        val vm = DeductionsViewModel(repo)
+        vm.onAddClick()
+        repo.gate = CompletableDeferred()
+        vm.onConfirmAdd("Peajes", "")
+
+        vm.onFormEdited()
+        repo.gate!!.complete(Unit)
+
+        assertNull(vm.state.value.dialog)
+    }
+
+    @Test
+    fun `a failed write releases saving so the user can retry`() = runTest {
+        val repo = FakeRepo()
+        val vm = DeductionsViewModel(repo)
+        vm.onAddClick()
+        repo.failure = IOException("disk full")
+        vm.onConfirmAdd("Peajes", "")
+        assertFalse(vm.state.value.saving)
+
+        repo.failure = null
+        vm.onAddClick()
+        vm.onConfirmAdd("Peajes", "")
+        assertEquals(2, repo.calls.size)
+    }
+
+    @Test
+    fun `a sqlite failure posts the save error and closes the dialog`() = runTest {
+        val repo = FakeRepo(listOf(fuel))
+        val vm = DeductionsViewModel(repo)
+        repo.failure = SQLiteException("database is locked")
+        vm.onEditClick(fuel.id)
+
+        vm.onConfirmEdit("Gasolina", "")
+
+        assertEquals(R.string.deductions_save_error, vm.message.value?.textRes)
+        assertNull(vm.state.value.dialog)
+        assertFalse(vm.state.value.saving)
     }
 
     @Test

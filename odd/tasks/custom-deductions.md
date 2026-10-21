@@ -101,6 +101,25 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         amount field reuses AmountInput (digits only, so InvalidAmount is a defensive error). Settings
         summary is the names list (SettingsViewModel.deductionNames) or the hint when none.
         SettingsScreen's PlatformsRow now shares a private SettingsLinkRow with the new row.
+      - Review (base 3446567): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-4aa13fce849149bb); advisories -> T3b.
+- [x] T3b T3 review advisories: single-flight confirms, atomic edit, exact usual amount. Route: delegated writer.
+      - RED: new tests written first (repository `update` x4, DeductionsViewModel double confirm,
+        dismiss during write, typing during write, non-whole-peso prefill x3, retry after failure,
+        SQLiteException path; PlatformsViewModel double confirm and dismiss during write);
+        `testDebugUnitTest` failed to compile (unresolved `update`, `saving`, Edit.usualAmountMinor).
+      - GREEN: `./gradlew testDebugUnitTest` BUILD SUCCESSFUL, 559 tests, 0 failures/errors;
+        `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      - Fix: DeductionsUiState.saving is set with compareAndSet before a confirm launches, so a second
+        confirm is ignored and the dialog buttons are disabled; settle/delete only apply when the same
+        dialog is still open (compareAndSet), so a dismissed dialog stays dismissed. onFormEdited keeps
+        the same instance when there is no error, so typing during a write cannot block the close.
+      - Atomic edit: DeductionRepository.update(id, name, usualAmountMinor) validates both and writes in
+        one transaction; the VM uses it instead of rename + setUsualAmount.
+      - Usual amount: Edit keeps the exact stored usualAmountMinor; the field text unchanged writes it
+        back, so 1.500,50 pesos is no longer truncated to 1.500 by an untouched edit.
+      - PlatformsViewModel had the same root cause (no in-flight guard, unconditional settle); same guard
+        and `saving` flag applied there, with two tests; PlatformsScreen disables the buttons too.
 - [ ] T4 End-shift sheet: dialog/sheet state in HomeDialogCoordinator, sheet composable, amounts
       through ShiftServiceController -> ShiftService.handleEndShift (written before the summary).
       Route: delegated writer.
@@ -127,4 +146,4 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
   recorded per task below.
 
 ## Progress
-- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3 done. Next: T4.
+- Branch feat/custom-deductions created from main (d9f32fe, v0.4.1). Doc created. T1, T2, T2b, T3, T3b done. Next: T4.

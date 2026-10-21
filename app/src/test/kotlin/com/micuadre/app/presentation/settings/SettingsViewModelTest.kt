@@ -70,6 +70,7 @@ class SettingsViewModelTest {
         override suspend fun rename(id: Long, name: String) = DeductionResult.Ok
         override suspend fun setVisible(id: Long, visible: Boolean) = DeductionResult.Ok
         override suspend fun setUsualAmount(id: Long, amountMinor: Long?) = DeductionResult.Ok
+        override suspend fun update(id: Long, name: String, usualAmountMinor: Long?) = DeductionResult.Ok
         override suspend fun delete(id: Long) = DeductionResult.Ok
         override suspend fun saveSessionAmounts(sessionId: Long, amounts: Map<Long, Long>) = DeductionResult.Ok
         override suspend fun sessionAmounts(sessionId: Long): List<SessionDeductionAmount> = emptyList()

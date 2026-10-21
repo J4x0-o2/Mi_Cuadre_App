@@ -58,6 +58,17 @@ class DeductionRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun update(id: Long, name: String, usualAmountMinor: Long?): DeductionResult {
+        val normalized = DeductionName.normalize(name)
+        validate(normalized, usualAmountMinor)?.let { return it }
+        return db.withTransaction {
+            if (isTaken(normalized, exceptId = id)) return@withTransaction DeductionResult.Duplicate
+            if (dao.rename(id, normalized) == 0) return@withTransaction DeductionResult.NotFound
+            dao.setUsualAmount(id, usualAmountMinor)
+            DeductionResult.Ok
+        }
+    }
+
     override suspend fun setVisible(id: Long, visible: Boolean): DeductionResult =
         if (dao.setVisible(id, visible) > 0) DeductionResult.Ok else DeductionResult.NotFound
 

@@ -40,6 +40,8 @@ sealed interface PlatformDialog {
 data class PlatformsUiState(
     val platforms: List<Platform> = emptyList(),
     val dialog: PlatformDialog? = null,
+    /** A dialog write is in flight: further confirms are ignored and the button can be disabled. */
+    val saving: Boolean = false,
     val isLoading: Boolean = true
 ) {
     /** True when no platform would be offered when finishing a trip (including an empty list). */
@@ -53,8 +55,10 @@ class PlatformsViewModel @Inject constructor(
 
     private val dialog = MutableStateFlow<PlatformDialog?>(null)
 
-    val state: StateFlow<PlatformsUiState> = combine(repository.observeActive(), dialog) { platforms, dialog ->
-        PlatformsUiState(platforms = platforms, dialog = dialog, isLoading = false)
+    private val saving = MutableStateFlow(false)
+
+    val state: StateFlow<PlatformsUiState> = combine(repository.observeActive(), dialog, saving) { platforms, dialog, saving ->
+        PlatformsUiState(platforms = platforms, dialog = dialog, saving = saving, isLoading = false)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, PlatformsUiState())
 
     private val _message = MutableStateFlow<UiMessage?>(null)
@@ -92,49 +96,69 @@ class PlatformsViewModel @Inject constructor(
 
     /** The user is typing again: the previous inline error no longer applies. */
     fun onNameEdited() {
+        // Keeps the same instance when there is no error, so a write in flight still finds its dialog.
         dialog.update {
-            when (it) {
-                is PlatformDialog.Add -> it.copy(error = null)
-                is PlatformDialog.Rename -> it.copy(error = null)
+            when {
+                it is PlatformDialog.Add && it.error != null -> it.copy(error = null)
+                it is PlatformDialog.Rename && it.error != null -> it.copy(error = null)
                 else -> it
             }
         }
     }
 
     fun onConfirmAdd(name: String) {
-        if (dialog.value !is PlatformDialog.Add) return
+        val current = dialog.value as? PlatformDialog.Add ?: return
+        if (!saving.compareAndSet(expect = false, update = true)) return
         viewModelScope.launch {
-            val result = write { repository.create(name) } ?: return@launch
-            settle(result) { PlatformDialog.Add(error = it) }
+            try {
+                val result = write { repository.create(name) } ?: return@launch
+                settle(current, result) { PlatformDialog.Add(error = it) }
+            } finally {
+                saving.value = false
+            }
         }
     }
 
     fun onConfirmRename(name: String) {
         val current = dialog.value as? PlatformDialog.Rename ?: return
+        if (!saving.compareAndSet(expect = false, update = true)) return
         viewModelScope.launch {
-            val result = write { repository.rename(current.id, name) } ?: return@launch
-            settle(result) { current.copy(error = it) }
+            try {
+                val result = write { repository.rename(current.id, name) } ?: return@launch
+                settle(current, result) { current.copy(error = it) }
+            } finally {
+                saving.value = false
+            }
         }
     }
 
     fun onConfirmDelete() {
         val current = dialog.value as? PlatformDialog.Delete ?: return
+        if (!saving.compareAndSet(expect = false, update = true)) return
         viewModelScope.launch {
-            // Already deleted elsewhere is as good as deleted: either way the dialog is done.
-            write { repository.delete(current.id) }
-            dialog.value = null
+            try {
+                // Already deleted elsewhere is as good as deleted: either way the dialog is done.
+                write { repository.delete(current.id) }
+                dialog.compareAndSet(current, null)
+            } finally {
+                saving.value = false
+            }
         }
     }
 
-    /** Closes the dialog on success, or reopens it with the inline error the result maps to. */
-    private fun settle(result: PlatformResult, withError: (PlatformNameError) -> PlatformDialog) {
-        dialog.value = when (result) {
+    /**
+     * Closes the dialog on success, or reopens it with the inline error the result maps to. Does
+     * nothing when the user already dismissed or replaced [opened] while the write was running.
+     */
+    private fun settle(opened: PlatformDialog, result: PlatformResult, withError: (PlatformNameError) -> PlatformDialog) {
+        val next = when (result) {
             PlatformResult.Blank -> withError(PlatformNameError.Blank)
             PlatformResult.TooLong -> withError(PlatformNameError.TooLong)
             PlatformResult.Duplicate -> withError(PlatformNameError.Duplicate)
             // NotFound: the platform vanished while the dialog was open, nothing left to edit.
             PlatformResult.Ok, PlatformResult.NotFound -> null
         }
+        dialog.compareAndSet(opened, next)
     }
 
     /** Runs a repository write; on a storage failure posts a message, closes any dialog, returns null. */

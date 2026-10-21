@@ -47,6 +47,12 @@ interface DeductionRepository {
     /** Renames the deduction; keeping its own name with a different case is allowed. */
     suspend fun rename(id: Long, name: String): DeductionResult
 
+    /**
+     * Renames the deduction and sets its usual amount (null clears it) in one transaction: when
+     * either part is refused nothing is written and the first error is returned.
+     */
+    suspend fun update(id: Long, name: String, usualAmountMinor: Long?): DeductionResult
+
     /** Shows or hides the deduction in the end-of-shift sheet. */
     suspend fun setVisible(id: Long, visible: Boolean): DeductionResult
 

@@ -140,6 +140,57 @@ class DeductionRepositoryImplTest {
     }
 
     @Test
+    fun `update writes the name and the usual amount together`() = runBlocking {
+        repository.create("Combustible", 3_000L)
+        val id = idOf("Combustible")
+
+        assertEquals(DeductionResult.Ok, repository.update(id, " Gasolina ", 150_050L))
+        val saved = repository.observeActive().first().single()
+        assertEquals("Gasolina", saved.name)
+        assertEquals(150_050L, saved.usualAmountMinor)
+
+        assertEquals(DeductionResult.Ok, repository.update(id, "Gasolina", null))
+        assertNull(repository.observeActive().first().single().usualAmountMinor)
+    }
+
+    @Test
+    fun `update writes nothing when the name is refused`() = runBlocking {
+        repository.create("Combustible", 3_000L)
+        repository.create("Comida")
+        val id = idOf("Combustible")
+
+        assertEquals(DeductionResult.Duplicate, repository.update(id, "comida", 9_000L))
+        assertEquals(DeductionResult.Blank, repository.update(id, " ", 9_000L))
+        assertEquals(DeductionResult.TooLong, repository.update(id, "x".repeat(31), 9_000L))
+
+        val saved = repository.observeActive().first().first()
+        assertEquals("Combustible", saved.name)
+        assertEquals(3_000L, saved.usualAmountMinor)
+    }
+
+    @Test
+    fun `update writes nothing when the amount is negative`() = runBlocking {
+        repository.create("Combustible", 3_000L)
+        val id = idOf("Combustible")
+
+        assertEquals(DeductionResult.InvalidAmount, repository.update(id, "Gasolina", -1L))
+
+        val saved = repository.observeActive().first().single()
+        assertEquals("Combustible", saved.name)
+        assertEquals(3_000L, saved.usualAmountMinor)
+    }
+
+    @Test
+    fun `update on an unknown or deleted deduction is not found`() = runBlocking {
+        repository.create("Combustible")
+        val id = idOf("Combustible")
+        repository.delete(id)
+
+        assertEquals(DeductionResult.NotFound, repository.update(id, "Otro", 1L))
+        assertEquals(DeductionResult.NotFound, repository.update(999L, "Otro", 1L))
+    }
+
+    @Test
     fun `delete hides the deduction everywhere, stamps deletedAt and frees the name`() = runBlocking {
         repository.create("Combustible")
         val id = idOf("Combustible")
