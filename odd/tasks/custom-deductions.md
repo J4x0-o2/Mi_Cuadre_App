@@ -251,6 +251,18 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         it stays CARRERAS, DÍAS, PROM./DÍA. (3) A bucket whose costs exceed its gross is clamped to its
         costs (no net part), flagged in its description and the chart shows a one-line note. (4) The
         header (title, close, tabs) is fixed; the range text scrolls with the content.
+      - TDD note (parent): the writer implemented before running the new tests, so RED was only
+        reconstructed afterwards (stashing app/src/main -> compile failure); no behavioral RED was
+        observed before the implementation for T6.
+      - Review (base 15d2e5f): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-95b1f959becbc49e). WARNING: stacked bar segments had no minimum height (regression vs
+        the single bar's stub) -> T6b. Suggestion (negative half rounding untested) -> T6b.
+- [x] T6b Stacked bar segments keep the stub minimum height (each non-zero segment
+      coerceAtLeast(StubHeight)); test for negative net per day rounding half away from zero.
+      Route: inline (one composable branch + one model test).
+      - The rounding test passed at once (it covers existing behavior; no RED). The bar fix is Compose
+        only and has no unit test (no Compose UI test setup) -> verify on device.
+      - GREEN: `./gradlew testDebugUnitTest assembleDebug` BUILD SUCCESSFUL, 635 tests, 0 failures.
 - [ ] T7 Docs: README (features + screenshots), CHANGELOG. Route: inline.
 
 ## Follow-ups (non-blocking review suggestions)

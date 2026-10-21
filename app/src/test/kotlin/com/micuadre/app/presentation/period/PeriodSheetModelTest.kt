@@ -249,6 +249,18 @@ class PeriodSheetModelTest {
     }
 
     @Test
+    fun `a negative net per day rounds half away from zero`() {
+        // net -3 minor over 2 days = -1.5 -> -2, mirroring how +1.5 rounds to +2.
+        val costs = listOf(DeductionTotal(1, "Fuel", pesos(40_000) + 3L))
+        val model = PeriodSheetModel.from(
+            Period.WEEK, summary(weekBuckets(), total = pesos(40_000), workedDays = 2, costs = costs), today = d(18)
+        )
+
+        assertEquals(-3L, model.netMinor)
+        assertEquals(-2L, model.netPerDayMinor)
+    }
+
+    @Test
     fun `a period with costs but no gross has lines and no ratio`() {
         val costs = listOf(DeductionTotal(1, "Fuel", pesos(5_000)))
         val model = PeriodSheetModel.from(

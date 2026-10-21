@@ -470,11 +470,21 @@ private fun Bar(bar: BarModel, stacked: Boolean, modifier: Modifier = Modifier) 
                 Box(barModifier.height(StubHeight).background(MaterialTheme.colorScheme.outlineVariant, corners))
             stacked ->
                 Column(barModifier.clip(corners)) {
+                    // Each drawn segment keeps the stub height, like the single bar, so a small day
+                    // next to a tall one never shrinks into an invisible bar.
                     if (bar.costFraction > 0f) {
-                        Box(Modifier.fillMaxWidth().height(BarAreaHeight * bar.costFraction).background(tone(gold)))
+                        Box(
+                            Modifier.fillMaxWidth()
+                                .height((BarAreaHeight * bar.costFraction).coerceAtLeast(StubHeight))
+                                .background(tone(gold))
+                        )
                     }
                     if (bar.netFraction > 0f) {
-                        Box(Modifier.fillMaxWidth().height(BarAreaHeight * bar.netFraction).background(tone(money)))
+                        Box(
+                            Modifier.fillMaxWidth()
+                                .height((BarAreaHeight * bar.netFraction).coerceAtLeast(StubHeight))
+                                .background(tone(money))
+                        )
                     }
                 }
             else ->
