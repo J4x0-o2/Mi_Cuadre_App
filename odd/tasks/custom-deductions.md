@@ -134,6 +134,22 @@ Out of scope: no default deductions are seeded; voseo cleanup of existing copy; 
         confirms capture it and settle/delete apply only if it is still current, updating the CURRENT
         dialog (user's latest text kept when showing an error). An empty amount field always clears the
         usual amount; only a non-empty untouched field keeps the exact stored minor value.
+      - Review (base a25e186): medium, granted (standing consent), reliability APPROVED + acknowledged
+        (review-dfc6e80b5a2e0b93). WARNING: a stored sub-peso usual amount opens as an empty field and
+        is erased by a rename-only edit -> T3d. Suggestion (stale Ok result on a reopened dialog) ->
+        follow-ups.
+- [x] T3d Root fix for sub-peso usual amounts: the repository rejects usual amounts that are not
+      whole pesos (InvalidAmount), matching AmountInput, which only produces whole pesos; so every
+      stored usual amount is editable and the empty-field-clears rule cannot lose data.
+      Route: inline (one repository file + its test, already understood).
+      - RED: new repository test `usual amounts must be whole pesos...`: 19 tests, 1 failed.
+      - GREEN: 3 existing tests used sub-peso filler values (1L, 150_050L) and were moved to whole
+        pesos without changing what they assert; `./gradlew testDebugUnitTest assembleDebug`
+        BUILD SUCCESSFUL, 571 tests, 0 failures.
+
+## Follow-ups (non-blocking review suggestions)
+- T3c: a stale Ok/NotFound result after dismiss + reopening an equal dialog is not tested.
+
 - [ ] T4 End-shift sheet: dialog/sheet state in HomeDialogCoordinator, sheet composable, amounts
       through ShiftServiceController -> ShiftService.handleEndShift (written before the summary).
       Route: delegated writer.

@@ -73,7 +73,7 @@ class DeductionRepositoryImpl @Inject constructor(
         if (dao.setVisible(id, visible) > 0) DeductionResult.Ok else DeductionResult.NotFound
 
     override suspend fun setUsualAmount(id: Long, amountMinor: Long?): DeductionResult {
-        if (amountMinor != null && amountMinor < 0) return DeductionResult.InvalidAmount
+        if (!isValidUsualAmount(amountMinor)) return DeductionResult.InvalidAmount
         return if (dao.setUsualAmount(id, amountMinor) > 0) DeductionResult.Ok else DeductionResult.NotFound
     }
 
@@ -103,9 +103,16 @@ class DeductionRepositoryImpl @Inject constructor(
     private fun validate(normalized: String, usualAmountMinor: Long?): DeductionResult? = when {
         normalized.isEmpty() -> DeductionResult.Blank
         normalized.length > DeductionName.MAX_LENGTH -> DeductionResult.TooLong
-        usualAmountMinor != null && usualAmountMinor < 0 -> DeductionResult.InvalidAmount
+        !isValidUsualAmount(usualAmountMinor) -> DeductionResult.InvalidAmount
         else -> null
     }
+
+    /**
+     * The amount field only takes whole pesos, so a sub-peso usual amount could never be shown
+     * when editing and would be lost on save; rejecting it keeps every stored value editable.
+     */
+    private fun isValidUsualAmount(amountMinor: Long?): Boolean =
+        amountMinor == null || (amountMinor >= 0 && amountMinor % MINOR_PER_PESO == 0L)
 
     /** Done in Kotlin because the NOCASE collation of SQLite only folds ASCII letters. */
     private suspend fun isTaken(normalized: String, exceptId: Long?): Boolean =
@@ -126,4 +133,8 @@ class DeductionRepositoryImpl @Inject constructor(
         name = name,
         amountMinor = amountMinor
     )
+
+    private companion object {
+        const val MINOR_PER_PESO = 100L
+    }
 }

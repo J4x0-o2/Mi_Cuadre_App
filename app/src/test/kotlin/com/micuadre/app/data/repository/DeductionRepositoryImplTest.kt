@@ -75,6 +75,21 @@ class DeductionRepositoryImplTest {
     }
 
     @Test
+    fun `usual amounts must be whole pesos so the edit field can always show them`() = runBlocking {
+        assertEquals(DeductionResult.InvalidAmount, repository.create("Peaje", 50L))
+        assertTrue(names().isEmpty())
+
+        repository.create("Combustible", 1_500_000L)
+        val fuel = idOf("Combustible")
+        assertEquals(DeductionResult.InvalidAmount, repository.setUsualAmount(fuel, 1_500_050L))
+        assertEquals(DeductionResult.InvalidAmount, repository.update(fuel, "Gasolina", 99L))
+
+        val stored = repository.observeActive().first().single()
+        assertEquals("Combustible", stored.name)
+        assertEquals(1_500_000L, stored.usualAmountMinor)
+    }
+
+    @Test
     fun `create rejects a duplicate ignoring case and spaces, even beyond ASCII`() = runBlocking {
         repository.create("Ñandú")
 
@@ -105,7 +120,7 @@ class DeductionRepositoryImplTest {
         assertEquals(DeductionResult.NotFound, repository.rename(id, "Otro"))
         assertEquals(DeductionResult.NotFound, repository.rename(999L, "Otro"))
         assertEquals(DeductionResult.NotFound, repository.setVisible(id, false))
-        assertEquals(DeductionResult.NotFound, repository.setUsualAmount(id, 1L))
+        assertEquals(DeductionResult.NotFound, repository.setUsualAmount(id, 100L))
         assertEquals(DeductionResult.NotFound, repository.delete(id))
         assertEquals(DeductionResult.NotFound, repository.delete(999L))
     }
@@ -144,10 +159,10 @@ class DeductionRepositoryImplTest {
         repository.create("Combustible", 3_000L)
         val id = idOf("Combustible")
 
-        assertEquals(DeductionResult.Ok, repository.update(id, " Gasolina ", 150_050L))
+        assertEquals(DeductionResult.Ok, repository.update(id, " Gasolina ", 150_100L))
         val saved = repository.observeActive().first().single()
         assertEquals("Gasolina", saved.name)
-        assertEquals(150_050L, saved.usualAmountMinor)
+        assertEquals(150_100L, saved.usualAmountMinor)
 
         assertEquals(DeductionResult.Ok, repository.update(id, "Gasolina", null))
         assertNull(repository.observeActive().first().single().usualAmountMinor)
@@ -186,8 +201,8 @@ class DeductionRepositoryImplTest {
         val id = idOf("Combustible")
         repository.delete(id)
 
-        assertEquals(DeductionResult.NotFound, repository.update(id, "Otro", 1L))
-        assertEquals(DeductionResult.NotFound, repository.update(999L, "Otro", 1L))
+        assertEquals(DeductionResult.NotFound, repository.update(id, "Otro", 100L))
+        assertEquals(DeductionResult.NotFound, repository.update(999L, "Otro", 100L))
     }
 
     @Test
