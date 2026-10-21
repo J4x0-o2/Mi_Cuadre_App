@@ -164,6 +164,28 @@ class DeductionDaoTest {
     }
 
     @Test
+    fun `ordered reads return pairs by session then deduction`() = runBlocking {
+        val s1 = session(T0)
+        val s2 = session(T0 + 10)
+        val fuel = deduction("Combustible")
+        val food = deduction("Comida")
+        // Inserted out of order on purpose: the queries, not insertion order, define the result.
+        amounts.upsert(
+            listOf(
+                SessionDeductionEntity(sessionId = s2, deductionId = food, amountMinor = 4L),
+                SessionDeductionEntity(sessionId = s1, deductionId = food, amountMinor = 2L),
+                SessionDeductionEntity(sessionId = s2, deductionId = fuel, amountMinor = 3L),
+                SessionDeductionEntity(sessionId = s1, deductionId = fuel, amountMinor = 1L)
+            )
+        )
+
+        val range = amounts.observeStartedBetween(T0, T0 + 100).first().map { it.sessionId to it.deductionId }
+
+        assertEquals(listOf(s1 to fuel, s1 to food, s2 to fuel, s2 to food), range)
+        assertEquals(listOf(fuel, food), amounts.listBySession(s2).map { it.deductionId })
+    }
+
+    @Test
     fun `amounts are removed with their session but block a hard delete of the deduction`() = runBlocking {
         val s = session(T0)
         val fuel = deduction("Combustible")
