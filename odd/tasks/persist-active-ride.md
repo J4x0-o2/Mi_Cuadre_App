@@ -138,6 +138,15 @@ Out of scope: copy changes, history, sync.
       paused state, orphan row after a failure past the insert). GREEN: `./gradlew testDebugUnitTest`
       710 tests, 0 failures (702 before, +8); `./gradlew assembleDebug` BUILD SUCCESSFUL.
       Refactors (3a, 3c, 3d, atomic openTrip) were applied first with the suite green (702).
+      Review (base 76f4e1e): high, granted, four lenses APPROVED + acknowledged
+      (review-126ab7acb8842b5c covered T1-T2c as a branch; T2d had its own four-lens review).
+      Non-blocking follow-ups, deferred (not fixed in this feature):
+      - Start-failure cleanup checks only the published OnTrip state; two overlapping starts where
+        the second fails could discard the first one's row before it reaches OnTrip.
+      - The app-open gate test still passes the old "any open session" check; production uses the
+        rehydration result. Add an integration test through MainViewModel.
+      - Readability: early return inside the paused branch, stale `hasSession` names, and the v1
+        backfilled-interval limit is documented only here, not in the KDoc.
 - [ ] T3 Device QA: start a ride, force-stop or kill the process, reopen and see the ride with its
       original start. Then finish it and check the totals. Also cancel after a restart.
       Also the background sticky restart: with a ride in progress, put the app in the background,
