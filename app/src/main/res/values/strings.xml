@@ -92,6 +92,9 @@
     <string name="notif_trip_text">Iniciada %1$s · Hoy %2$s en %3$s</string>
     <string name="notif_connected_title">Hoy %1$s · %2$s</string>
     <string name="notif_connected_text">Tocá Iniciar cuando subas al pasajero</string>
+    <string name="notif_shift_saved_channel_name">Turno guardado</string>
+    <string name="notif_shift_saved_title">Tu turno sigue guardado</string>
+    <string name="notif_shift_saved_text">Toca para volver a MiCuadre.</string>
     <string name="notif_action_finish_trip">Terminar carrera</string>
     <string name="notif_action_start_trip">Iniciar carrera</string>
     <string name="notif_action_open_app">Abrir app</string>

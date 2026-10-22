@@ -73,10 +73,37 @@ Out of scope: copy changes, history, sync.
       R3-interface-default-throws (`openTrip`/`finishOpenTrip` abstract, all fakes updated),
       R3-opentrip-race-throw (`TripDao` is now an abstract class with a @Transaction `openIfNone`;
       stress test of openTrip racing cancel).
-      Known gap: ending the shift while OnTrip leaves the open row in the ended session; it is
-      never counted nor restored (rehydration only reads the active session).
+      (The known gap about an open row left by ending the shift is fixed in T2b.)
+- [x] T2b Accepted from the T2 review and the branch-level review (non-blocking findings).
+      Route: delegated writer (several non-trivial files).
+      1. A sticky restart refused by the system (`ForegroundServiceStartNotAllowedException` on
+         API 31+, or SecurityException) no longer crashes: `ForegroundStarter` seam (Hilt module,
+         `PlatformForegroundStarter`), `startInForeground` catches RuntimeException (the API 31 class
+         is never named, minSdk 29), logs, posts a plain "Tu turno sigue guardado" notice (own
+         channel, tap opens MainActivity, skipped when notifications are not allowed) and stops. The
+         open row stays in Room. Opening the app restores the ride: `MainViewModel` checks for an
+         active session and calls `controller.restore()` (ACTION_RESTORE) only if the controller is
+         Disconnected, so a cold launch with no shift shows nothing. A later successful foreground
+         start cancels the notice.
+      2. Ending the shift deletes the open trip row (best effort, like cancel); finished trips and
+         totals are untouched.
+      3, 4. ShiftRepositoryImplTest: raw row counts for the rejected closed trip and for the
+         openTrip-vs-cancel stress test (at most one open row, consistent after the race).
+      5. Branch review: ShiftServiceTest cases for a pause during the openTrip insert (no open row,
+         not OnTrip) and a duplicate start while the ride is live (row and start time untouched);
+         the fake repository got an `insertedGate`.
+      RED: 6 new tests failed behaviorally (refused restart/intent, notification, end shift mid-ride,
+      app-open policy) after adding only the seam and stubs. GREEN: `./gradlew testDebugUnitTest`
+      695 tests, 0 failures (682 before, +13); `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      The race and restore-after-refusal tests passed on first run (they pin existing behavior).
+      REFACTOR: none needed.
 - [ ] T3 Device QA: start a ride, force-stop or kill the process, reopen and see the ride with its
       original start. Then finish it and check the totals. Also cancel after a restart.
+      Also the background sticky restart: with a ride in progress, put the app in the background,
+      turn the screen off or lock it, then `adb shell am kill com.micuadre.app.debug`. Expect either
+      the foreground notification back or the "Tu turno sigue guardado" notification, never a crash
+      (check `adb logcat -b crash`). Then open the app: the ride must show "En carrera" with its
+      original start. Also end the shift mid-ride and confirm no open ride is left.
 
 ## Acceptance criteria
 - Killing the process mid-ride and reopening shows "En carrera" with the original start time.
@@ -88,6 +115,7 @@ Out of scope: copy changes, history, sync.
 - 2026-10-22: feature document created; branch feat/persist-active-ride from main b437b37.
 - 2026-10-22: T1 done (Room v5, MIGRATION_4_5, open-trip DAO/repository, open trips excluded everywhere).
 - 2026-10-22: T2 done (open row on start, in-place finish, cancel deletes, rehydrated OnTrip, sticky null-intent restart, T1 advisories folded).
+- 2026-10-22: T2b done (refused foreground restart handled, end shift drops the open row, test hardening, start-trip race tests).
 
 ## Next step
-T3 device QA (kill the process mid-ride, reopen, finish and cancel).
+T3 device QA (kill the process mid-ride, reopen, finish and cancel; background sticky-restart case).

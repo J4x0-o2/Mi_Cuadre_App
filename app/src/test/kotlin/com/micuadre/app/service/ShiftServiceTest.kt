@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.di.BubbleModule
 import com.micuadre.app.di.ClockModule
 import com.micuadre.app.di.DeductionModule
+import com.micuadre.app.di.ForegroundModule
 import com.micuadre.app.di.RepositoryModule
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.ConnectedInterval
@@ -44,6 +45,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -62,7 +65,10 @@ import org.robolectric.annotation.Config
  * of a freshly created service is exercised instead of being resolved synchronously.
  */
 @HiltAndroidTest
-@UninstallModules(RepositoryModule::class, ClockModule::class, BubbleModule::class, DeductionModule::class)
+@UninstallModules(
+    RepositoryModule::class, ClockModule::class, BubbleModule::class, DeductionModule::class,
+    ForegroundModule::class
+)
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [34])
 class ShiftServiceTest {
@@ -109,6 +115,12 @@ class ShiftServiceTest {
     @BindValue
     @JvmField
     val overlay: BubbleOverlay = bubbleOverlay
+
+    private val foregroundStarter = RefusableForegroundStarter()
+
+    @BindValue
+    @JvmField
+    val foreground: ForegroundStarter = foregroundStarter
 
     private val context: Context get() = ApplicationProvider.getApplicationContext<Application>()
 
@@ -792,6 +804,173 @@ class ShiftServiceTest {
         assertEquals(null, shadowOf(controller.get()).lastForegroundNotification)
     }
 
+    private fun savedNotification() =
+        shadowOf(context.getSystemService(android.app.NotificationManager::class.java))
+            .getNotification(NotificationFactory.NOTIF_ID_SHIFT_SAVED)
+
+    private fun persistedRide() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.trips += openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+    }
+
+    @Test
+    fun `a sticky restart refused by the system does not crash, keeps the ride and tells the driver`() {
+        persistedRide()
+        foregroundStarter.refusal = IllegalStateException("ForegroundServiceStartNotAllowedException")
+
+        val controller = newService()
+        controller.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(1, repository.trips.count { it.endedAt == null })
+        assertEquals(NOW - MINUTE, repository.openTripOf(7L)!!.startedAt)
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+        assertNull(shadowOf(controller.get()).lastForegroundNotification)
+        val saved = savedNotification()
+        assertNotNull(saved)
+        assertEquals(
+            context.getString(com.micuadre.app.R.string.notif_shift_saved_title),
+            saved.extras.getString(android.app.Notification.EXTRA_TITLE)
+        )
+        assertFalse(saved.flags and android.app.Notification.FLAG_ONGOING_EVENT != 0)
+        assertNotNull(saved.contentIntent)
+    }
+
+    @Test
+    fun `a security refusal of the foreground start is handled the same way`() {
+        persistedRide()
+        foregroundStarter.refusal = SecurityException("missing foreground service type permission")
+
+        val controller = newService()
+        controller.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+        assertNotNull(savedNotification())
+    }
+
+    @Test
+    fun `a refused restart posts nothing when notifications are not allowed but still stops cleanly`() {
+        persistedRide()
+        foregroundStarter.refusal = IllegalStateException("not allowed")
+        shadowOf(context.getSystemService(android.app.NotificationManager::class.java))
+            .setNotificationsEnabled(false)
+
+        val controller = newService()
+        controller.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertNull(savedNotification())
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+        assertEquals(1, repository.trips.count { it.endedAt == null })
+    }
+
+    @Test
+    fun `opening the app after a refused restart restores the ride`() {
+        persistedRide()
+        foregroundStarter.refusal = IllegalStateException("not allowed")
+        val refused = newService()
+        refused.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        // The app is now in the foreground: the restore request starts a service the system accepts.
+        foregroundStarter.refusal = null
+        val reopened = newService()
+        reopened.deliver(ShiftServiceController.ACTION_RESTORE)
+
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW - HOUR, tripStartedAtMs = NOW - MINUTE),
+            reopened.tripState()
+        )
+        assertNotNull(shadowOf(reopened.get()).lastForegroundNotification)
+        assertEquals(false, shadowOf(reopened.get()).isStoppedBySelf)
+        assertNull(savedNotification())
+    }
+
+    @Test
+    fun `a restore request with no persisted shift stops the idle service`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_RESTORE)
+
+        assertTrue(controller.tripState() is ShiftState.Disconnected)
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+    }
+
+    @Test
+    fun `a refused foreground start on a delivered intent does not crash either`() {
+        foregroundStarter.refusal = IllegalStateException("not allowed")
+        val controller = newService()
+
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+    }
+
+    @Test
+    fun `ending the shift mid-ride removes the open row and keeps the finished trips`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        val closed = openTrip(sessionId = 7L, startedAt = NOW - 2 * MINUTE)
+            .copy(id = 50L, platformId = 1L, endedAt = NOW - MINUTE, amountMinor = 5_000L, paymentMethod = PaymentMethod.CASH)
+        repository.trips += closed
+        repository.trips += openTrip(sessionId = 7L, startedAt = NOW - 30_000L)
+
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_END_SHIFT)
+
+        assertEquals(listOf(closed), repository.trips.toList())
+        assertEquals(listOf(7L to NOW), repository.endedSessions)
+        assertTrue(controller.tripState() is ShiftState.Disconnected)
+    }
+
+    @Test
+    fun `an open row left by a failed delete does not stop the shift from ending`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.trips += openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+        repository.cancelFailure = IllegalStateException("disk full")
+
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_END_SHIFT)
+
+        assertEquals(listOf(7L to NOW), repository.endedSessions)
+    }
+
+    @Test
+    fun `a shift paused while the open row was being inserted leaves no open row and no ride`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        repository.insertedGate = CompletableDeferred()
+
+        // The insert has happened but has not returned yet when the driver disconnects.
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        assertEquals(1, repository.trips.count { it.endedAt == null })
+        controller.deliver(ShiftServiceController.ACTION_DISCONNECT)
+        repository.insertedGate!!.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(0, repository.trips.size)
+        assertTrue(controller.tripState() !is ShiftState.OnTrip)
+    }
+
+    @Test
+    fun `a duplicate start while the ride is live leaves its row and start time untouched`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        repository.insertedGate = CompletableDeferred()
+
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        fakeClock.now = NOW + MINUTE
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        repository.insertedGate!!.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(1, repository.trips.size)
+        assertEquals(NOW, repository.trips.single().startedAt)
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW, tripStartedAtMs = NOW),
+            controller.tripState()
+        )
+    }
+
     private fun ServiceController<ShiftService>.deliverEndShift(amounts: Map<Long, Long>) {
         deliver(ShiftServiceController.ACTION_END_SHIFT, ShiftServiceController.endShiftExtras(amounts))
     }
@@ -965,6 +1144,9 @@ class InMemoryShiftRepository : ShiftRepository {
     /** What [finishOpenTrip] answers: false models a rejected finish (the row stays open). */
     var finishResult = true
 
+    /** While set, [openTrip] suspends after storing the row, before answering: a slow insert response. */
+    var insertedGate: CompletableDeferred<Unit>? = null
+
     val openedTrips = mutableListOf<Pair<Long, Long>>()
     val finishedTripIds = mutableListOf<Long>()
 
@@ -985,6 +1167,7 @@ class InMemoryShiftRepository : ShiftRepository {
         )
         trips += trip
         openedTrips += sessionId to startedAt
+        insertedGate?.await()
         return trip.id
     }
 
@@ -1098,4 +1281,15 @@ class FakeDeductionRepository(private val shifts: InMemoryShiftRepository) : Ded
         flowOf(emptyList())
 
     private fun unused(): Nothing = error("not used by the shift service")
+}
+
+/** Real foreground start, unless a [refusal] is set: models the system rejecting `startForeground`. */
+class RefusableForegroundStarter : ForegroundStarter {
+    var refusal: RuntimeException? = null
+    private val real = PlatformForegroundStarter()
+
+    override fun start(service: android.app.Service, notificationId: Int, notification: android.app.Notification) {
+        refusal?.let { throw it }
+        real.start(service, notificationId, notification)
+    }
 }

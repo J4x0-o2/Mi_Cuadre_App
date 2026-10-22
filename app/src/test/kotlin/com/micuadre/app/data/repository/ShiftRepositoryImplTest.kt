@@ -435,7 +435,8 @@ class ShiftRepositoryImplTest {
         }
 
         assertEquals(0L, repository.totalMinor(session))
-        assertEquals(0, db.tripDao().countBySession(session))
+        // Raw count: the DAO queries hide null-platform rows, so they cannot prove nothing was stored.
+        assertEquals(0, rawTripRows(session, openOnly = false))
         assertTrue(repository.observeTrips(session).first().isEmpty())
     }
 
@@ -468,7 +469,22 @@ class ShiftRepositoryImplTest {
             }
         }
 
-        assertEquals(0, db.tripDao().countBySession(session))
+        // The invariant that matters: never more than one open row per session, however the calls interleave.
+        assertTrue(rawTripRows(session, openOnly = true) <= 1)
+        assertEquals(rawTripRows(session, openOnly = false), rawTripRows(session, openOnly = true))
+
+        // After the race settles, the last operation decides the state.
+        repository.openTrip(session, T0)
+        assertEquals(1, rawTripRows(session, openOnly = true))
+        repository.cancelInProgressTrip(session)
+        assertEquals(0, rawTripRows(session, openOnly = false))
+    }
+
+    private fun rawTripRows(sessionId: Long, openOnly: Boolean): Int {
+        val where = if (openOnly) " AND endedAt IS NULL" else ""
+        return db.openHelper.writableDatabase
+            .query("SELECT COUNT(*) FROM trips WHERE sessionId = $sessionId$where")
+            .use { it.moveToFirst(); it.getInt(0) }
     }
 
     private fun inProgress(sessionId: Long, platformId: Long, startedAt: Long) = Trip(
