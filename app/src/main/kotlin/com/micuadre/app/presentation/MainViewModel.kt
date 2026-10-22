@@ -137,6 +137,7 @@ class MainViewModel @Inject constructor(
             controller.errorEvents.collect { error ->
                 when (error) {
                     ShiftError.InvalidFinishTrip -> postMessage(R.string.error_finish_trip)
+                    ShiftError.StartTripFailed -> postMessage(R.string.error_start_trip)
                 }
             }
         }

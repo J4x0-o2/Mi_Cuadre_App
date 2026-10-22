@@ -60,7 +60,7 @@ class ShiftRepositoryPeriodTest {
     }
 
     private suspend fun finishedTrip(session: Long, at: String, amount: Long, method: PaymentMethod) {
-        repository.finishTrip(
+        repository.recordFinishedTrip(
             session, didiId, ms("2026-10-18", at), ms("2026-10-18", at) + 60_000L, amount, method
         )
     }

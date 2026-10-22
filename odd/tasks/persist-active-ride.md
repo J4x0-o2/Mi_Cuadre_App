@@ -49,9 +49,32 @@ Out of scope: copy changes, history, sync.
       domain Trip with platformId 0 and empty platformName; all list/aggregate queries and the
       @Relation activity mapping exclude them. One old test (summary counting an unfinished trip)
       was inverted to the new rule.
-- [ ] T2 Domain + service: StartTripUseCase inserts the open row; FinishTripHandler updates it;
+- [x] T2 Domain + service: StartTripUseCase inserts the open row; FinishTripHandler updates it;
       cancel deletes it; rehydration restores OnTrip with the persisted start; null-intent
-      restart with an active session rehydrates. Route: delegated writer.
+      restart with an active session rehydrates. Route: delegated writer (several non-trivial files).
+      RED: unit-test compile failed on the new API (StartTripUseCase.Started, tripId on
+      FinishTripUseCase/FinishTripHandler/Rehydrate result, TripDao.openIfNone,
+      ShiftError.StartTripFailed). GREEN: `./gradlew testDebugUnitTest` 682 tests, 0 failures
+      (665 before, +17 net); `./gradlew assembleDebug` BUILD SUCCESSFUL. REFACTOR: none needed.
+      Behavior: start persists via `openTrip` first; an insert failure keeps the shift Connected and
+      publishes `ShiftError.StartTripFailed` (new `error_start_trip` string), so there is no
+      in-memory-only ride. The service keeps `activeTripId` and the persisted start; a rejected
+      `finishOpenTrip` keeps the ride open (`InvalidFinishTrip`). Finish and the notification/bubble
+      flow all go through the service, so they close the open row in place. `finishTrip` was removed
+      (interface, impl, DAO insert, use-case path); tests use the `recordFinishedTrip` fixture.
+      `insertTrip` remains for tests/legacy and now rejects closed trips without a platform.
+      Cancel deletes the open row (covered after a restart too). `RehydrateShiftStateUseCase.Result`
+      carries `tripId`. A null-intent restart returns START_STICKY: an active session (even
+      mid-ride) is rehydrated into the foreground, no session stops the idle service.
+      `onTaskRemoved` left alone: the service has no stopWithTask, so a swipe does not stop it and
+      OEM process kills are covered by START_STICKY plus the persisted row.
+      Folded T1 advisories: R3-insert-trip-null-platform (insertTrip rejects closed trips without a
+      platform; DAO lists/total/count all require a platform, tests assert total and count too),
+      R3-interface-default-throws (`openTrip`/`finishOpenTrip` abstract, all fakes updated),
+      R3-opentrip-race-throw (`TripDao` is now an abstract class with a @Transaction `openIfNone`;
+      stress test of openTrip racing cancel).
+      Known gap: ending the shift while OnTrip leaves the open row in the ended session; it is
+      never counted nor restored (rehydration only reads the active session).
 - [ ] T3 Device QA: start a ride, force-stop or kill the process, reopen and see the ride with its
       original start. Then finish it and check the totals. Also cancel after a restart.
 
@@ -64,6 +87,7 @@ Out of scope: copy changes, history, sync.
 ## Progress
 - 2026-10-22: feature document created; branch feat/persist-active-ride from main b437b37.
 - 2026-10-22: T1 done (Room v5, MIGRATION_4_5, open-trip DAO/repository, open trips excluded everywhere).
+- 2026-10-22: T2 done (open row on start, in-place finish, cancel deletes, rehydrated OnTrip, sticky null-intent restart, T1 advisories folded).
 
 ## Next step
-T2.
+T3 device QA (kill the process mid-ride, reopen, finish and cancel).

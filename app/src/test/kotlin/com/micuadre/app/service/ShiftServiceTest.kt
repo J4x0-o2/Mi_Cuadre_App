@@ -398,7 +398,7 @@ class ShiftServiceTest {
     @Test
     fun `cancel on a fresh service while Room is in flight discards the restored ride`() {
         repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
-        repository.inProgress = openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+        repository.trips += openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
 
         val controller = newServiceWithSlowRoom()
         controller.deliverDuringRehydrationWith(
@@ -415,7 +415,7 @@ class ShiftServiceTest {
     @Test
     fun `cancel aimed at another ride on a fresh service is ignored after rehydration`() {
         repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
-        repository.inProgress = openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+        repository.trips += openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
 
         val controller = newServiceWithSlowRoom()
         controller.deliverDuringRehydrationWith(
@@ -598,6 +598,191 @@ class ShiftServiceTest {
         assertTrue(controller.get().controller.state.value is ShiftState.Disconnected)
     }
 
+    private fun ServiceController<ShiftService>.collectErrors(): MutableList<ShiftError> {
+        val errors = mutableListOf<ShiftError>()
+        CoroutineScope(Dispatchers.Main.immediate).launch {
+            get().controller.errorEvents.collect { errors += it }
+        }
+        shadowOf(Looper.getMainLooper()).idle()
+        return errors
+    }
+
+    private fun ServiceController<ShiftService>.tripState() = get()._stateForTest().value
+
+    @Test
+    fun `starting a trip persists the open row before the ride is in progress`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+
+        assertEquals(listOf(100L to NOW), repository.openedTrips)
+        val open = repository.openTripOf(100L)!!
+        assertEquals(NOW, open.startedAt)
+        assertEquals(ShiftState.OnTrip(connectedSinceMs = NOW, tripStartedAtMs = open.startedAt), controller.tripState())
+    }
+
+    @Test
+    fun `a failing insert keeps the shift Connected, reports an error and leaves no ride in memory`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        val errors = controller.collectErrors()
+
+        val uncaught = mutableListOf<Throwable>()
+        val thread = Thread.currentThread()
+        val previous = thread.uncaughtExceptionHandler
+        thread.uncaughtExceptionHandler = Thread.UncaughtExceptionHandler { _, t -> uncaught += t }
+        try {
+            repository.openFailure = IllegalStateException("disk full")
+            controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        } finally {
+            thread.uncaughtExceptionHandler = previous
+        }
+
+        assertEquals(emptyList<Throwable>(), uncaught)
+        assertTrue(controller.tripState() is ShiftState.Connected)
+        assertEquals(listOf(ShiftError.StartTripFailed), errors)
+        assertTrue(repository.trips.isEmpty())
+
+        // The failure is not sticky: a retry starts the ride.
+        repository.openFailure = null
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        assertTrue(controller.tripState() is ShiftState.OnTrip)
+        assertEquals(1, repository.trips.size)
+    }
+
+    @Test
+    fun `finishing a ride closes the open row in place without inserting another`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val openId = repository.openTripOf(100L)!!.id
+
+        fakeClock.now = NOW + MINUTE
+        controller.deliverFinish()
+
+        assertTrue(controller.tripState() is ShiftState.Connected)
+        val row = repository.trips.single()
+        assertEquals(openId, row.id)
+        assertEquals(listOf(openId), repository.finishedTripIds)
+        assertEquals(NOW, row.startedAt)
+        assertEquals(NOW + MINUTE, row.endedAt)
+        assertEquals(5_000L, row.amountMinor)
+        assertEquals(null, repository.openTripOf(100L))
+    }
+
+    @Test
+    fun `a rejected finish keeps the ride open and reports the error`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val onTrip = controller.tripState()
+        val errors = controller.collectErrors()
+
+        repository.finishResult = false
+        fakeClock.now = NOW + MINUTE
+        controller.deliverFinish()
+
+        assertEquals(onTrip, controller.tripState())
+        assertEquals(listOf(ShiftError.InvalidFinishTrip), errors)
+        assertEquals(NOW, repository.openTripOf(100L)!!.startedAt)
+
+        // Nothing was lost: the retry finishes the very same row.
+        repository.finishResult = true
+        controller.deliverFinish()
+        assertTrue(controller.tripState() is ShiftState.Connected)
+        assertEquals(1, repository.trips.size)
+        assertEquals(NOW + MINUTE, repository.trips.single().endedAt)
+    }
+
+    @Test
+    fun `cancelling a ride deletes its open row`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val tripStart = (controller.tripState() as ShiftState.OnTrip).tripStartedAtMs
+
+        controller.deliverCancel(tripStart)
+
+        assertTrue(repository.trips.isEmpty())
+        assertTrue(controller.tripState() is ShiftState.Connected)
+    }
+
+    @Test
+    fun `after the process dies mid-ride a new service restores the ride with its original start`() {
+        val first = newService()
+        first.deliver(ShiftServiceController.ACTION_CONNECT)
+        first.deliver(ShiftServiceController.ACTION_START_TRIP)
+        val rowBefore = repository.openTripOf(100L)!!
+        // The process is killed: the service instance and everything in memory is gone.
+        first.destroy()
+
+        fakeClock.now = NOW + 10 * MINUTE
+        val restarted = newService()
+        restarted.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW, tripStartedAtMs = NOW),
+            restarted.tripState()
+        )
+        val notification = shadowOf(restarted.get()).lastForegroundNotification
+        assertNotNull(notification)
+        assertEquals(NOW, notification!!.`when`)
+        assertEquals(1, repository.openedTrips.size)
+
+        // Finishing on the restored service closes the very same row.
+        restarted.deliverFinish()
+        assertTrue(restarted.tripState() is ShiftState.Connected)
+        assertEquals(listOf(rowBefore.id), repository.finishedTripIds)
+        assertEquals(1, repository.trips.size)
+        assertEquals(NOW + 10 * MINUTE, repository.trips.single().endedAt)
+    }
+
+    @Test
+    fun `cancel after a restart deletes the restored open row`() {
+        val first = newService()
+        first.deliver(ShiftServiceController.ACTION_CONNECT)
+        first.deliver(ShiftServiceController.ACTION_START_TRIP)
+        first.destroy()
+
+        val restarted = newService()
+        restarted.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+        restarted.deliverCancel(NOW)
+
+        assertTrue(repository.trips.isEmpty())
+        assertTrue(restarted.tripState() is ShiftState.Connected)
+    }
+
+    @Test
+    fun `a system restart without an intent keeps an active shift running and sticky`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.trips += openTrip(sessionId = 7L, startedAt = NOW - MINUTE)
+
+        val controller = newService()
+        val result = controller.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(android.app.Service.START_STICKY, result)
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW - HOUR, tripStartedAtMs = NOW - MINUTE),
+            controller.tripState()
+        )
+        assertNotNull(shadowOf(controller.get()).lastForegroundNotification)
+        assertEquals(false, shadowOf(controller.get()).isStoppedBySelf)
+    }
+
+    @Test
+    fun `a system restart without an intent and without a session stops the idle service`() {
+        val controller = newService()
+        controller.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue(controller.tripState() is ShiftState.Disconnected)
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+        assertEquals(null, shadowOf(controller.get()).lastForegroundNotification)
+    }
+
     @Test
     fun `a system restart without an intent is not forced into the foreground`() {
         val controller = newService()
@@ -769,9 +954,59 @@ class InMemoryShiftRepository : ShiftRepository {
     }
 
     override fun observeTrips(sessionId: Long): Flow<List<Trip>> = flowOf(emptyList())
-    var inProgress: Trip? = null
 
-    override suspend fun inProgressTrip(sessionId: Long): Trip? = inProgress?.takeIf { it.sessionId == sessionId }
+    /** Every trip row, open (endedAt null) or closed, like the `trips` table. */
+    val trips = mutableListOf<Trip>()
+    private var nextTripId = 1L
+
+    /** When set, [openTrip] throws it: models a failing insert. */
+    var openFailure: Throwable? = null
+
+    /** What [finishOpenTrip] answers: false models a rejected finish (the row stays open). */
+    var finishResult = true
+
+    val openedTrips = mutableListOf<Pair<Long, Long>>()
+    val finishedTripIds = mutableListOf<Long>()
+
+    fun openTripOf(sessionId: Long): Trip? = trips.firstOrNull { it.sessionId == sessionId && it.endedAt == null }
+
+    override suspend fun inProgressTrip(sessionId: Long): Trip? {
+        yield()
+        return openTripOf(sessionId)
+    }
+
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long {
+        yield()
+        openFailure?.let { throw it }
+        openTripOf(sessionId)?.let { return it.id }
+        val trip = Trip(
+            id = nextTripId++, sessionId = sessionId, platformId = 0L, platformName = "",
+            startedAt = startedAt, endedAt = null, amountMinor = null, paymentMethod = null
+        )
+        trips += trip
+        openedTrips += sessionId to startedAt
+        return trip.id
+    }
+
+    override suspend fun finishOpenTrip(
+        tripId: Long,
+        platformId: Long,
+        endedAt: Long,
+        amountMinor: Long,
+        paymentMethod: PaymentMethod
+    ): Boolean {
+        yield()
+        finishCalls++
+        if (!finishResult) return false
+        val index = trips.indexOfFirst { it.id == tripId && it.endedAt == null }
+        if (index < 0) return false
+        trips[index] = trips[index].copy(
+            platformId = platformId, endedAt = endedAt, amountMinor = amountMinor, paymentMethod = paymentMethod
+        )
+        finishedTripIds += tripId
+        return true
+    }
+
     override suspend fun insertTrip(trip: Trip): Long = 1L
 
     val cancelledTripSessions = mutableListOf<Long>()
@@ -787,6 +1022,7 @@ class InMemoryShiftRepository : ShiftRepository {
         cancelGate?.await()
         cancelFailure?.let { throw it }
         cancelledTripSessions += sessionId
+        trips.removeAll { it.sessionId == sessionId && it.endedAt == null }
     }
 
     override suspend fun summary(sessionId: Long): DailySummary {
@@ -796,19 +1032,6 @@ class InMemoryShiftRepository : ShiftRepository {
     }
 
     override suspend fun totalMinor(sessionId: Long): Long = 0L
-
-    override suspend fun finishTrip(
-        sessionId: Long,
-        platformId: Long,
-        startedAt: Long,
-        endedAt: Long,
-        amountMinor: Long,
-        paymentMethod: PaymentMethod
-    ): Boolean {
-        yield()
-        finishCalls++
-        return true
-    }
 
     var finishCalls = 0
 }

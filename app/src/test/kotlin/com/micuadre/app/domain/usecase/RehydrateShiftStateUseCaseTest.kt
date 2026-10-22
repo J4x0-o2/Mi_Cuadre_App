@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -104,14 +105,15 @@ class RehydrateShiftStateUseCaseTest {
         assertTrue(result.state is ShiftState.Connected)
         assertEquals(SESSION_START, (result.state as ShiftState.Connected).connectedSinceMs)
         assertEquals(5L, result.sessionId)
+        assertNull(result.tripId)
     }
 
     @Test
     fun `active session with in-progress trip returns OnTrip with trip start`() = runTest {
         val inProgress = Trip(
-            id = 1L,
+            id = 41L,
             sessionId = 5L,
-            platformId = 1L, platformName = "InDriver",
+            platformId = 0L, platformName = "",
             startedAt = TRIP_START,
             endedAt = null,
             amountMinor = null,
@@ -130,6 +132,7 @@ class RehydrateShiftStateUseCaseTest {
         assertEquals(SESSION_START, state.connectedSinceMs)
         assertEquals(TRIP_START, state.tripStartedAtMs)
         assertEquals(5L, result.sessionId)
+        assertEquals(41L, result.tripId)
     }
 }
 
@@ -162,12 +165,12 @@ private class FakeRehydrateRepository(
 
     override suspend fun inProgressTrip(sessionId: Long): Trip? = inProgressTripResult
 
-    override suspend fun finishTrip(
-        sessionId: Long,
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long = error("unused")
+    override suspend fun finishOpenTrip(
+        tripId: Long,
         platformId: Long,
-        startedAt: Long,
         endedAt: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
-    ): Boolean = true
+    ): Boolean = error("unused")
 }

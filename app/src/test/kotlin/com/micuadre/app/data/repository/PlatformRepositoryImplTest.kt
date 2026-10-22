@@ -196,14 +196,14 @@ class PlatformRepositoryImplTest {
         repository.create("Beat")
         val id = idOf("Beat")
         val session = shifts.createSession(T0)
-        assertTrue(shifts.finishTrip(session, id, T0, T0 + MINUTE, 1_500L, PaymentMethod.CASH))
+        assertTrue(shifts.recordFinishedTrip(session, id, T0, T0 + MINUTE, 1_500L, PaymentMethod.CASH))
 
         repository.delete(id)
 
         val trips = shifts.observeTrips(session).first()
         assertEquals(listOf("Beat"), trips.map { it.platformName })
         assertEquals(1_500L, shifts.totalMinor(session))
-        assertFalse(shifts.finishTrip(session, id, T0 + 2 * MINUTE, T0 + 3 * MINUTE, 900L, PaymentMethod.CASH))
+        assertFalse(shifts.recordFinishedTrip(session, id, T0 + 2 * MINUTE, T0 + 3 * MINUTE, 900L, PaymentMethod.CASH))
         assertEquals(1, shifts.observeTrips(session).first().size)
     }
 
@@ -212,7 +212,7 @@ class PlatformRepositoryImplTest {
         repository.create("Beat")
         val id = idOf("Beat")
         val session = shifts.createSession(T0)
-        shifts.finishTrip(session, id, T0, T0 + MINUTE, 1_500L, PaymentMethod.CASH)
+        shifts.recordFinishedTrip(session, id, T0, T0 + MINUTE, 1_500L, PaymentMethod.CASH)
 
         repository.rename(id, "Cabify")
 

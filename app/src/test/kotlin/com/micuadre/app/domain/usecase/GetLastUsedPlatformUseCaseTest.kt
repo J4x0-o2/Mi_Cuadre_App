@@ -98,9 +98,13 @@ class GetLastUsedPlatformUseCaseTest {
         override suspend fun cancelInProgressTrip(sessionId: Long) = error("unused")
         override suspend fun summary(sessionId: Long): DailySummary = error("unused")
         override suspend fun totalMinor(sessionId: Long): Long = error("unused")
-        override suspend fun finishTrip(
-            sessionId: Long, platformId: Long,
-            startedAt: Long, endedAt: Long, amountMinor: Long, paymentMethod: PaymentMethod
+        override suspend fun openTrip(sessionId: Long, startedAt: Long): Long = error("unused")
+        override suspend fun finishOpenTrip(
+            tripId: Long,
+            platformId: Long,
+            endedAt: Long,
+            amountMinor: Long,
+            paymentMethod: PaymentMethod
         ): Boolean = error("unused")
     }
 }

@@ -102,6 +102,7 @@
     <string name="notif_post_notifications_rationale">MiCuadre necesita mostrar una notificación para mantener el contador de jornada y de carrera activos.</string>
 
     <string name="notif_permission_denied_hint">Sin permiso de notificaciones no vas a ver el contador en la barra, pero la jornada sigue corriendo.</string>
+    <string name="error_start_trip">No se pudo iniciar la carrera. Intentá de nuevo.</string>
     <string name="error_finish_trip">No se pudo guardar la carrera. Revisá los datos e intentá de nuevo.</string>
 
     <string name="app_tagline">Tu jornada, en segundos</string>

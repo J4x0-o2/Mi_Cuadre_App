@@ -29,7 +29,9 @@ class RehydrateShiftStateUseCase @Inject constructor(
 
     data class Result(
         val state: ShiftState,
-        val sessionId: Long
+        val sessionId: Long,
+        /** Id of the open trip row when [state] is [ShiftState.OnTrip], otherwise null. */
+        val tripId: Long? = null
     )
 
     suspend operator fun invoke(): Result {
@@ -53,6 +55,6 @@ class RehydrateShiftStateUseCase @Inject constructor(
         } else {
             ShiftState.Connected(connectedSinceMs = session.startedAt)
         }
-        return Result(state = state, sessionId = session.id)
+        return Result(state = state, sessionId = session.id, tripId = inProgress?.id)
     }
 }

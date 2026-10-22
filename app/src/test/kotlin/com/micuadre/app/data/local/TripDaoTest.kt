@@ -80,6 +80,31 @@ class TripDaoTest {
     }
 
     @Test
+    fun `openIfNone inserts the first open trip and returns the existing one afterwards`() = runBlocking {
+        val first = dao.openIfNone(session, T0)
+        val again = dao.openIfNone(session, T0 + MINUTE)
+
+        assertEquals(first, again)
+        assertEquals(T0, dao.inProgressBySession(session)!!.startedAt)
+        assertEquals(1, db.openHelper.writableDatabase
+            .query("SELECT COUNT(*) FROM trips WHERE endedAt IS NULL").use { it.moveToFirst(); it.getInt(0) })
+    }
+
+    @Test
+    fun `a closed row without a platform is excluded from lists, total and count alike`() = runBlocking {
+        closedTrip(5_000L)
+        db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO trips (sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                "VALUES ($session, NULL, $T0, ${T0 + MINUTE}, 700, 'CASH')"
+        )
+
+        assertEquals(listOf<Long?>(5_000L), dao.listBySession(session).map { it.amountMinor })
+        assertEquals(listOf<Long?>(5_000L), dao.observeBySession(session).first().map { it.amountMinor })
+        assertEquals(5_000L, dao.sumAmountMinor(session))
+        assertEquals(1, dao.countBySession(session))
+    }
+
+    @Test
     fun `finishOpen closes the row in place with platform, amount and payment`() = runBlocking {
         val id = dao.insertOpenIfNone(session, T0)
 

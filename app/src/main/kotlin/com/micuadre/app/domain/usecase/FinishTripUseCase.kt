@@ -5,15 +5,16 @@ import com.micuadre.app.domain.repository.ShiftRepository
 import javax.inject.Inject
 
 /**
- * Persists a finished trip.
+ * Finishes the open trip [tripId] in place.
  *
- * Validation rules (append-only):
+ * Validation rules:
  *  - platformId must reference an existing, non-deleted platform (checked by the repository).
  *  - amountMinor must be > 0.
+ *  - endedAt must be after the trip start.
  *  - paymentMethod must be non-null.
  *
- * On validation failure the use case returns [Result.Invalid] and does NOT
- * touch storage. On success it returns [Result.Saved] with the new trip id.
+ * On validation failure the use case returns [Result.Invalid] and the trip stays open. On
+ * success it returns [Result.Saved].
  */
 class FinishTripUseCase @Inject constructor(
     private val repository: ShiftRepository
@@ -25,7 +26,7 @@ class FinishTripUseCase @Inject constructor(
     }
 
     suspend operator fun invoke(
-        sessionId: Long,
+        tripId: Long,
         platformId: Long,
         startedAt: Long,
         endedAt: Long,
@@ -35,10 +36,9 @@ class FinishTripUseCase @Inject constructor(
         if (amountMinor <= 0L) return Result.Invalid
         if (endedAt <= startedAt) return Result.Invalid
 
-        val saved = repository.finishTrip(
-            sessionId = sessionId,
+        val saved = repository.finishOpenTrip(
+            tripId = tripId,
             platformId = platformId,
-            startedAt = startedAt,
             endedAt = endedAt,
             amountMinor = amountMinor,
             paymentMethod = paymentMethod

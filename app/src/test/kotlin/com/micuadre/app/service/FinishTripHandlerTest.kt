@@ -21,7 +21,7 @@ class FinishTripHandlerTest {
         amount: Long = 5_000L,
         payment: String? = "CASH"
     ) = handle(
-        sessionId = 1L,
+        tripId = 5L,
         tripStartedAt = 1_000L,
         endedAt = 2_000L,
         platformId = platformId,
@@ -34,6 +34,7 @@ class FinishTripHandlerTest {
         val repo = HandlerFakeRepository(saves = true)
         assertEquals(FinishTripHandler.Outcome.Finished, handler(repo).run())
         assertEquals(1, repo.finishCalls)
+        assertEquals(5L, repo.lastTripId)
     }
 
     @Test
@@ -96,16 +97,19 @@ private class HandlerFakeRepository(
     override suspend fun cancelInProgressTrip(sessionId: Long) {}
     override suspend fun summary(sessionId: Long) = DailySummary(0L, 0, 0L, 0L)
     override suspend fun totalMinor(sessionId: Long) = 0L
-    override suspend fun finishTrip(
-        sessionId: Long,
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long = error("unused")
+    override suspend fun finishOpenTrip(
+        tripId: Long,
         platformId: Long,
-        startedAt: Long,
         endedAt: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
     ): Boolean {
         finishCalls++
+        lastTripId = tripId
         failure?.let { throw it }
         return saves
     }
+
+    var lastTripId: Long? = null
 }

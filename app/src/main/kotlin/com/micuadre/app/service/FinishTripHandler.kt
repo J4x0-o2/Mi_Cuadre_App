@@ -7,7 +7,7 @@ import javax.inject.Inject
 
 /**
  * Decision logic for a finish-trip request coming from the UI as raw Intent
- * extras. Parses the payload and runs [FinishTripUseCase], collapsing every
+ * extras. Parses the payload and finishes the open trip through [FinishTripUseCase], collapsing every
  * failure into [Outcome.Rejected] so the caller keeps the trip open and
  * surfaces an error instead of dropping the request silently.
  */
@@ -24,7 +24,7 @@ class FinishTripHandler @Inject constructor(
     }
 
     suspend fun handle(
-        sessionId: Long,
+        tripId: Long,
         tripStartedAt: Long,
         endedAt: Long,
         platformId: Long?,
@@ -36,7 +36,7 @@ class FinishTripHandler @Inject constructor(
 
         val result = try {
             finishTrip(
-                sessionId = sessionId,
+                tripId = tripId,
                 platformId = platformId,
                 startedAt = tripStartedAt,
                 endedAt = endedAt,

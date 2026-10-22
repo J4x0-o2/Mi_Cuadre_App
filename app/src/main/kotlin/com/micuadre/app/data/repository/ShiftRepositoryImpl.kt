@@ -85,12 +85,8 @@ class ShiftRepositoryImpl @Inject constructor(
         tripDao.deleteInProgressBySession(sessionId)
     }
 
-    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long {
-        val id = tripDao.insertOpenIfNone(sessionId, startedAt)
-        if (id > 0L) return id
-        // The session already had an open trip: keep it.
-        return checkNotNull(tripDao.inProgressBySession(sessionId)) { "open trip vanished" }.id
-    }
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long =
+        tripDao.openIfNone(sessionId, startedAt)
 
     override suspend fun finishOpenTrip(
         tripId: Long,
@@ -103,8 +99,10 @@ class ShiftRepositoryImpl @Inject constructor(
         return tripDao.finishOpen(tripId, platformId, endedAt, amountMinor, paymentMethod.name) > 0
     }
 
-    override suspend fun insertTrip(trip: Trip): Long =
-        tripDao.insert(trip.toEntity())
+    override suspend fun insertTrip(trip: Trip): Long {
+        require(trip.endedAt == null || trip.platformId > 0L) { "a closed trip needs a platform" }
+        return tripDao.insert(trip.toEntity())
+    }
 
     private suspend fun platformNames(): Map<Long, String> = platformDao.listAll().nameById()
 
@@ -134,27 +132,6 @@ class ShiftRepositoryImpl @Inject constructor(
 
     override suspend fun totalMinor(sessionId: Long): Long =
         tripDao.sumAmountMinor(sessionId)
-
-    override suspend fun finishTrip(
-        sessionId: Long,
-        platformId: Long,
-        startedAt: Long,
-        endedAt: Long,
-        amountMinor: Long,
-        paymentMethod: PaymentMethod
-    ): Boolean {
-        if (amountMinor <= 0L) return false
-        if (endedAt <= startedAt) return false
-        // The platform check lives in the insert itself, so it cannot go stale before the write.
-        return tripDao.insertIfPlatformActive(
-            sessionId = sessionId,
-            platformId = platformId,
-            startedAt = startedAt,
-            endedAt = endedAt,
-            amountMinor = amountMinor,
-            paymentMethod = paymentMethod.name
-        ) > 0L
-    }
 
     private fun ConnectedIntervalEntity.toDomain() =
         ConnectedInterval(id = id, sessionId = sessionId, startedAt = startedAt, endedAt = endedAt)

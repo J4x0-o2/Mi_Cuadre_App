@@ -7,13 +7,17 @@ import com.micuadre.app.data.local.MiCuadreDatabase
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.data.local.entity.PlatformEntity
 import com.micuadre.app.domain.model.Trip
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -118,12 +122,12 @@ class ShiftRepositoryImplTest {
         repository.closeConnectedInterval(session, endedAt = T0 + HOUR)
         repository.openConnectedInterval(session, startedAt = T0 + 2 * HOUR)
         assertTrue(
-            repository.finishTrip(
+            repository.recordFinishedTrip(
                 session, didi, T0 + 10 * MINUTE, T0 + 30 * MINUTE, 10_000L, PaymentMethod.CASH
             )
         )
         assertTrue(
-            repository.finishTrip(
+            repository.recordFinishedTrip(
                 session, uber, T0 + 40 * MINUTE, T0 + 50 * MINUTE, 5_000L, PaymentMethod.TRANSFER
             )
         )
@@ -194,7 +198,7 @@ class ShiftRepositoryImplTest {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")
 
-        assertTrue(repository.finishTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH))
+        assertTrue(repository.recordFinishedTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH))
 
         val trip = repository.observeTrips(session).first().single()
         assertEquals(didi, trip.platformId)
@@ -206,7 +210,7 @@ class ShiftRepositoryImplTest {
     fun `finishing a trip on an unknown platform is rejected`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
 
-        assertFalse(repository.finishTrip(session, 99L, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH))
+        assertFalse(repository.recordFinishedTrip(session, 99L, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH))
 
         assertEquals(0, repository.summary(session).tripCount)
     }
@@ -216,7 +220,7 @@ class ShiftRepositoryImplTest {
         val session = repository.createSession(startedAt = T0)
         val gone = addPlatform("Gone", deletedAt = T0)
 
-        assertFalse(repository.finishTrip(session, gone, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH))
+        assertFalse(repository.recordFinishedTrip(session, gone, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH))
 
         assertEquals(0, repository.summary(session).tripCount)
     }
@@ -226,7 +230,7 @@ class ShiftRepositoryImplTest {
         val session = repository.createSession(startedAt = T0)
         val hidden = addPlatform("Hidden", visible = false)
 
-        assertTrue(repository.finishTrip(session, hidden, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH))
+        assertTrue(repository.recordFinishedTrip(session, hidden, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH))
     }
 
     @Test
@@ -234,15 +238,15 @@ class ShiftRepositoryImplTest {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")
 
-        assertFalse(repository.finishTrip(session, didi, T0, T0 + MINUTE, 0L, PaymentMethod.CASH))
-        assertFalse(repository.finishTrip(session, didi, T0 + MINUTE, T0, 100L, PaymentMethod.CASH))
+        assertFalse(repository.recordFinishedTrip(session, didi, T0, T0 + MINUTE, 0L, PaymentMethod.CASH))
+        assertFalse(repository.recordFinishedTrip(session, didi, T0 + MINUTE, T0, 100L, PaymentMethod.CASH))
     }
 
     @Test
     fun `a deleted platform keeps its name on past trips`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")
-        repository.finishTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
+        repository.recordFinishedTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
 
         db.openHelper.writableDatabase.execSQL("UPDATE platforms SET deletedAt = $T0 WHERE id = $didi")
 
@@ -255,7 +259,7 @@ class ShiftRepositoryImplTest {
     fun `session activity trips carry the platform name`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")
-        repository.finishTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
+        repository.recordFinishedTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
 
         val activity = repository.observeSessionActivity(T0, T0 + HOUR).first()
 
@@ -267,7 +271,7 @@ class ShiftRepositoryImplTest {
         val session = repository.createSession(startedAt = T0)
         val other = repository.createSession(startedAt = T0 + HOUR)
         val didi = addPlatform("Didi")
-        repository.finishTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
+        repository.recordFinishedTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
         repository.insertTrip(inProgress(session, didi, T0 + 2 * MINUTE))
         repository.insertTrip(inProgress(other, didi, T0 + HOUR))
 
@@ -283,7 +287,7 @@ class ShiftRepositoryImplTest {
     fun `cancelling with no in-progress trip changes nothing`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")
-        repository.finishTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
+        repository.recordFinishedTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
 
         repository.cancelInProgressTrip(session)
 
@@ -363,7 +367,7 @@ class ShiftRepositoryImplTest {
     fun `an open trip never reaches a list, summary, total or session activity`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")
-        repository.finishTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
+        repository.recordFinishedTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
         repository.openTrip(session, T0 + 2 * MINUTE)
 
         assertEquals(listOf(7_000L), repository.observeTrips(session).first().map { it.amountMinor })
@@ -415,6 +419,56 @@ class ShiftRepositoryImplTest {
         repository.insertTrip(inProgress(session, platformId = 0L, startedAt = T0))
 
         assertEquals(T0, repository.inProgressTrip(session)!!.startedAt)
+    }
+
+    @Test
+    fun `inserting a closed trip without a platform is rejected and nothing is stored`() = runBlocking {
+        val session = repository.createSession(startedAt = T0)
+        val closedWithoutPlatform = inProgress(session, platformId = 0L, startedAt = T0)
+            .copy(endedAt = T0 + MINUTE, amountMinor = 700L, paymentMethod = PaymentMethod.CASH)
+
+        try {
+            repository.insertTrip(closedWithoutPlatform)
+            fail("expected the closed trip without a platform to be rejected")
+        } catch (expected: IllegalArgumentException) {
+            // rejected before reaching storage
+        }
+
+        assertEquals(0L, repository.totalMinor(session))
+        assertEquals(0, db.tripDao().countBySession(session))
+        assertTrue(repository.observeTrips(session).first().isEmpty())
+    }
+
+    @Test
+    fun `a stray closed row without a platform is not counted by the total or the summary`() = runBlocking {
+        val session = repository.createSession(startedAt = T0)
+        val didi = addPlatform("Didi")
+        repository.recordFinishedTrip(session, didi, T0, T0 + MINUTE, 7_000L, PaymentMethod.CASH)
+        db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO trips (sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                "VALUES ($session, NULL, $T0, ${T0 + MINUTE}, 700, 'CASH')"
+        )
+
+        assertEquals(7_000L, repository.totalMinor(session))
+        assertEquals(1, db.tripDao().countBySession(session))
+        val summary = repository.summary(session)
+        assertEquals(7_000L, summary.totalAmountMinor)
+        assertEquals(1, summary.tripCount)
+        assertEquals(1, summary.trips.size)
+    }
+
+    @Test
+    fun `openTrip racing with cancel never throws`() = runBlocking {
+        val session = repository.createSession(startedAt = T0)
+
+        coroutineScope {
+            repeat(200) { i ->
+                launch(Dispatchers.Default) { repository.openTrip(session, T0 + i) }
+                launch(Dispatchers.Default) { repository.cancelInProgressTrip(session) }
+            }
+        }
+
+        assertEquals(0, db.tripDao().countBySession(session))
     }
 
     private fun inProgress(sessionId: Long, platformId: Long, startedAt: Long) = Trip(

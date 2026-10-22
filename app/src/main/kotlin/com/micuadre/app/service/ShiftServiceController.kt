@@ -136,5 +136,8 @@ class ShiftServiceController @Inject constructor(
 /** One-shot failures the service reports back to the UI. */
 enum class ShiftError {
     /** Finish-trip payload was invalid or could not be saved; the trip stays open. */
-    InvalidFinishTrip
+    InvalidFinishTrip,
+
+    /** The ride could not be saved when starting it; the shift stays Connected. */
+    StartTripFailed
 }
