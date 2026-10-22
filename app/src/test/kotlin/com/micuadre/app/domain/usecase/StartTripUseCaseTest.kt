@@ -52,19 +52,15 @@ class StartTripUseCaseTest {
         private val openFailure: Throwable? = null
     ) : ShiftRepository {
         val opened = mutableListOf<Pair<Long, Long>>()
-        private var persistedStart = 0L
 
-        override suspend fun openTrip(sessionId: Long, startedAt: Long): Long {
+        override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip {
             openFailure?.let { throw it }
             opened += sessionId to startedAt
-            persistedStart = existingStart ?: startedAt
-            return 33L
+            return Trip(
+                id = 33L, sessionId = sessionId, platformId = Trip.NO_PLATFORM_ID, platformName = "",
+                startedAt = existingStart ?: startedAt, endedAt = null, amountMinor = null, paymentMethod = null
+            )
         }
-
-        override suspend fun inProgressTrip(sessionId: Long): Trip = Trip(
-            id = 33L, sessionId = sessionId, platformId = 0L, platformName = "",
-            startedAt = persistedStart, endedAt = null, amountMinor = null, paymentMethod = null
-        )
 
         override suspend fun finishOpenTrip(
             tripId: Long,

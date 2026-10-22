@@ -11,14 +11,14 @@ import kotlinx.coroutines.CancellationException
  */
 class PersistedShiftRestorer(
     private val state: () -> ShiftState,
-    private val hasActiveSession: suspend () -> Boolean,
+    private val hasRestorableShift: suspend () -> Boolean,
     private val restore: () -> Unit,
     private val onFailure: (Throwable) -> Unit
 ) {
 
     suspend fun restoreIfNeeded() {
         val hasSession = try {
-            hasActiveSession()
+            hasRestorableShift()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (t: Exception) {

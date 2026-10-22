@@ -1,6 +1,7 @@
 package com.micuadre.app.domain.usecase
 
 import com.micuadre.app.domain.model.Platform
+import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.repository.ShiftRepository
 import kotlinx.coroutines.flow.flowOf
@@ -123,7 +124,7 @@ private class FakeShiftRepository(
 
     override suspend fun totalMinor(sessionId: Long) = 0L
 
-    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long = error("unused")
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip = error("unused")
 
     override suspend fun finishOpenTrip(
         tripId: Long,

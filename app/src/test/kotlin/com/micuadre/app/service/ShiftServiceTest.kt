@@ -585,7 +585,7 @@ class ShiftServiceTest {
     }
 
     @Test
-    fun `rehydrating an open session with no open interval opens one so connected time keeps counting`() {
+    fun `rehydrating an open session that never got an interval opens one so connected time keeps counting`() {
         repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
 
         val controller = newService()
@@ -593,6 +593,77 @@ class ShiftServiceTest {
 
         assertTrue(controller.get().controller.state.value is ShiftState.Connected)
         assertEquals(listOf(ConnectedInterval(1L, 7L, NOW, null)), repository.intervals)
+    }
+
+    private val pausedInterval = ConnectedInterval(1L, 7L, NOW - HOUR, NOW - 30 * MINUTE)
+
+    private fun pausedShift() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.intervals += pausedInterval
+    }
+
+    @Test
+    fun `a sticky restart of a paused shift does not reconnect it`() {
+        pausedShift()
+
+        val controller = newService()
+        controller.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(listOf(pausedInterval), repository.intervals)
+        assertTrue(controller.tripState() is ShiftState.Disconnected)
+        assertTrue(controller.get().controller.state.value is ShiftState.Disconnected)
+        assertEquals(1, repository.sessions.count { it.endedAt == null })
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+        assertNull(shadowOf(controller.get()).lastForegroundNotification)
+    }
+
+    @Test
+    fun `opening the app on a paused shift does not reconnect it`() {
+        pausedShift()
+
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_RESTORE)
+
+        assertEquals(listOf(pausedInterval), repository.intervals)
+        assertTrue(controller.tripState() is ShiftState.Disconnected)
+        assertTrue(shadowOf(controller.get()).isStoppedBySelf)
+    }
+
+    @Test
+    fun `connecting after a pause still resumes the paused session`() {
+        pausedShift()
+
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+
+        assertTrue(controller.tripState() is ShiftState.Connected)
+        assertEquals(0, repository.createdSessions)
+        assertEquals(1, repository.intervals.count { it.endedAt == null })
+    }
+
+    @Test
+    fun `a failure after the open row was stored leaves no orphan and the next start is fresh`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        val errors = controller.collectErrors()
+        repository.failAfterInsert = IllegalStateException("read-back failed")
+
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+
+        assertEquals(0, repository.trips.size)
+        assertTrue(controller.tripState() is ShiftState.Connected)
+        assertEquals(listOf<ShiftError>(ShiftError.StartTripFailed), errors)
+
+        repository.failAfterInsert = null
+        fakeClock.now = NOW + 5 * MINUTE
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+
+        assertEquals(NOW + 5 * MINUTE, repository.openTripOf(100L)!!.startedAt)
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW, tripStartedAtMs = NOW + 5 * MINUTE),
+            controller.tripState()
+        )
     }
 
     @Test
@@ -989,7 +1060,7 @@ class ShiftServiceTest {
         kotlinx.coroutines.runBlocking {
             com.micuadre.app.presentation.PersistedShiftRestorer(
                 state = { published.state.value },
-                hasActiveSession = { repository.activeSession() != null },
+                hasRestorableShift = { repository.activeSession() != null },
                 restore = { restores++ },
                 onFailure = {}
             ).restoreIfNeeded()
@@ -1167,6 +1238,9 @@ class InMemoryShiftRepository : ShiftRepository {
         }
     }
 
+    override fun observeConnectedIntervals(sessionId: Long): Flow<List<ConnectedInterval>> =
+        flowOf(intervals.filter { it.sessionId == sessionId })
+
     override suspend fun closeConnectedInterval(sessionId: Long, endedAt: Long) {
         yield()
         intervals.replaceAll {
@@ -1186,6 +1260,9 @@ class InMemoryShiftRepository : ShiftRepository {
     /** What [finishOpenTrip] answers: false models a rejected finish (the row stays open). */
     var finishResult = true
 
+    /** When set, [openTrip] stores the row and then throws: a failure after the commit. */
+    var failAfterInsert: Throwable? = null
+
     /** While set, [openTrip] suspends after storing the row, before answering: a slow insert response. */
     var insertedGate: CompletableDeferred<Unit>? = null
 
@@ -1199,18 +1276,19 @@ class InMemoryShiftRepository : ShiftRepository {
         return openTripOf(sessionId)
     }
 
-    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long {
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip {
         yield()
         openFailure?.let { throw it }
-        openTripOf(sessionId)?.let { return it.id }
+        openTripOf(sessionId)?.let { return it }
         val trip = Trip(
             id = nextTripId++, sessionId = sessionId, platformId = 0L, platformName = "",
             startedAt = startedAt, endedAt = null, amountMinor = null, paymentMethod = null
         )
         trips += trip
         openedTrips += sessionId to startedAt
+        failAfterInsert?.let { throw it }
         insertedGate?.await()
-        return trip.id
+        return trip
     }
 
     override suspend fun finishOpenTrip(

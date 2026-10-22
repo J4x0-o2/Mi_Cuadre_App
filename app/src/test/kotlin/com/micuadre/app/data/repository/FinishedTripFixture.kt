@@ -15,7 +15,7 @@ suspend fun ShiftRepository.recordFinishedTrip(
     amountMinor: Long,
     paymentMethod: PaymentMethod
 ): Boolean {
-    val tripId = openTrip(sessionId, startedAt)
+    val tripId = openTrip(sessionId, startedAt).id
     val finished = finishOpenTrip(tripId, platformId, endedAt, amountMinor, paymentMethod)
     if (!finished) cancelInProgressTrip(sessionId)
     return finished

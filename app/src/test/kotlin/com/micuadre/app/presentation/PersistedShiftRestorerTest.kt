@@ -18,7 +18,7 @@ class PersistedShiftRestorerTest {
         hasSession: suspend () -> Boolean
     ) = PersistedShiftRestorer(
         state = { state },
-        hasActiveSession = hasSession,
+        hasRestorableShift = hasSession,
         restore = { restores++ },
         onFailure = { failures += it }
     )

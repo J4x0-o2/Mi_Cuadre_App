@@ -52,16 +52,16 @@ class ServiceStartPolicyTest {
 
     @Test
     fun `opening the app restores a persisted shift when the service is not running`() {
-        assertTrue(ServiceStartPolicy.shouldRestoreOnAppOpen(ShiftState.Disconnected, hasActiveSession = true))
+        assertTrue(ServiceStartPolicy.shouldRestoreOnAppOpen(ShiftState.Disconnected, hasRestorableShift = true))
     }
 
     @Test
     fun `opening the app restores nothing without a persisted shift`() {
-        assertFalse(ServiceStartPolicy.shouldRestoreOnAppOpen(ShiftState.Disconnected, hasActiveSession = false))
+        assertFalse(ServiceStartPolicy.shouldRestoreOnAppOpen(ShiftState.Disconnected, hasRestorableShift = false))
     }
 
     @Test
     fun `opening the app leaves a shift the service already published alone`() {
-        assertFalse(ServiceStartPolicy.shouldRestoreOnAppOpen(connected, hasActiveSession = true))
+        assertFalse(ServiceStartPolicy.shouldRestoreOnAppOpen(connected, hasRestorableShift = true))
     }
 }

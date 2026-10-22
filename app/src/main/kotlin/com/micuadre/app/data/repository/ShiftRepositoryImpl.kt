@@ -85,8 +85,8 @@ class ShiftRepositoryImpl @Inject constructor(
         tripDao.deleteInProgressBySession(sessionId)
     }
 
-    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long =
-        tripDao.openIfNone(sessionId, startedAt)
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip =
+        tripDao.openIfNone(sessionId, startedAt).toOpenDomain()
 
     override suspend fun finishOpenTrip(
         tripId: Long,
@@ -100,7 +100,7 @@ class ShiftRepositoryImpl @Inject constructor(
     }
 
     override suspend fun insertTrip(trip: Trip): Long {
-        require(trip.endedAt == null || trip.platformId > 0L) { "a closed trip needs a platform" }
+        require(trip.endedAt == null || trip.platformId != Trip.NO_PLATFORM_ID) { "a closed trip needs a platform" }
         return tripDao.insert(trip.toEntity())
     }
 
@@ -108,8 +108,8 @@ class ShiftRepositoryImpl @Inject constructor(
 
     override suspend fun summary(sessionId: Long): DailySummary {
         val names = platformNames()
-        val entities = tripDao.listBySession(sessionId)
-        val trips = entities.filter { it.platformId != null }
+        // listBySession already returns closed trips with a platform only.
+        val trips = tripDao.listBySession(sessionId)
         val session = sessionDao.byId(sessionId)
         val totalMinor = trips.sumOf { it.amountMinor ?: 0L }
         val count = trips.size
@@ -164,13 +164,12 @@ class ShiftRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Maps the open trip. The domain model has no "no platform" value, so an open trip carries
-     * platformId 0 (never a real id) and an empty name until it is finished.
+     * Maps the open trip. It carries [Trip.NO_PLATFORM_ID] and an empty name until it is finished.
      */
     private suspend fun TripEntity.toOpenDomain() = Trip(
         id = id,
         sessionId = sessionId,
-        platformId = platformId ?: 0L,
+        platformId = platformId ?: Trip.NO_PLATFORM_ID,
         platformName = platformId?.let { platformNames()[it] }.orEmpty(),
         startedAt = startedAt,
         endedAt = endedAt,
@@ -181,8 +180,8 @@ class ShiftRepositoryImpl @Inject constructor(
     private fun Trip.toEntity() = TripEntity(
         id = id,
         sessionId = sessionId,
-        // 0 is the domain marker for "no platform yet"; it is stored as NULL.
-        platformId = platformId.takeIf { it > 0L },
+        // The domain marker for "no platform yet" is stored as NULL.
+        platformId = platformId.takeIf { it != Trip.NO_PLATFORM_ID },
         startedAt = startedAt,
         endedAt = endedAt,
         amountMinor = amountMinor,

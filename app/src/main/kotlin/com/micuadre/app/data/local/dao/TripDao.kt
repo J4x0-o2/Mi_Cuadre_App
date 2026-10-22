@@ -7,6 +7,12 @@ import androidx.room.Transaction
 import com.micuadre.app.data.local.entity.TripEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * A finished trip: it has an end and a platform. Open rows (ride in progress) and any stray row
+ * without a platform are excluded from every list and aggregate that uses this.
+ */
+private const val CLOSED_TRIP = "endedAt IS NOT NULL AND platformId IS NOT NULL"
+
 @Dao
 abstract class TripDao {
 
@@ -26,15 +32,14 @@ abstract class TripDao {
     abstract suspend fun insertOpenIfNone(sessionId: Long, startedAt: Long): Long
 
     /**
-     * Opens a trip for [sessionId] at [startedAt], or returns the id of the one it already has.
-     * Insert and re-read run in one transaction, so a concurrent cancel or finish cannot slip in
-     * between and leave no row to return.
+     * Opens a trip for [sessionId] at [startedAt], or returns the one it already has. Insert and
+     * re-read run in one transaction, so a concurrent cancel or finish cannot slip in between and
+     * leave no row to return, and the caller never needs a second read.
      */
     @Transaction
-    open suspend fun openIfNone(sessionId: Long, startedAt: Long): Long {
-        val inserted = insertOpenIfNone(sessionId, startedAt)
-        if (inserted > 0L) return inserted
-        return checkNotNull(inProgressBySession(sessionId)) { "open trip vanished" }.id
+    open suspend fun openIfNone(sessionId: Long, startedAt: Long): TripEntity {
+        insertOpenIfNone(sessionId, startedAt)
+        return checkNotNull(inProgressBySession(sessionId)) { "open trip vanished" }
     }
 
     /**
@@ -57,19 +62,19 @@ abstract class TripDao {
     ): Int
 
     /** Finished trips only (with a platform): an open trip is not part of any list. */
-    @Query("SELECT * FROM trips WHERE sessionId = :sessionId AND endedAt IS NOT NULL AND platformId IS NOT NULL ORDER BY startedAt DESC")
+    @Query("SELECT * FROM trips WHERE sessionId = :sessionId AND " + CLOSED_TRIP + " ORDER BY startedAt DESC")
     abstract fun observeBySession(sessionId: Long): Flow<List<TripEntity>>
 
-    @Query("SELECT * FROM trips WHERE sessionId = :sessionId AND endedAt IS NOT NULL AND platformId IS NOT NULL ORDER BY startedAt DESC")
+    @Query("SELECT * FROM trips WHERE sessionId = :sessionId AND " + CLOSED_TRIP + " ORDER BY startedAt DESC")
     abstract suspend fun listBySession(sessionId: Long): List<TripEntity>
 
-    @Query("SELECT COALESCE(SUM(amountMinor), 0) FROM trips WHERE sessionId = :sessionId AND endedAt IS NOT NULL AND platformId IS NOT NULL")
+    @Query("SELECT COALESCE(SUM(amountMinor), 0) FROM trips WHERE sessionId = :sessionId AND " + CLOSED_TRIP)
     abstract suspend fun sumAmountMinor(sessionId: Long): Long
 
-    @Query("SELECT COUNT(*) FROM trips WHERE sessionId = :sessionId AND endedAt IS NOT NULL AND platformId IS NOT NULL")
+    @Query("SELECT COUNT(*) FROM trips WHERE sessionId = :sessionId AND " + CLOSED_TRIP)
     abstract suspend fun countBySession(sessionId: Long): Int
 
-    @Query("SELECT * FROM trips WHERE endedAt IS NOT NULL AND platformId IS NOT NULL ORDER BY endedAt DESC LIMIT 1")
+    @Query("SELECT * FROM trips WHERE " + CLOSED_TRIP + " ORDER BY endedAt DESC LIMIT 1")
     abstract suspend fun lastFinished(): TripEntity?
 
     /** Discards the in-progress trip of [sessionId] (a row whose `endedAt` is null), if any. */

@@ -328,6 +328,9 @@ class ShiftService : Service() {
             } catch (t: Throwable) {
                 if (t is CancellationException) throw t
                 Log.e(TAG, "Persisting the new trip failed; the shift stays Connected", t)
+                // The row may have been committed before the failure; no ride exists, so none may stay.
+                // A live ride (a duplicate start that lost the race) is left alone.
+                if (_currentState.value !is ShiftState.OnTrip) discardOpenTrip(sessionId, survivesCancellation = true)
                 controller.publishError(ShiftError.StartTripFailed)
                 return@launch
             }
@@ -335,7 +338,7 @@ class ShiftService : Service() {
             if (current !is ShiftState.Connected) {
                 // A duplicate start finds the live ride (the insert is idempotent): leave it alone.
                 // Anything else (the shift was paused meanwhile) must not leave an orphan open row.
-                if (current !is ShiftState.OnTrip) discardOpenTrip(sessionId)
+                if (current !is ShiftState.OnTrip) discardOpenTrip(sessionId, survivesCancellation = true)
                 return@launch
             }
             val next = stateMachine.transition(
@@ -387,12 +390,22 @@ class ShiftService : Service() {
         }
     }
 
-    /** Best effort: removes a stray open trip row of [sessionId] that no live ride owns. */
-    private suspend fun discardOpenTrip(sessionId: Long) {
+    /**
+     * Drops the open ride row of [sessionId] (it has no amount, so it is discarded like a cancel).
+     * Best effort: a failure is logged and never blocks the caller.
+     *
+     * [survivesCancellation] picks how the service being destroyed meanwhile is handled. Orphan
+     * cleanup after a start (true) must finish even then, or the row would be restored as a ghost
+     * ride. Ending the shift (false) is itself cancellable work, so cancellation just propagates.
+     */
+    private suspend fun discardOpenTrip(sessionId: Long, survivesCancellation: Boolean) {
         try {
-            withContext(NonCancellable) { cancelTrip(sessionId) }
-        } catch (t: Throwable) {
-            Log.e(TAG, "Discarding an orphan open trip failed", t)
+            if (survivesCancellation) withContext(NonCancellable) { cancelTrip(sessionId) } else cancelTrip(sessionId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (t: Exception) {
+            // An orphan row is never counted; restoring it as a ghost ride is the only harm left.
+            Log.e(TAG, "Discarding the open ride row failed", t)
         }
     }
 
@@ -447,7 +460,7 @@ class ShiftService : Service() {
                 return@launch
             }
             val now = clock.nowMs()
-            discardOpenTripBeforeEnding(sessionId)
+            discardOpenTrip(sessionId, survivesCancellation = false)
             endShift(sessionId, endedAt = now)
             saveExpenses(sessionId, amounts)
             val summary = getDailySummary(sessionId)
@@ -461,18 +474,6 @@ class ShiftService : Service() {
             stopObservingTotals()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
-        }
-    }
-
-    /** An unfinished ride has no amount: it is dropped, like a cancel, instead of orphaned in the ended session. */
-    private suspend fun discardOpenTripBeforeEnding(sessionId: Long) {
-        try {
-            cancelTrip(sessionId)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (t: Exception) {
-            // The orphan row is never counted nor restored; ending the shift matters more.
-            Log.e(TAG, "Discarding the open ride failed; ending the shift anyway", t)
         }
     }
 

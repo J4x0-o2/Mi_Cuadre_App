@@ -87,7 +87,7 @@ class GetDailySummaryUseCaseTest {
         override suspend fun insertTrip(trip: Trip): Long = error("unused")
         override suspend fun cancelInProgressTrip(sessionId: Long) = error("unused")
         override suspend fun totalMinor(sessionId: Long): Long = error("unused")
-        override suspend fun openTrip(sessionId: Long, startedAt: Long): Long = error("unused")
+        override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip = error("unused")
         override suspend fun finishOpenTrip(
             tripId: Long,
             platformId: Long,

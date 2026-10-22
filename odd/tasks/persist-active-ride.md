@@ -23,7 +23,9 @@ Out of scope: copy changes, history, sync.
 ## Decisions
 - Storage: Room v5. `trips.amountMinor`, `paymentMethod` and `platformId` become nullable, with
   a real `MIGRATION_4_5` (table rebuild) and MigrationTestHelper tests (4->5 and the full chain).
-  Rejected: a sentinel platform or amount, because it would leak into totals and FKs.
+  Rejected: a sentinel platform or amount in the database, because it would leak into totals and
+  FKs. The domain model still needs a value for "no platform yet": it is the named constant
+  `Trip.NO_PLATFORM_ID` (0), mapped to NULL at the storage boundary and never stored.
 - Closed trips keep the same non-null guarantees at the domain level. Only the open row has nulls.
 
 ## Constraints
@@ -114,6 +116,28 @@ Out of scope: copy changes, history, sync.
       RED: 5 new tests failed on behavior (restorer stub, stale published state, build failure
       swallowed as a refusal). GREEN: `./gradlew testDebugUnitTest` 702 tests, 0 failures (695
       before, +7); `./gradlew assembleDebug` BUILD SUCCESSFUL. REFACTOR: none needed.
+- [x] T2d Accepted from the branch-level review of T1 to T2c (non-blocking).
+      Route: delegated writer (several non-trivial files).
+      1. A pause is persisted as an open session whose connected intervals are all closed
+         (`closeConnectedInterval` on disconnect); nothing else marks it. Rehydration ignored that and
+         always produced Connected/OnTrip plus a new interval, so a cold launch (ACTION_RESTORE) or a
+         sticky restart reconnected a paused shift. Real. `RehydrateShiftStateUseCase` now returns
+         Disconnected with the session id kept when the session has intervals and none is open; an
+         open ride still wins, and a session with no interval at all (killed before the first one
+         opened) still counts as connected. The service already ignores a Disconnected result, so no
+         interval is opened and an idle service stops. The app-open gate asks the use case instead of
+         "any open session", so a paused shift does not even start the service (no notification flash).
+         Accepted limit: a session migrated from v1 with a closed backfilled interval reads as paused.
+      2. `ShiftRepository.openTrip` / `TripDao.openIfNone` now return the stored row, read back in
+         the insert transaction, so `StartTripUseCase` has no second read to fail. As a guard, any
+         start failure discards the open row unless a live ride exists.
+      3. (a) `Trip.NO_PLATFORM_ID`; (b) one `discardOpenTrip(sessionId, survivesCancellation)`;
+         (c) `CLOSED_TRIP` const shared by the five @Query strings; (d) redundant filter removed
+         from `summary()`.
+      RED: 4 new tests failed on behavior (paused shift on sticky restart and on app open, use case
+      paused state, orphan row after a failure past the insert). GREEN: `./gradlew testDebugUnitTest`
+      710 tests, 0 failures (702 before, +8); `./gradlew assembleDebug` BUILD SUCCESSFUL.
+      Refactors (3a, 3c, 3d, atomic openTrip) were applied first with the suite green (702).
 - [ ] T3 Device QA: start a ride, force-stop or kill the process, reopen and see the ride with its
       original start. Then finish it and check the totals. Also cancel after a restart.
       Also the background sticky restart: with a ride in progress, put the app in the background,
@@ -121,6 +145,7 @@ Out of scope: copy changes, history, sync.
       the foreground notification back or the "Tu turno sigue guardado" notification, never a crash
       (check `adb logcat -b crash`). Then open the app: the ride must show "En carrera" with its
       original start. Also end the shift mid-ride and confirm no open ride is left.
+      Also pause the shift (Desconectar), kill the process and reopen: it must stay paused.
 
 ## Acceptance criteria
 - Killing the process mid-ride and reopening shows "En carrera" with the original start time.
@@ -134,6 +159,7 @@ Out of scope: copy changes, history, sync.
 - 2026-10-22: T2 done (open row on start, in-place finish, cancel deletes, rehydrated OnTrip, sticky null-intent restart, T1 advisories folded).
 - 2026-10-22: T2b done (refused foreground restart handled, end shift drops the open row, test hardening, start-trip race tests).
 - 2026-10-22: T2c done (refused start resets published state, narrower catch, restorer tests).
+- 2026-10-22: T2d done (paused shift never auto-reconnected, atomic openTrip, readability refactors).
 
 ## Next step
 T3 device QA (kill the process mid-ride, reopen, finish and cancel; background sticky-restart case).

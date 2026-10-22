@@ -97,7 +97,7 @@ private class HandlerFakeRepository(
     override suspend fun cancelInProgressTrip(sessionId: Long) {}
     override suspend fun summary(sessionId: Long) = DailySummary(0L, 0, 0L, 0L)
     override suspend fun totalMinor(sessionId: Long) = 0L
-    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long = error("unused")
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip = error("unused")
     override suspend fun finishOpenTrip(
         tripId: Long,
         platformId: Long,

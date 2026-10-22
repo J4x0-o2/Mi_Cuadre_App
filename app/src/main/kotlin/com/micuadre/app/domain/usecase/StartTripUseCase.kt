@@ -17,11 +17,9 @@ class StartTripUseCase @Inject constructor(
     data class Started(val tripId: Long, val startedAt: Long)
 
     suspend operator fun invoke(sessionId: Long, startedAt: Long): Started {
-        val tripId = repository.openTrip(sessionId, startedAt)
+        // One atomic call: the insert and the read-back cannot be separated by a failure.
+        val open = repository.openTrip(sessionId, startedAt)
         // openTrip is idempotent: an already open trip keeps its own start time.
-        val open = checkNotNull(repository.inProgressTrip(sessionId)?.takeIf { it.id == tripId }) {
-            "open trip $tripId was not found after opening it"
-        }
-        return Started(tripId = tripId, startedAt = open.startedAt)
+        return Started(tripId = open.id, startedAt = open.startedAt)
     }
 }

@@ -71,10 +71,11 @@ interface ShiftRepository {
 
     /**
      * Persists a ride in progress for [sessionId] starting at [startedAt] (no amount, payment or
-     * platform yet) and returns its row id. Idempotent: when the session already has an open trip,
-     * that trip is kept and its id returned. Open trips never count toward any total or list.
+     * platform yet) and returns the stored row, read back in the same transaction that inserted it.
+     * Idempotent: when the session already has an open trip, that trip is kept and returned, with
+     * its own start. Open trips never count toward any total or list.
      */
-    suspend fun openTrip(sessionId: Long, startedAt: Long): Long
+    suspend fun openTrip(sessionId: Long, startedAt: Long): Trip
 
     /**
      * Closes the open trip [tripId] in place with its platform, end time, amount and payment

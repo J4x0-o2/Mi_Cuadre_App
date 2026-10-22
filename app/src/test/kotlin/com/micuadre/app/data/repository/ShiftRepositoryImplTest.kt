@@ -299,8 +299,8 @@ class ShiftRepositoryImplTest {
     fun `openTrip persists the start and is idempotent per session`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
 
-        val id = repository.openTrip(session, T0 + MINUTE)
-        val again = repository.openTrip(session, T0 + 2 * MINUTE)
+        val id = repository.openTrip(session, T0 + MINUTE).id
+        val again = repository.openTrip(session, T0 + 2 * MINUTE).id
 
         assertEquals(id, again)
         val open = repository.inProgressTrip(session)!!
@@ -326,7 +326,7 @@ class ShiftRepositoryImplTest {
     fun `finishOpenTrip closes the same row and keeps its start time`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")
-        val id = repository.openTrip(session, T0)
+        val id = repository.openTrip(session, T0).id
 
         assertTrue(repository.finishOpenTrip(id, didi, T0 + 5 * MINUTE, 9_000L, PaymentMethod.TRANSFER))
 
@@ -343,7 +343,7 @@ class ShiftRepositoryImplTest {
         val session = repository.createSession(startedAt = T0)
         val didi = addPlatform("Didi")
         val deleted = addPlatform("Old", deletedAt = T0)
-        val id = repository.openTrip(session, T0)
+        val id = repository.openTrip(session, T0).id
 
         assertFalse(repository.finishOpenTrip(id, didi, T0 + MINUTE, 0L, PaymentMethod.CASH))
         assertFalse(repository.finishOpenTrip(id, didi, T0, 100L, PaymentMethod.CASH))

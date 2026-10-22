@@ -17,6 +17,7 @@ import com.micuadre.app.domain.usecase.GetLastUsedPlatformUseCase
 import com.micuadre.app.presentation.home.Elapsed
 import com.micuadre.app.domain.usecase.ObservePeriodSummaryUseCase
 import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
+import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
 import com.micuadre.app.service.ShiftError
 import com.micuadre.app.service.ShiftServiceController
 import com.micuadre.app.util.Clock
@@ -42,6 +43,7 @@ class MainViewModel @Inject constructor(
     private val getLastUsedPlatform: GetLastUsedPlatformUseCase,
     private val deductions: DeductionRepository,
     private val repository: ShiftRepository,
+    private val rehydrateShiftState: RehydrateShiftStateUseCase,
     private val observePeriodSummary: ObservePeriodSummaryUseCase,
     private val clock: Clock,
     @ApplicationContext context: Context
@@ -87,7 +89,7 @@ class MainViewModel @Inject constructor(
     private fun restorePersistedShift() {
         val restorer = PersistedShiftRestorer(
             state = { controller.state.value },
-            hasActiveSession = { repository.activeSession() != null },
+            hasRestorableShift = { rehydrateShiftState().state !is ShiftState.Disconnected },
             restore = controller::restore,
             onFailure = { Log.e(TAG, "Could not check for a stored shift; not restoring", it) }
         )

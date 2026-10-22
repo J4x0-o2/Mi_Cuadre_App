@@ -81,8 +81,8 @@ class TripDaoTest {
 
     @Test
     fun `openIfNone inserts the first open trip and returns the existing one afterwards`() = runBlocking {
-        val first = dao.openIfNone(session, T0)
-        val again = dao.openIfNone(session, T0 + MINUTE)
+        val first = dao.openIfNone(session, T0).id
+        val again = dao.openIfNone(session, T0 + MINUTE).id
 
         assertEquals(first, again)
         assertEquals(T0, dao.inProgressBySession(session)!!.startedAt)
