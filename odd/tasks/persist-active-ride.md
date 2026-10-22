@@ -97,6 +97,23 @@ Out of scope: copy changes, history, sync.
       695 tests, 0 failures (682 before, +13); `./gradlew assembleDebug` BUILD SUCCESSFUL.
       The race and restore-after-refusal tests passed on first run (they pin existing behavior).
       REFACTOR: none needed.
+- [x] T2c Accepted from the T2b review (all four lenses approved; non-blocking warnings).
+      Route: delegated writer (several non-trivial files).
+      1. A refused foreground start resets the service state and publishes Disconnected to the
+         singleton controller (`resetAfterRefusedForeground`), so the app-open gate sees nothing
+         published and calls `restore()`. Chosen over publish-after-start because it also covers the
+         delivered-intent paths, where state was published before the refusal. Room is untouched.
+      2. `notificationFactory.build` now runs before the try: only the platform call through the
+         seam is guarded, KDoc and log updated. A build failure propagates (our bug, deterministic,
+         nothing is lost since the state is in Room; hiding it as a "refusal" would mask it).
+      3. The restore wiring moved into `PersistedShiftRestorer` (lambdas, JVM-testable, like
+         ConnectCoordinator) with tests: restores with a session, not without one, not over a
+         published state, a failing lookup is reported and not restored, cancellation is rethrown
+         first. MainViewModel only wires it.
+      4. Copy register left for F2.
+      RED: 5 new tests failed on behavior (restorer stub, stale published state, build failure
+      swallowed as a refusal). GREEN: `./gradlew testDebugUnitTest` 702 tests, 0 failures (695
+      before, +7); `./gradlew assembleDebug` BUILD SUCCESSFUL. REFACTOR: none needed.
 - [ ] T3 Device QA: start a ride, force-stop or kill the process, reopen and see the ride with its
       original start. Then finish it and check the totals. Also cancel after a restart.
       Also the background sticky restart: with a ride in progress, put the app in the background,
@@ -116,6 +133,7 @@ Out of scope: copy changes, history, sync.
 - 2026-10-22: T1 done (Room v5, MIGRATION_4_5, open-trip DAO/repository, open trips excluded everywhere).
 - 2026-10-22: T2 done (open row on start, in-place finish, cancel deletes, rehydrated OnTrip, sticky null-intent restart, T1 advisories folded).
 - 2026-10-22: T2b done (refused foreground restart handled, end shift drops the open row, test hardening, start-trip race tests).
+- 2026-10-22: T2c done (refused start resets published state, narrower catch, restorer tests).
 
 ## Next step
 T3 device QA (kill the process mid-ride, reopen, finish and cancel; background sticky-restart case).

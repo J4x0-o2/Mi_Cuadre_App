@@ -1,6 +1,7 @@
 package com.micuadre.app.presentation
 
 import android.content.Context
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,7 +18,6 @@ import com.micuadre.app.presentation.home.Elapsed
 import com.micuadre.app.domain.usecase.ObservePeriodSummaryUseCase
 import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
 import com.micuadre.app.service.ShiftError
-import com.micuadre.app.service.ServiceStartPolicy
 import com.micuadre.app.service.ShiftServiceController
 import com.micuadre.app.util.Clock
 import com.micuadre.app.presentation.theme.clockChanges
@@ -84,17 +84,14 @@ class MainViewModel @Inject constructor(
         restorePersistedShift()
     }
 
-    /** A shift left open in Room is brought back when the app opens, even if the service was never restarted. */
     private fun restorePersistedShift() {
-        viewModelScope.launch {
-            val hasSession = try {
-                repository.activeSession() != null
-            } catch (t: Exception) {
-                if (t is kotlinx.coroutines.CancellationException) throw t
-                false
-            }
-            if (ServiceStartPolicy.shouldRestoreOnAppOpen(controller.state.value, hasSession)) controller.restore()
-        }
+        val restorer = PersistedShiftRestorer(
+            state = { controller.state.value },
+            hasActiveSession = { repository.activeSession() != null },
+            restore = controller::restore,
+            onFailure = { Log.e(TAG, "Could not check for a stored shift; not restoring", it) }
+        )
+        viewModelScope.launch { restorer.restoreIfNeeded() }
     }
 
     private fun observeState() {
@@ -265,5 +262,9 @@ class MainViewModel @Inject constructor(
     override fun onCleared() {
         stopTicker()
         super.onCleared()
+    }
+
+    private companion object {
+        const val TAG = "MainViewModel"
     }
 }

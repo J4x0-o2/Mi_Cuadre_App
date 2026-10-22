@@ -25,7 +25,7 @@ import com.micuadre.app.util.Formatters
  * Live trip time comes from the system chronometer, so the notification only
  * needs to be re-posted when the state or the day totals change.
  */
-class NotificationFactory(private val context: Context) {
+open class NotificationFactory(private val context: Context) {
 
     companion object {
         const val CHANNEL_ID = "micuadre_shift"
@@ -93,7 +93,7 @@ class NotificationFactory(private val context: Context) {
         )
     }
 
-    fun build(state: ShiftState, totals: DayTotals): Notification {
+    open fun build(state: ShiftState, totals: DayTotals): Notification {
         val model = ShiftNotificationModel.create(
             state = state,
             totals = totals,

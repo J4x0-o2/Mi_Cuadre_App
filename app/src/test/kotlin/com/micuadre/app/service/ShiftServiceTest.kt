@@ -971,6 +971,48 @@ class ShiftServiceTest {
         )
     }
 
+
+    @Test
+    fun `a refused restart resets the published state so opening the app restores the ride`() {
+        persistedRide()
+        foregroundStarter.refusal = IllegalStateException("not allowed")
+
+        val controller = newService()
+        controller.get().onStartCommand(null, 0, 1)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        val published = controller.get().controller
+        assertEquals(ShiftState.Disconnected, published.state.value)
+        assertEquals(ShiftState.Disconnected, controller.tripState())
+        // The same gate MainViewModel uses on launch: a persisted shift and nothing published.
+        var restores = 0
+        kotlinx.coroutines.runBlocking {
+            com.micuadre.app.presentation.PersistedShiftRestorer(
+                state = { published.state.value },
+                hasActiveSession = { repository.activeSession() != null },
+                restore = { restores++ },
+                onFailure = {}
+            ).restoreIfNeeded()
+        }
+        assertEquals(1, restores)
+    }
+
+    @Test
+    fun `a failure while building the notification is not mistaken for a system refusal`() {
+        val controller = newService()
+        controller.get().notificationFactory = ThrowingNotificationFactory(context)
+
+        try {
+            controller.get().onStartCommand(intent(ShiftServiceController.ACTION_CONNECT), 0, 1)
+            org.junit.Assert.fail("an app bug while building the notification must surface")
+        } catch (expected: IllegalArgumentException) {
+            assertEquals("notification bug", expected.message)
+        }
+
+        assertNull(savedNotification())
+        assertFalse(shadowOf(controller.get()).isStoppedBySelf)
+    }
+
     private fun ServiceController<ShiftService>.deliverEndShift(amounts: Map<Long, Long>) {
         deliver(ShiftServiceController.ACTION_END_SHIFT, ShiftServiceController.endShiftExtras(amounts))
     }
@@ -1292,4 +1334,10 @@ class RefusableForegroundStarter : ForegroundStarter {
         refusal?.let { throw it }
         real.start(service, notificationId, notification)
     }
+}
+
+/** Stands in for an app bug inside notification building (not a platform refusal). */
+class ThrowingNotificationFactory(context: Context) : NotificationFactory(context) {
+    override fun build(state: ShiftState, totals: DayTotals): android.app.Notification =
+        throw IllegalArgumentException("notification bug")
 }

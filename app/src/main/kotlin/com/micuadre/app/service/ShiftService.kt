@@ -87,7 +87,7 @@ class ShiftService : Service() {
     private val _currentState = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
     private val currentState: StateFlow<ShiftState> = _currentState.asStateFlow()
 
-    private lateinit var notificationFactory: NotificationFactory
+    internal lateinit var notificationFactory: NotificationFactory
 
     /** Active session id (null when disconnected). */
     private var activeSessionId: Long? = null
@@ -492,7 +492,7 @@ class ShiftService : Service() {
     }
 
     /**
-     * Enters the foreground. The system may refuse (`ForegroundServiceStartNotAllowedException` on
+     * Enters the foreground. Only the platform call through [foregroundStarter] is guarded: the system may refuse (`ForegroundServiceStartNotAllowedException` on
      * API 31+, a subclass of [IllegalStateException]; [SecurityException] for a missing type
      * permission), typically on a sticky restart while the app is in the background. The class is
      * never named here because it does not exist on minSdk 29.
@@ -503,17 +503,34 @@ class ShiftService : Service() {
      * @return true when the service is in the foreground, false when it was refused and is stopping.
      */
     private fun startInForeground(state: ShiftState): Boolean {
-        return try {
-            foregroundStarter.start(this, NotificationFactory.NOTIF_ID, notificationFactory.build(state, dayTotals))
-            cancelShiftSavedNotice()
-            true
+        // Built outside the try: a bug here is ours, deterministic, and must surface instead of
+        // being mistaken for the system saying no.
+        val notification = notificationFactory.build(state, dayTotals)
+        try {
+            foregroundStarter.start(this, NotificationFactory.NOTIF_ID, notification)
         } catch (refused: RuntimeException) {
             Log.e(TAG, "The system refused startForeground (sdk ${Build.VERSION.SDK_INT}); the shift stays saved", refused)
             postShiftSavedNotice()
-            stopObservingTotals()
+            resetAfterRefusedForeground()
             stopSelf()
-            false
+            return false
         }
+        cancelShiftSavedNotice()
+        return true
+    }
+
+    /**
+     * This instance is about to stop, so nothing it published may outlive it: the singleton
+     * controller goes back to Disconnected, which lets the next app launch ask for a restore. The
+     * shift and any open ride are untouched in Room.
+     */
+    private fun resetAfterRefusedForeground() {
+        stopObservingTotals()
+        _currentState.value = ShiftState.Disconnected
+        activeSessionId = null
+        activeTripStartMs = null
+        activeTripId = null
+        controller.publishState(ShiftState.Disconnected)
     }
 
     private fun postShiftSavedNotice() {
