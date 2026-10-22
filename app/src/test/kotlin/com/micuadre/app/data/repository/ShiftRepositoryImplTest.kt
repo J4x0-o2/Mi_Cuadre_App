@@ -318,7 +318,7 @@ class ShiftRepositoryImplTest {
 
         val open = repository.inProgressTrip(session)!!
 
-        assertEquals(0L, open.platformId)
+        assertEquals(Trip.NO_PLATFORM_ID, open.platformId)
         assertEquals("", open.platformName)
     }
 
@@ -416,7 +416,7 @@ class ShiftRepositoryImplTest {
     fun `inserting an open domain trip with no platform stores a null platform`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
 
-        repository.insertTrip(inProgress(session, platformId = 0L, startedAt = T0))
+        repository.insertTrip(inProgress(session, platformId = Trip.NO_PLATFORM_ID, startedAt = T0))
 
         assertEquals(T0, repository.inProgressTrip(session)!!.startedAt)
     }
@@ -424,7 +424,7 @@ class ShiftRepositoryImplTest {
     @Test
     fun `inserting a closed trip without a platform is rejected and nothing is stored`() = runBlocking {
         val session = repository.createSession(startedAt = T0)
-        val closedWithoutPlatform = inProgress(session, platformId = 0L, startedAt = T0)
+        val closedWithoutPlatform = inProgress(session, platformId = Trip.NO_PLATFORM_ID, startedAt = T0)
             .copy(endedAt = T0 + MINUTE, amountMinor = 700L, paymentMethod = PaymentMethod.CASH)
 
         try {

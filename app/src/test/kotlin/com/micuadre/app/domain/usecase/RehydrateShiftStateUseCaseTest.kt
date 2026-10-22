@@ -167,7 +167,7 @@ class RehydrateShiftStateUseCaseTest {
         val inProgress = Trip(
             id = 41L,
             sessionId = 5L,
-            platformId = 0L, platformName = "",
+            platformId = Trip.NO_PLATFORM_ID, platformName = "",
             startedAt = TRIP_START,
             endedAt = null,
             amountMinor = null,

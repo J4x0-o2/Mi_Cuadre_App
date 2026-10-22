@@ -23,7 +23,8 @@ import javax.inject.Inject
  *
  * A pause leaves the session open and closes every connected interval, so a session that has
  * intervals but none open is a paused shift: it comes back as [ShiftState.Disconnected] with its
- * session id kept, and is never reconnected on its own. A session with no interval at all was
+ * session id kept, and is never reconnected on its own. (A session migrated from v1 has a closed
+ * backfilled interval and therefore also reads as paused; the driver just taps Connect.) A session with no interval at all was
  * interrupted between being created and opening its first one, so it counts as connected. An open
  * ride always wins (a ride can only exist while connected). When no active session exists the
  * returned state is [ShiftState.Disconnected] and [Result.sessionId] is `-1L`. An active
@@ -54,15 +55,14 @@ class RehydrateShiftStateUseCase @Inject constructor(
         }
 
         val inProgress = repository.inProgressTrip(session.id)
-        val state: ShiftState = if (inProgress != null) {
-            ShiftState.OnTrip(
+        val state: ShiftState = when {
+            inProgress != null -> ShiftState.OnTrip(
                 connectedSinceMs = session.startedAt,
                 tripStartedAtMs = inProgress.startedAt
             )
-        } else if (isPaused(session.id)) {
-            return Result(ShiftState.Disconnected, sessionId = session.id)
-        } else {
-            ShiftState.Connected(connectedSinceMs = session.startedAt)
+            // Paused: the session stays attached to the result, only the state is Disconnected.
+            isPaused(session.id) -> ShiftState.Disconnected
+            else -> ShiftState.Connected(connectedSinceMs = session.startedAt)
         }
         return Result(state = state, sessionId = session.id, tripId = inProgress?.id)
     }

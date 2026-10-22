@@ -15,10 +15,10 @@ class PersistedShiftRestorerTest {
 
     private fun restorer(
         state: ShiftState = ShiftState.Disconnected,
-        hasSession: suspend () -> Boolean
+        hasRestorableShift: suspend () -> Boolean
     ) = PersistedShiftRestorer(
         state = { state },
-        hasRestorableShift = hasSession,
+        hasRestorableShift = hasRestorableShift,
         restore = { restores++ },
         onFailure = { failures += it }
     )

@@ -140,13 +140,26 @@ Out of scope: copy changes, history, sync.
       Refactors (3a, 3c, 3d, atomic openTrip) were applied first with the suite green (702).
       Review (base 76f4e1e): high, granted, four lenses APPROVED + acknowledged
       (review-126ab7acb8842b5c covered T1-T2c as a branch; T2d had its own four-lens review).
-      Non-blocking follow-ups, deferred (not fixed in this feature):
-      - Start-failure cleanup checks only the published OnTrip state; two overlapping starts where
-        the second fails could discard the first one's row before it reaches OnTrip.
-      - The app-open gate test still passes the old "any open session" check; production uses the
-        rehydration result. Add an integration test through MainViewModel.
-      - Readability: early return inside the paused branch, stale `hasSession` names, and the v1
-        backfilled-interval limit is documented only here, not in the KDoc.
+      Non-blocking follow-ups from that review were resolved in T2e, except: there is still no
+      test that builds `MainViewModel` itself (the gate is tested with the same rehydration-based
+      check it wires, not through the view model); deferred, not fixed in this feature.
+- [x] T2e Accepted from the branch review (WARNING from risk, resilience and reliability).
+      Route: delegated writer (one service file plus tests).
+      Overlapping START_TRIP (notification tap plus bubble tap) could make the second call's failure
+      cleanup delete the first call's row. Chosen: option (a), a single-flight guard in
+      `ShiftService.handleStartTrip` (`startInFlight`, main-thread confined, reset in `finally`): a
+      start while one is in flight, or while not Connected (so also while OnTrip), is a no-op and
+      never reaches storage. Option (b) was not added: it needs openTrip to report inserted-vs-reused
+      across the repository, DAO and every fake, and with single-flight no other start of the
+      service can own an open row when the cleanup runs, so the session-wide delete is safe.
+      The cleanup no longer relies on the published OnTrip state.
+      Readability: value-producing `when` in `RehydrateShiftStateUseCase` (the v1 backfilled
+      interval limit is now in its KDoc); the app-open gate test now uses the rehydration check
+      MainViewModel wires, for paused, connected and OnTrip shifts; `hasSession` renamed;
+      `Trip.NO_PLATFORM_ID` replaces bare 0L in tests and fakes.
+      RED: 2 new tests failed on behavior (overlapping failing start deleted the first row; the
+      second start reached storage). GREEN: `./gradlew testDebugUnitTest` 715 tests, 0 failures
+      (710 before, +5: 2 overlap, 3 gate); `./gradlew assembleDebug` BUILD SUCCESSFUL.
 - [ ] T3 Device QA: start a ride, force-stop or kill the process, reopen and see the ride with its
       original start. Then finish it and check the totals. Also cancel after a restart.
       Also the background sticky restart: with a ride in progress, put the app in the background,
@@ -169,6 +182,7 @@ Out of scope: copy changes, history, sync.
 - 2026-10-22: T2b done (refused foreground restart handled, end shift drops the open row, test hardening, start-trip race tests).
 - 2026-10-22: T2c done (refused start resets published state, narrower catch, restorer tests).
 - 2026-10-22: T2d done (paused shift never auto-reconnected, atomic openTrip, readability refactors).
+- 2026-10-22: T2e done (single-flight trip start, readability and gate-test fixes).
 
 ## Next step
 T3 device QA (kill the process mid-ride, reopen, finish and cancel; background sticky-restart case).

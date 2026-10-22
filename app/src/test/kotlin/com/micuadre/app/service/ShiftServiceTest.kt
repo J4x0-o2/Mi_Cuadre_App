@@ -447,7 +447,7 @@ class ShiftServiceTest {
     private fun openTrip(sessionId: Long, startedAt: Long) = Trip(
         id = 1L,
         sessionId = sessionId,
-        platformId = 0L,
+        platformId = Trip.NO_PLATFORM_ID,
         platformName = "",
         startedAt = startedAt,
         endedAt = null,
@@ -1023,6 +1023,50 @@ class ShiftServiceTest {
     }
 
     @Test
+    fun `an overlapping start that would fail never discards the first start's row`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        repository.insertedGate = CompletableDeferred()
+
+        // First start: row committed, answer still in flight. Second start arrives and would fail.
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        repository.openFailure = IllegalStateException("disk full")
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        repository.openFailure = null
+        repository.insertedGate!!.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(1, repository.trips.count { it.endedAt == null })
+        assertEquals(NOW, repository.openTripOf(100L)!!.startedAt)
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW, tripStartedAtMs = NOW),
+            controller.tripState()
+        )
+    }
+
+    @Test
+    fun `overlapping starts produce exactly one open row and one start time`() {
+        val controller = newService()
+        controller.deliver(ShiftServiceController.ACTION_CONNECT)
+        repository.insertedGate = CompletableDeferred()
+
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        fakeClock.now = NOW + MINUTE
+        controller.deliver(ShiftServiceController.ACTION_START_TRIP)
+        repository.insertedGate!!.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        // The second start is a no-op while one is in flight: it does not even reach storage.
+        assertEquals(1, repository.openCalls)
+        assertEquals(listOf(100L to NOW), repository.openedTrips)
+        assertEquals(1, repository.trips.size)
+        assertEquals(
+            ShiftState.OnTrip(connectedSinceMs = NOW, tripStartedAtMs = NOW),
+            controller.tripState()
+        )
+    }
+
+    @Test
     fun `a duplicate start while the ride is live leaves its row and start time untouched`() {
         val controller = newService()
         controller.deliver(ShiftServiceController.ACTION_CONNECT)
@@ -1055,17 +1099,46 @@ class ShiftServiceTest {
         val published = controller.get().controller
         assertEquals(ShiftState.Disconnected, published.state.value)
         assertEquals(ShiftState.Disconnected, controller.tripState())
-        // The same gate MainViewModel uses on launch: a persisted shift and nothing published.
+        assertEquals(1, restoresOnAppOpen())
+    }
+
+    /** How many restore requests the app-open gate sends for what is stored, with nothing published. */
+    private fun restoresOnAppOpen(): Int {
         var restores = 0
         kotlinx.coroutines.runBlocking {
             com.micuadre.app.presentation.PersistedShiftRestorer(
-                state = { published.state.value },
-                hasRestorableShift = { repository.activeSession() != null },
+                state = { ShiftState.Disconnected },
+                // The same check MainViewModel wires: what rehydration would restore, not "a session exists".
+                hasRestorableShift = {
+                    com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase(repository)().state !is ShiftState.Disconnected
+                },
                 restore = { restores++ },
                 onFailure = {}
             ).restoreIfNeeded()
         }
-        assertEquals(1, restores)
+        return restores
+    }
+
+    @Test
+    fun `the app-open gate restores a connected shift`() {
+        repository.sessions += Session(id = 7L, startedAt = NOW - HOUR, endedAt = null)
+        repository.intervals += ConnectedInterval(1L, 7L, NOW - HOUR, null)
+
+        assertEquals(1, restoresOnAppOpen())
+    }
+
+    @Test
+    fun `the app-open gate restores a ride in progress`() {
+        persistedRide()
+
+        assertEquals(1, restoresOnAppOpen())
+    }
+
+    @Test
+    fun `the app-open gate leaves a paused shift alone`() {
+        pausedShift()
+
+        assertEquals(0, restoresOnAppOpen())
     }
 
     @Test
@@ -1260,6 +1333,9 @@ class InMemoryShiftRepository : ShiftRepository {
     /** What [finishOpenTrip] answers: false models a rejected finish (the row stays open). */
     var finishResult = true
 
+    /** How many times [openTrip] was entered, whatever its outcome. */
+    var openCalls = 0
+
     /** When set, [openTrip] stores the row and then throws: a failure after the commit. */
     var failAfterInsert: Throwable? = null
 
@@ -1278,10 +1354,11 @@ class InMemoryShiftRepository : ShiftRepository {
 
     override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip {
         yield()
+        openCalls++
         openFailure?.let { throw it }
         openTripOf(sessionId)?.let { return it }
         val trip = Trip(
-            id = nextTripId++, sessionId = sessionId, platformId = 0L, platformName = "",
+            id = nextTripId++, sessionId = sessionId, platformId = Trip.NO_PLATFORM_ID, platformName = "",
             startedAt = startedAt, endedAt = null, amountMinor = null, paymentMethod = null
         )
         trips += trip

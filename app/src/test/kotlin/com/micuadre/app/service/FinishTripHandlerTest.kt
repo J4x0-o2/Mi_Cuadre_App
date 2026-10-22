@@ -47,7 +47,7 @@ class FinishTripHandlerTest {
     @Test
     fun `non-positive platform id is rejected without touching storage`() = runTest {
         val repo = HandlerFakeRepository(saves = true)
-        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platformId = 0L))
+        assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platformId = Trip.NO_PLATFORM_ID))
         assertEquals(FinishTripHandler.Outcome.Rejected, handler(repo).run(platformId = -3L))
         assertEquals(0, repo.finishCalls)
     }

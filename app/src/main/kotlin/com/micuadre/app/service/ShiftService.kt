@@ -100,6 +100,9 @@ class ShiftService : Service() {
 
     private var rehydrated = false
 
+    /** A start is being persisted; further starts are ignored until it settles (main thread only). */
+    private var startInFlight = false
+
     /** Completes once rehydration has settled (restored or not), for actions that must wait for it. */
     private val rehydration = CompletableDeferred<Unit>()
     private var connectPending = false
@@ -314,43 +317,56 @@ class ShiftService : Service() {
         }
     }
 
+    /**
+     * Starts a ride. Single-flight: while one start is being persisted a second one (a tap on the
+     * notification and one on the bubble) is ignored, so two calls can never race over the same
+     * open row. That is also what makes the failure cleanup below safe: when it runs, no other
+     * start of this service can own an open row, and a live ride means the state is OnTrip.
+     */
     private fun handleStartTrip() {
-        if (_currentState.value !is ShiftState.Connected) {
+        if (_currentState.value !is ShiftState.Connected || startInFlight) {
             stopIfIdle()
             return
         }
+        startInFlight = true
         val now = clock.nowMs()
         scope.launch {
-            val sessionId = activeSessionId ?: return@launch
-            // The ride is persisted first: if that fails there is no ride, not one that only lives in memory.
-            val started = try {
-                startTrip(sessionId, startedAt = now)
-            } catch (t: Throwable) {
-                if (t is CancellationException) throw t
-                Log.e(TAG, "Persisting the new trip failed; the shift stays Connected", t)
-                // The row may have been committed before the failure; no ride exists, so none may stay.
-                // A live ride (a duplicate start that lost the race) is left alone.
-                if (_currentState.value !is ShiftState.OnTrip) discardOpenTrip(sessionId, survivesCancellation = true)
-                controller.publishError(ShiftError.StartTripFailed)
-                return@launch
+            try {
+                persistAndEnterTrip(now)
+            } finally {
+                startInFlight = false
             }
-            val current = _currentState.value
-            if (current !is ShiftState.Connected) {
-                // A duplicate start finds the live ride (the insert is idempotent): leave it alone.
-                // Anything else (the shift was paused meanwhile) must not leave an orphan open row.
-                if (current !is ShiftState.OnTrip) discardOpenTrip(sessionId, survivesCancellation = true)
-                return@launch
-            }
-            val next = stateMachine.transition(
-                current,
-                ShiftStateMachine.Action.StartTrip(tripStartedAtMs = started.startedAt)
-            )
-            _currentState.value = next
-            activeTripStartMs = started.startedAt
-            activeTripId = started.tripId
-            controller.publishState(next)
-            updateNotification(next)
         }
+    }
+
+    private suspend fun persistAndEnterTrip(now: Long) {
+        val sessionId = activeSessionId ?: return
+        // The ride is persisted first: if that fails there is no ride, not one that only lives in memory.
+        val started = try {
+            startTrip(sessionId, startedAt = now)
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            Log.e(TAG, "Persisting the new trip failed; the shift stays Connected", t)
+            // The row may have been committed before the failure; no ride exists, so none may stay.
+            discardOpenTrip(sessionId, survivesCancellation = true)
+            controller.publishError(ShiftError.StartTripFailed)
+            return
+        }
+        val current = _currentState.value
+        if (current !is ShiftState.Connected) {
+            // The shift was paused meanwhile: the row must not stay behind as an orphan.
+            discardOpenTrip(sessionId, survivesCancellation = true)
+            return
+        }
+        val next = stateMachine.transition(
+            current,
+            ShiftStateMachine.Action.StartTrip(tripStartedAtMs = started.startedAt)
+        )
+        _currentState.value = next
+        activeTripStartMs = started.startedAt
+        activeTripId = started.tripId
+        controller.publishState(next)
+        updateNotification(next)
     }
 
     private fun handleFinishTrip(intent: Intent) {
