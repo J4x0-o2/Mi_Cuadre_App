@@ -25,7 +25,7 @@ import com.micuadre.app.data.local.entity.TripEntity
         DeductionEntity::class,
         SessionDeductionEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

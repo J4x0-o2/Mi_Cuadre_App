@@ -69,6 +69,27 @@ interface ShiftRepository {
      */
     suspend fun cancelInProgressTrip(sessionId: Long)
 
+    /**
+     * Persists a ride in progress for [sessionId] starting at [startedAt] (no amount, payment or
+     * platform yet) and returns its row id. Idempotent: when the session already has an open trip,
+     * that trip is kept and its id returned. Open trips never count toward any total or list.
+     */
+    suspend fun openTrip(sessionId: Long, startedAt: Long): Long =
+        throw UnsupportedOperationException("openTrip")
+
+    /**
+     * Closes the open trip [tripId] in place with its platform, end time, amount and payment
+     * method. Returns false, leaving the trip open, on invalid input (amount not positive, end not
+     * after the start, unknown or deleted platform) or when [tripId] is not an open trip.
+     */
+    suspend fun finishOpenTrip(
+        tripId: Long,
+        platformId: Long,
+        endedAt: Long,
+        amountMinor: Long,
+        paymentMethod: PaymentMethod
+    ): Boolean = throw UnsupportedOperationException("finishOpenTrip")
+
     /** Inserts a trip row. */
     suspend fun insertTrip(trip: Trip): Long
 

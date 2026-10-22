@@ -8,7 +8,8 @@ import androidx.room.PrimaryKey
 /**
  * Room row for a single trip (carrera).
  *
- * Deleting a session cascades to its trips; the platform reference does not cascade.
+ * A row with `endedAt = null` is an open (in-progress) trip: it only has a start time and never
+ * counts toward any total. Deleting a session cascades to its trips; the platform reference does not cascade.
  */
 @Entity(
     tableName = "trips",
@@ -32,7 +33,8 @@ data class TripEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
     val sessionId: Long,
-    val platformId: Long,
+    /** Null only while the trip is open: the platform is chosen when the ride is finished. */
+    val platformId: Long?,
     val startedAt: Long,
     val endedAt: Long?,
     val amountMinor: Long?,

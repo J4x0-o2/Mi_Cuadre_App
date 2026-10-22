@@ -56,14 +56,14 @@ class ShiftRepositoryImpl @Inject constructor(
     override fun observeTrips(sessionId: Long): Flow<List<Trip>> =
         combine(tripDao.observeBySession(sessionId), platformDao.observeAll()) { trips, platforms ->
             val names = platforms.nameById()
-            trips.map { it.toDomain(names) }
+            trips.mapNotNull { it.toClosedDomain(names) }
         }
 
     override suspend fun inProgressTrip(sessionId: Long): Trip? =
-        tripDao.inProgressBySession(sessionId)?.toDomain(platformNames())
+        tripDao.inProgressBySession(sessionId)?.toOpenDomain()
 
     override suspend fun lastFinishedTrip(): Trip? =
-        tripDao.lastFinished()?.toDomain(platformNames())
+        tripDao.lastFinished()?.toClosedDomain(platformNames())
 
     override fun observeVisiblePlatforms(): Flow<List<Platform>> =
         platformDao.observeVisible().map { list -> list.map { it.toDomain() } }
@@ -74,7 +74,8 @@ class ShiftRepositoryImpl @Inject constructor(
             rows.map { row ->
                 SessionActivity(
                     session = row.session.toDomain(),
-                    trips = row.trips.map { it.toDomain(names) },
+                    // A @Relation cannot filter in SQL, so open trips are dropped here.
+                    trips = row.trips.mapNotNull { it.toClosedDomain(names) },
                     intervals = row.intervals.map { it.toDomain() }
                 )
             }
@@ -84,6 +85,24 @@ class ShiftRepositoryImpl @Inject constructor(
         tripDao.deleteInProgressBySession(sessionId)
     }
 
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Long {
+        val id = tripDao.insertOpenIfNone(sessionId, startedAt)
+        if (id > 0L) return id
+        // The session already had an open trip: keep it.
+        return checkNotNull(tripDao.inProgressBySession(sessionId)) { "open trip vanished" }.id
+    }
+
+    override suspend fun finishOpenTrip(
+        tripId: Long,
+        platformId: Long,
+        endedAt: Long,
+        amountMinor: Long,
+        paymentMethod: PaymentMethod
+    ): Boolean {
+        if (amountMinor <= 0L) return false
+        return tripDao.finishOpen(tripId, platformId, endedAt, amountMinor, paymentMethod.name) > 0
+    }
+
     override suspend fun insertTrip(trip: Trip): Long =
         tripDao.insert(trip.toEntity())
 
@@ -91,7 +110,8 @@ class ShiftRepositoryImpl @Inject constructor(
 
     override suspend fun summary(sessionId: Long): DailySummary {
         val names = platformNames()
-        val trips = tripDao.listBySession(sessionId)
+        val entities = tripDao.listBySession(sessionId)
+        val trips = entities.filter { it.platformId != null }
         val session = sessionDao.byId(sessionId)
         val totalMinor = trips.sumOf { it.amountMinor ?: 0L }
         val count = trips.size
@@ -107,7 +127,7 @@ class ShiftRepositoryImpl @Inject constructor(
             avgDurationMs = avg,
             startedAt = session?.startedAt,
             endedAt = session?.endedAt,
-            trips = trips.map { it.toDomain(names) },
+            trips = trips.mapNotNull { it.toClosedDomain(names) },
             connectedIntervals = intervalDao.listBySession(sessionId).map { it.toDomain() }
         )
     }
@@ -146,12 +166,35 @@ class ShiftRepositoryImpl @Inject constructor(
 
     private fun List<PlatformEntity>.nameById(): Map<Long, String> = associate { it.id to it.name }
 
-    private fun TripEntity.toDomain(names: Map<Long, String>) = Trip(
+    /**
+     * Maps a finished trip. Returns null for an open trip (no end) and for a row without a platform,
+     * so open rows can never reach code that expects closed trips.
+     */
+    private fun TripEntity.toClosedDomain(names: Map<Long, String>): Trip? {
+        if (endedAt == null) return null
+        val platform = platformId ?: return null
+        return Trip(
+            id = id,
+            sessionId = sessionId,
+            platformId = platform,
+            // The foreign key guarantees the row exists; the fallback only guards a torn read.
+            platformName = names[platform].orEmpty(),
+            startedAt = startedAt,
+            endedAt = endedAt,
+            amountMinor = amountMinor,
+            paymentMethod = paymentMethod?.let { runCatching { PaymentMethod.valueOf(it) }.getOrNull() }
+        )
+    }
+
+    /**
+     * Maps the open trip. The domain model has no "no platform" value, so an open trip carries
+     * platformId 0 (never a real id) and an empty name until it is finished.
+     */
+    private suspend fun TripEntity.toOpenDomain() = Trip(
         id = id,
         sessionId = sessionId,
-        platformId = platformId,
-        // The foreign key guarantees the row exists; the fallback only guards a torn read.
-        platformName = names[platformId].orEmpty(),
+        platformId = platformId ?: 0L,
+        platformName = platformId?.let { platformNames()[it] }.orEmpty(),
         startedAt = startedAt,
         endedAt = endedAt,
         amountMinor = amountMinor,
@@ -161,7 +204,8 @@ class ShiftRepositoryImpl @Inject constructor(
     private fun Trip.toEntity() = TripEntity(
         id = id,
         sessionId = sessionId,
-        platformId = platformId,
+        // 0 is the domain marker for "no platform yet"; it is stored as NULL.
+        platformId = platformId.takeIf { it > 0L },
         startedAt = startedAt,
         endedAt = endedAt,
         amountMinor = amountMinor,
