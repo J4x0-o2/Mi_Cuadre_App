@@ -16,4 +16,12 @@ object ServiceStartPolicy {
         connectPending: Boolean,
         startCommandSeen: Boolean
     ): Boolean = state is ShiftState.Disconnected && rehydrated && !connectPending && startCommandSeen
+
+    /**
+     * Opening the app with a restorable shift (connected or on a ride, not paused) but nothing published by a running service (the
+     * process was killed and the system restart was refused or never came): ask the service to
+     * restore it. With no shift stored nothing is started, so a cold launch shows no notification.
+     */
+    fun shouldRestoreOnAppOpen(state: ShiftState, hasRestorableShift: Boolean): Boolean =
+        state is ShiftState.Disconnected && hasRestorableShift
 }

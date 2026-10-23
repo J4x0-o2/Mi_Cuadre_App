@@ -69,7 +69,31 @@ interface ShiftRepository {
      */
     suspend fun cancelInProgressTrip(sessionId: Long)
 
-    /** Inserts a trip row. */
+    /**
+     * Persists a ride in progress for [sessionId] starting at [startedAt] (no amount, payment or
+     * platform yet) and returns the stored row, read back in the same transaction that inserted it.
+     * Idempotent: when the session already has an open trip, that trip is kept and returned, with
+     * its own start. Open trips never count toward any total or list.
+     */
+    suspend fun openTrip(sessionId: Long, startedAt: Long): Trip
+
+    /**
+     * Closes the open trip [tripId] in place with its platform, end time, amount and payment
+     * method. Returns false, leaving the trip open, on invalid input (amount not positive, end not
+     * after the start, unknown or deleted platform) or when [tripId] is not an open trip.
+     */
+    suspend fun finishOpenTrip(
+        tripId: Long,
+        platformId: Long,
+        endedAt: Long,
+        amountMinor: Long,
+        paymentMethod: PaymentMethod
+    ): Boolean
+
+    /**
+     * Inserts a trip row. A closed trip (one with an end) must name a platform: it is rejected with
+     * an [IllegalArgumentException] instead of being stored where totals and lists would disagree.
+     */
     suspend fun insertTrip(trip: Trip): Long
 
     /** Computes the daily summary for the given session id (one-shot). */
@@ -77,18 +101,4 @@ interface ShiftRepository {
 
     /** Total of all trip amounts for the session, in minor units. */
     suspend fun totalMinor(sessionId: Long): Long
-
-    /**
-     * Validates and persists a finished trip on [platformId].
-     * Returns true on success, false on validation failure (including a platform that does not
-     * exist or was deleted).
-     */
-    suspend fun finishTrip(
-        sessionId: Long,
-        platformId: Long,
-        startedAt: Long,
-        endedAt: Long,
-        amountMinor: Long,
-        paymentMethod: PaymentMethod
-    ): Boolean
 }

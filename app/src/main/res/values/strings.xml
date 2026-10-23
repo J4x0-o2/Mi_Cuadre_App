@@ -92,6 +92,9 @@
     <string name="notif_trip_text">Iniciada %1$s · Hoy %2$s en %3$s</string>
     <string name="notif_connected_title">Hoy %1$s · %2$s</string>
     <string name="notif_connected_text">Tocá Iniciar cuando subas al pasajero</string>
+    <string name="notif_shift_saved_channel_name">Turno guardado</string>
+    <string name="notif_shift_saved_title">Tu turno sigue guardado</string>
+    <string name="notif_shift_saved_text">Toca para volver a MiCuadre.</string>
     <string name="notif_action_finish_trip">Terminar carrera</string>
     <string name="notif_action_start_trip">Iniciar carrera</string>
     <string name="notif_action_open_app">Abrir app</string>
@@ -102,6 +105,7 @@
     <string name="notif_post_notifications_rationale">MiCuadre necesita mostrar una notificación para mantener el contador de jornada y de carrera activos.</string>
 
     <string name="notif_permission_denied_hint">Sin permiso de notificaciones no vas a ver el contador en la barra, pero la jornada sigue corriendo.</string>
+    <string name="error_start_trip">No se pudo iniciar la carrera. Intentá de nuevo.</string>
     <string name="error_finish_trip">No se pudo guardar la carrera. Revisá los datos e intentá de nuevo.</string>
 
     <string name="app_tagline">Tu jornada, en segundos</string>

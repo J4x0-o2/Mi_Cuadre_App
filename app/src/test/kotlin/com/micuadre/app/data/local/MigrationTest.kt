@@ -425,6 +425,143 @@ class MigrationTest {
         assertEquals(0, db.count("session_deductions"))
     }
 
+    // ---- 4 -> 5: open trips (nullable amount, payment and platform) ----
+
+    private fun createV4(block: (SupportSQLiteDatabase) -> Unit = {}) {
+        helper.createDatabase(DB_NAME, 4).apply {
+            execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            execSQL(
+                "INSERT INTO platforms (id, name, visible, createdAt, deletedAt) VALUES (1, 'Didi', 1, $START_1, NULL)"
+            )
+            execSQL(
+                "INSERT INTO trips (id, sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (7, 1, 1, $START_1, ${START_1 + 60_000L}, 5000, 'CASH')"
+            )
+            execSQL(
+                "INSERT INTO trips (id, sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (9, 1, 1, ${START_1 + 120_000L}, ${START_1 + 180_000L}, 7500, 'TRANSFER')"
+            )
+            block(this)
+            close()
+        }
+    }
+
+    private fun migrate5(): SupportSQLiteDatabase =
+        helper.runMigrationsAndValidate(DB_NAME, 5, true, MIGRATION_4_5)
+
+    @Test
+    fun `4 to 5 keeps every trip row with its id and values`() {
+        createV4()
+
+        val db = migrate5()
+
+        db.query(
+            "SELECT id, sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod FROM trips ORDER BY id"
+        ).use {
+            assertEquals(2, it.count)
+            assertTrue(it.moveToNext())
+            assertEquals(
+                listOf(7L, 1L, 1L, START_1, START_1 + 60_000L, 5_000L),
+                (0..5).map { c -> it.getLong(c) }
+            )
+            assertEquals("CASH", it.getString(6))
+            assertTrue(it.moveToNext())
+            assertEquals(9L, it.getLong(0))
+            assertEquals(7_500L, it.getLong(5))
+            assertEquals("TRANSFER", it.getString(6))
+        }
+        db.query("SELECT SUM(amountMinor) FROM trips").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(12_500L, it.getLong(0))
+        }
+    }
+
+    @Test
+    fun `4 to 5 keeps the other tables and leaves no foreign key violations`() {
+        createV4()
+
+        val db = migrate5()
+
+        assertEquals(1, db.count("sessions"))
+        assertEquals(listOf("Didi"), db.platforms().map { it.second })
+        db.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
+    }
+
+    @Test
+    fun `4 to 5 accepts an open trip with no amount, payment or platform`() {
+        createV4()
+        val db = migrate5()
+
+        db.execSQL(
+            "INSERT INTO trips (sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                "VALUES (1, NULL, $START_2, NULL, NULL, NULL)"
+        )
+
+        db.query("SELECT platformId, endedAt, amountMinor, paymentMethod FROM trips WHERE startedAt = $START_2").use {
+            assertTrue(it.moveToFirst())
+            assertTrue(it.isNull(0) && it.isNull(1) && it.isNull(2) && it.isNull(3))
+        }
+    }
+
+    @Test
+    fun `4 to 5 keeps the trip foreign keys and indexes`() {
+        createV4()
+        val db = migrate5()
+        db.execSQL("PRAGMA foreign_keys = ON")
+
+        try {
+            db.execSQL("INSERT INTO trips (sessionId, platformId, startedAt) VALUES (1, 999, $START_2)")
+            fail("expected the platform foreign key to reject an unknown platform")
+        } catch (expected: SQLiteConstraintException) {
+            // a set platform must still exist
+        }
+        db.query("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'trips' ORDER BY name").use {
+            val names = buildList { while (it.moveToNext()) add(it.getString(0)) }
+            assertEquals(listOf("index_trips_platformId", "index_trips_sessionId"), names)
+        }
+        db.execSQL("DELETE FROM sessions WHERE id = 1")
+        assertEquals(0, db.count("trips"))
+    }
+
+    @Test
+    fun `4 to 5 keeps an in-progress row that already exists`() {
+        createV4 {
+            it.execSQL(
+                "INSERT INTO trips (id, sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (11, 1, 1, $START_2, NULL, NULL, NULL)"
+            )
+        }
+
+        val db = migrate5()
+
+        db.query("SELECT platformId, endedAt FROM trips WHERE id = 11").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(1L, it.getLong(0))
+            assertTrue(it.isNull(1))
+        }
+    }
+
+    @Test
+    fun `1 to 5 chain validates and keeps the old trips`() {
+        helper.createDatabase(DB_NAME, 1).apply {
+            execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            execSQL(
+                "INSERT INTO trips (sessionId, platform, platformOtherLabel, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (1, 'OTHER', 'Uber', $START_1, $END_1, 5000, 'CASH')"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            DB_NAME, 5, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5
+        )
+
+        assertEquals(listOf("InDriver", "Didi", "Uber"), db.platforms().map { it.second })
+        assertEquals(listOf(1L to "Uber"), db.tripPlatforms())
+        assertEquals(1, db.count("connected_intervals"))
+        assertEquals(0, db.count("deductions"))
+    }
+
     private companion object {
         const val DB_NAME = "migration-test"
         // 2026-01-01T08:00:00Z .. 10:00:00Z, and a later open session.

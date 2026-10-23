@@ -1,6 +1,7 @@
 package com.micuadre.app.domain.usecase
 
 import com.micuadre.app.domain.model.Platform
+import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.repository.ShiftRepository
 import kotlinx.coroutines.flow.flowOf
@@ -13,12 +14,12 @@ import org.junit.Test
 class FinishTripUseCaseTest {
 
     @Test
-    fun `valid trip with positive amount is persisted`() = runTest {
-        val repo = FakeShiftRepository(finishTripResult = true)
+    fun `valid trip with positive amount is persisted by finishing the open trip`() = runTest {
+        val repo = FakeShiftRepository(finishResult = true)
         val useCase = FinishTripUseCase(repo)
 
         val result = useCase(
-            sessionId = 1L,
+            tripId = 9L,
             platformId = 5L,
             startedAt = 1_000L,
             endedAt = 2_000L,
@@ -29,6 +30,8 @@ class FinishTripUseCaseTest {
         assertTrue(result is FinishTripUseCase.Result.Saved)
         assertEquals(1, repo.finishCalls.size)
         val call = repo.finishCalls.single()
+        assertEquals(9L, call.tripId)
+        assertEquals(2_000L, call.endedAt)
         assertEquals(5L, call.platformId)
         assertEquals(150_050L, call.amountMinor)
         assertEquals(PaymentMethod.CASH, call.method)
@@ -36,11 +39,11 @@ class FinishTripUseCaseTest {
 
     @Test
     fun `zero amount is rejected`() = runTest {
-        val repo = FakeShiftRepository(finishTripResult = true)
+        val repo = FakeShiftRepository(finishResult = true)
         val useCase = FinishTripUseCase(repo)
 
         val result = useCase(
-            sessionId = 1L,
+            tripId = 9L,
             platformId = 2L,
             startedAt = 1_000L,
             endedAt = 2_000L,
@@ -54,11 +57,11 @@ class FinishTripUseCaseTest {
 
     @Test
     fun `endedAt before startedAt is rejected`() = runTest {
-        val repo = FakeShiftRepository(finishTripResult = true)
+        val repo = FakeShiftRepository(finishResult = true)
         val useCase = FinishTripUseCase(repo)
 
         val result = useCase(
-            sessionId = 1L,
+            tripId = 9L,
             platformId = 2L,
             startedAt = 2_000L,
             endedAt = 1_000L,
@@ -72,11 +75,11 @@ class FinishTripUseCaseTest {
 
     @Test
     fun `repository failure surfaces as Invalid`() = runTest {
-        val repo = FakeShiftRepository(finishTripResult = false)
+        val repo = FakeShiftRepository(finishResult = false)
         val useCase = FinishTripUseCase(repo)
 
         val result = useCase(
-            sessionId = 1L,
+            tripId = 9L,
             platformId = 2L,
             startedAt = 1_000L,
             endedAt = 2_000L,
@@ -90,16 +93,15 @@ class FinishTripUseCaseTest {
 }
 
 private data class FinishCall(
-    val sessionId: Long,
+    val tripId: Long,
     val platformId: Long,
-    val startedAt: Long,
     val endedAt: Long,
     val amountMinor: Long,
     val method: PaymentMethod
 )
 
 private class FakeShiftRepository(
-    private val finishTripResult: Boolean
+    private val finishResult: Boolean
 ) : ShiftRepository {
     override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     val finishCalls = mutableListOf<FinishCall>()
@@ -122,15 +124,16 @@ private class FakeShiftRepository(
 
     override suspend fun totalMinor(sessionId: Long) = 0L
 
-    override suspend fun finishTrip(
-        sessionId: Long,
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip = error("unused")
+
+    override suspend fun finishOpenTrip(
+        tripId: Long,
         platformId: Long,
-        startedAt: Long,
         endedAt: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
     ): Boolean {
-        finishCalls += FinishCall(sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod)
-        return finishTripResult
+        finishCalls += FinishCall(tripId, platformId, endedAt, amountMinor, paymentMethod)
+        return finishResult
     }
 }

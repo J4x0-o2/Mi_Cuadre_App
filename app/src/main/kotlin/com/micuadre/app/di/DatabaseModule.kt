@@ -6,6 +6,7 @@ import com.micuadre.app.data.local.DefaultPlatforms
 import com.micuadre.app.data.local.MIGRATION_1_2
 import com.micuadre.app.data.local.MIGRATION_2_3
 import com.micuadre.app.data.local.MIGRATION_3_4
+import com.micuadre.app.data.local.MIGRATION_4_5
 import com.micuadre.app.data.local.MiCuadreDatabase
 import com.micuadre.app.data.local.dao.ConnectedIntervalDao
 import com.micuadre.app.data.local.dao.DeductionDao
@@ -32,7 +33,7 @@ object DatabaseModule {
             MiCuadreDatabase::class.java,
             MiCuadreDatabase.NAME
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .addCallback(DefaultPlatforms.callback)
             .build()
 

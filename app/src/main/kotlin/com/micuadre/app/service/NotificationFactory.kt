@@ -25,11 +25,13 @@ import com.micuadre.app.util.Formatters
  * Live trip time comes from the system chronometer, so the notification only
  * needs to be re-posted when the state or the day totals change.
  */
-class NotificationFactory(private val context: Context) {
+open class NotificationFactory(private val context: Context) {
 
     companion object {
         const val CHANNEL_ID = "micuadre_shift"
         const val NOTIF_ID = 1001
+        const val NOTIF_ID_SHIFT_SAVED = 1002
+        const val CHANNEL_ID_SHIFT_SAVED = "micuadre_shift_saved"
 
         private const val REQUEST_OPEN_APP = 0
         private const val REQUEST_FINISH_TRIP = 1
@@ -65,7 +67,33 @@ class NotificationFactory(private val context: Context) {
         nm.createNotificationChannel(channel)
     }
 
-    fun build(state: ShiftState, totals: DayTotals): Notification {
+    /** Plain, dismissible notice that the shift is still stored; tapping it opens the app. */
+    fun buildShiftSaved(): Notification {
+        ensureShiftSavedChannel()
+        return NotificationCompat.Builder(context, CHANNEL_ID_SHIFT_SAVED)
+            .setSmallIcon(R.drawable.ic_stat_micuadre)
+            .setContentTitle(context.getString(R.string.notif_shift_saved_title))
+            .setContentText(context.getString(R.string.notif_shift_saved_text))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(openAppIntent())
+            .build()
+    }
+
+    private fun ensureShiftSavedChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val nm = ContextCompat.getSystemService(context, NotificationManager::class.java) ?: return
+        nm.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID_SHIFT_SAVED,
+                context.getString(R.string.notif_shift_saved_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+        )
+    }
+
+    open fun build(state: ShiftState, totals: DayTotals): Notification {
         val model = ShiftNotificationModel.create(
             state = state,
             totals = totals,

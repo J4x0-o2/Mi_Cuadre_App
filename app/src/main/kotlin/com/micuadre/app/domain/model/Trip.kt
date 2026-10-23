@@ -19,4 +19,12 @@ data class Trip(
 ) {
     /** Duration in milliseconds. Returns 0 for in-progress trips (endedAt == null). */
     val durationMs: Long get() = ((endedAt ?: startedAt) - startedAt).coerceAtLeast(0L)
+
+    companion object {
+        /**
+         * [platformId] of a ride that has not been finished yet. The domain has no "no platform"
+         * value, so open rides carry this (never a real id); storage keeps it as NULL.
+         */
+        const val NO_PLATFORM_ID = 0L
+    }
 }

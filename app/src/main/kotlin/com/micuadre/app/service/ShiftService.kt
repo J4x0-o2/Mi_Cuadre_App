@@ -2,7 +2,6 @@ package com.micuadre.app.service
 
 import android.app.Service
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -73,6 +72,7 @@ class ShiftService : Service() {
     @Inject lateinit var bubblePreferences: BubblePreferenceRepository
     @Inject lateinit var overlayPermission: OverlayPermission
     @Inject lateinit var bubbleOverlay: BubbleOverlay
+    @Inject lateinit var foregroundStarter: ForegroundStarter
 
     private val stateMachine by lazy { ShiftStateMachine(nowMs = clock::nowMs) }
     private val finishTripReducer by lazy { FinishTripReducer(stateMachine) }
@@ -87,7 +87,7 @@ class ShiftService : Service() {
     private val _currentState = MutableStateFlow<ShiftState>(ShiftState.Disconnected)
     private val currentState: StateFlow<ShiftState> = _currentState.asStateFlow()
 
-    private lateinit var notificationFactory: NotificationFactory
+    internal lateinit var notificationFactory: NotificationFactory
 
     /** Active session id (null when disconnected). */
     private var activeSessionId: Long? = null
@@ -95,7 +95,13 @@ class ShiftService : Service() {
     /** Trip start timestamp for the active trip (OnTrip only). */
     private var activeTripStartMs: Long? = null
 
+    /** Id of the persisted open trip row for the active trip (OnTrip only). */
+    private var activeTripId: Long? = null
+
     private var rehydrated = false
+
+    /** A start is being persisted; further starts are ignored until it settles (main thread only). */
+    private var startInFlight = false
 
     /** Completes once rehydration has settled (restored or not), for actions that must wait for it. */
     private val rehydration = CompletableDeferred<Unit>()
@@ -174,9 +180,10 @@ class ShiftService : Service() {
                 observeDayTotals(result.sessionId)
                 if (restored is ShiftState.OnTrip) {
                     activeTripStartMs = restored.tripStartedAtMs
+                    activeTripId = result.tripId
                 }
                 controller.publishState(restored)
-                startInForeground(restored)
+                if (!startInForeground(restored)) return@launch
                 // Connected time keeps counting: an interval may be missing (migrated open session).
                 intervalLock.withLock {
                     repository.openConnectedInterval(result.sessionId, startedAt = clock.nowMs())
@@ -211,19 +218,24 @@ class ShiftService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startCommandSeen = true
         if (intent == null) {
-            // System restart: rehydration decides whether there is anything to run.
+            // System restart after the process was killed: rehydration decides whether there is
+            // anything to run. An active shift (even mid-ride) is restored and goes back to the
+            // foreground; with no active session the idle policy stops the service. Sticky, so a
+            // later kill of the restored shift is recovered too.
             stopIfIdle()
-            return START_NOT_STICKY
+            return START_STICKY
         }
         // Delivered via startForegroundService / getForegroundService: satisfy startForeground
         // up front so no early-return path below can leave the requirement unmet.
-        startInForeground(_currentState.value)
+        if (!startInForeground(_currentState.value)) return START_NOT_STICKY
         when (intent.action) {
             ShiftServiceController.ACTION_CONNECT -> handleConnect()
             ShiftServiceController.ACTION_DISCONNECT -> handleDisconnect()
             ShiftServiceController.ACTION_START_TRIP -> handleStartTrip()
             ShiftServiceController.ACTION_FINISH_TRIP -> handleFinishTrip(intent)
             ShiftServiceController.ACTION_CANCEL_TRIP -> handleCancelTrip(intent)
+            // Rehydration (started in onCreate) does the work; the idle policy stops the service if empty.
+            ShiftServiceController.ACTION_RESTORE -> stopIfIdle()
             ShiftServiceController.ACTION_END_SHIFT -> handleEndShift(ShiftServiceController.deductionAmountsFrom(intent))
             else -> stopIfIdle()
         }
@@ -305,30 +317,62 @@ class ShiftService : Service() {
         }
     }
 
+    /**
+     * Starts a ride. Single-flight: while one start is being persisted a second one (a tap on the
+     * notification and one on the bubble) is ignored, so two calls can never race over the same
+     * open row. That is also what makes the failure cleanup below safe: when it runs, no other
+     * start of this service can own an open row, and a live ride means the state is OnTrip.
+     */
     private fun handleStartTrip() {
-        if (_currentState.value !is ShiftState.Connected) {
+        if (_currentState.value !is ShiftState.Connected || startInFlight) {
             stopIfIdle()
             return
         }
+        startInFlight = true
         val now = clock.nowMs()
         scope.launch {
-            val sessionId = activeSessionId ?: return@launch
-            startTrip(sessionId, startedAt = now)
-            val next = stateMachine.transition(
-                _currentState.value,
-                ShiftStateMachine.Action.StartTrip(tripStartedAtMs = now)
-            )
-            _currentState.value = next
-            activeTripStartMs = now
-            controller.publishState(next)
-            updateNotification(next)
+            try {
+                persistAndEnterTrip(now)
+            } finally {
+                startInFlight = false
+            }
         }
     }
 
+    private suspend fun persistAndEnterTrip(now: Long) {
+        val sessionId = activeSessionId ?: return
+        // The ride is persisted first: if that fails there is no ride, not one that only lives in memory.
+        val started = try {
+            startTrip(sessionId, startedAt = now)
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            Log.e(TAG, "Persisting the new trip failed; the shift stays Connected", t)
+            // The row may have been committed before the failure; no ride exists, so none may stay.
+            discardOpenTrip(sessionId, survivesCancellation = true)
+            controller.publishError(ShiftError.StartTripFailed)
+            return
+        }
+        val current = _currentState.value
+        if (current !is ShiftState.Connected) {
+            // The shift was paused meanwhile: the row must not stay behind as an orphan.
+            discardOpenTrip(sessionId, survivesCancellation = true)
+            return
+        }
+        val next = stateMachine.transition(
+            current,
+            ShiftStateMachine.Action.StartTrip(tripStartedAtMs = started.startedAt)
+        )
+        _currentState.value = next
+        activeTripStartMs = started.startedAt
+        activeTripId = started.tripId
+        controller.publishState(next)
+        updateNotification(next)
+    }
+
     private fun handleFinishTrip(intent: Intent) {
-        val sessionId = activeSessionId
+        val tripId = activeTripId
         val tripStart = activeTripStartMs
-        if (_currentState.value !is ShiftState.OnTrip || sessionId == null || tripStart == null) {
+        if (_currentState.value !is ShiftState.OnTrip || tripId == null || tripStart == null) {
             stopIfIdle()
             return
         }
@@ -340,7 +384,7 @@ class ShiftService : Service() {
         val now = clock.nowMs()
         scope.launch {
             val outcome = finishTripHandler.handle(
-                sessionId = sessionId,
+                tripId = tripId,
                 tripStartedAt = tripStart,
                 endedAt = now,
                 platformId = platformId,
@@ -356,8 +400,28 @@ class ShiftService : Service() {
             val next = result.state
             _currentState.value = next
             activeTripStartMs = null
+            activeTripId = null
             controller.publishState(next)
             updateNotification(next)
+        }
+    }
+
+    /**
+     * Drops the open ride row of [sessionId] (it has no amount, so it is discarded like a cancel).
+     * Best effort: a failure is logged and never blocks the caller.
+     *
+     * [survivesCancellation] picks how the service being destroyed meanwhile is handled. Orphan
+     * cleanup after a start (true) must finish even then, or the row would be restored as a ghost
+     * ride. Ending the shift (false) is itself cancellable work, so cancellation just propagates.
+     */
+    private suspend fun discardOpenTrip(sessionId: Long, survivesCancellation: Boolean) {
+        try {
+            if (survivesCancellation) withContext(NonCancellable) { cancelTrip(sessionId) } else cancelTrip(sessionId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (t: Exception) {
+            // An orphan row is never counted; restoring it as a ghost ride is the only harm left.
+            Log.e(TAG, "Discarding the open ride row failed", t)
         }
     }
 
@@ -376,7 +440,7 @@ class ShiftService : Service() {
                 return@launch
             }
             try {
-                // Defensive: the row is only written at finish time today, but a stray open one must not survive.
+                // Deletes the persisted open row, so the discarded ride is not restored after a restart.
                 cancelTrip(sessionId)
             } catch (t: Throwable) {
                 if (t is CancellationException) throw t
@@ -388,6 +452,7 @@ class ShiftService : Service() {
             val next = stateMachine.transition(_currentState.value, ShiftStateMachine.Action.CancelTrip)
             _currentState.value = next
             activeTripStartMs = null
+            activeTripId = null
             controller.publishState(next)
             updateNotification(next)
         }
@@ -411,6 +476,7 @@ class ShiftService : Service() {
                 return@launch
             }
             val now = clock.nowMs()
+            discardOpenTrip(sessionId, survivesCancellation = false)
             endShift(sessionId, endedAt = now)
             saveExpenses(sessionId, amounts)
             val summary = getDailySummary(sessionId)
@@ -419,6 +485,7 @@ class ShiftService : Service() {
             _currentState.value = next
             activeSessionId = null
             activeTripStartMs = null
+            activeTripId = null
             controller.publishState(next)
             stopObservingTotals()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -441,17 +508,61 @@ class ShiftService : Service() {
         }
     }
 
-    private fun startInForeground(state: ShiftState) {
+    /**
+     * Enters the foreground. Only the platform call through [foregroundStarter] is guarded: the system may refuse (`ForegroundServiceStartNotAllowedException` on
+     * API 31+, a subclass of [IllegalStateException]; [SecurityException] for a missing type
+     * permission), typically on a sticky restart while the app is in the background. The class is
+     * never named here because it does not exist on minSdk 29.
+     *
+     * A refusal does not crash and loses nothing: the shift and any open ride are already in Room and
+     * come back when the app opens. The driver is told with a plain notification and the service stops.
+     *
+     * @return true when the service is in the foreground, false when it was refused and is stopping.
+     */
+    private fun startInForeground(state: ShiftState): Boolean {
+        // Built outside the try: a bug here is ours, deterministic, and must surface instead of
+        // being mistaken for the system saying no.
         val notification = notificationFactory.build(state, dayTotals)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                NotificationFactory.NOTIF_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            )
-        } else {
-            startForeground(NotificationFactory.NOTIF_ID, notification)
+        try {
+            foregroundStarter.start(this, NotificationFactory.NOTIF_ID, notification)
+        } catch (refused: RuntimeException) {
+            Log.e(TAG, "The system refused startForeground (sdk ${Build.VERSION.SDK_INT}); the shift stays saved", refused)
+            postShiftSavedNotice()
+            resetAfterRefusedForeground()
+            stopSelf()
+            return false
         }
+        cancelShiftSavedNotice()
+        return true
+    }
+
+    /**
+     * This instance is about to stop, so nothing it published may outlive it: the singleton
+     * controller goes back to Disconnected, which lets the next app launch ask for a restore. The
+     * shift and any open ride are untouched in Room.
+     */
+    private fun resetAfterRefusedForeground() {
+        stopObservingTotals()
+        _currentState.value = ShiftState.Disconnected
+        activeSessionId = null
+        activeTripStartMs = null
+        activeTripId = null
+        controller.publishState(ShiftState.Disconnected)
+    }
+
+    private fun postShiftSavedNotice() {
+        val nm = androidx.core.app.NotificationManagerCompat.from(this)
+        // areNotificationsEnabled is false when POST_NOTIFICATIONS is not granted on API 33+.
+        if (!nm.areNotificationsEnabled()) return
+        try {
+            nm.notify(NotificationFactory.NOTIF_ID_SHIFT_SAVED, notificationFactory.buildShiftSaved())
+        } catch (t: RuntimeException) {
+            Log.e(TAG, "Could not post the shift-saved notice", t)
+        }
+    }
+
+    private fun cancelShiftSavedNotice() {
+        androidx.core.app.NotificationManagerCompat.from(this).cancel(NotificationFactory.NOTIF_ID_SHIFT_SAVED)
     }
 
     private fun updateNotification(state: ShiftState) {

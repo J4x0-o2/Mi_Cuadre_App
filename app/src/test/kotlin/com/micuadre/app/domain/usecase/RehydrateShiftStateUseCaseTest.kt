@@ -1,5 +1,6 @@
 package com.micuadre.app.domain.usecase
 
+import com.micuadre.app.domain.model.ConnectedInterval
 import com.micuadre.app.domain.model.Platform
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Session
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -35,6 +37,59 @@ class RehydrateShiftStateUseCaseTest {
 
         assertSame(ShiftState.Disconnected, result.state)
         assertEquals(-1L, result.sessionId)
+    }
+
+    @Test
+    fun `a paused shift stays paused as Disconnected with its session kept`() = runTest {
+        val repo = FakeRehydrateRepository(
+            activeSessionResult = Session(id = 7L, startedAt = SESSION_START, endedAt = null),
+            intervals = listOf(ConnectedInterval(1L, 7L, SESSION_START, SESSION_START + 60_000L))
+        )
+
+        val result = RehydrateShiftStateUseCase(repo)()
+
+        assertSame(ShiftState.Disconnected, result.state)
+        assertEquals(7L, result.sessionId)
+    }
+
+    @Test
+    fun `an open connected interval restores Connected`() = runTest {
+        val repo = FakeRehydrateRepository(
+            activeSessionResult = Session(id = 7L, startedAt = SESSION_START, endedAt = null),
+            intervals = listOf(ConnectedInterval(1L, 7L, SESSION_START, null))
+        )
+
+        val result = RehydrateShiftStateUseCase(repo)()
+
+        assertEquals(ShiftState.Connected(connectedSinceMs = SESSION_START), result.state)
+    }
+
+    @Test
+    fun `a session that never got an interval counts as connected`() = runTest {
+        // Killed between creating the session and opening its first interval.
+        val repo = FakeRehydrateRepository(
+            activeSessionResult = Session(id = 7L, startedAt = SESSION_START, endedAt = null)
+        )
+
+        val result = RehydrateShiftStateUseCase(repo)()
+
+        assertEquals(ShiftState.Connected(connectedSinceMs = SESSION_START), result.state)
+    }
+
+    @Test
+    fun `an open ride restores OnTrip even though its intervals are closed`() = runTest {
+        val repo = FakeRehydrateRepository(
+            activeSessionResult = Session(id = 7L, startedAt = SESSION_START, endedAt = null),
+            inProgressTripResult = Trip(
+                id = 2L, sessionId = 7L, platformId = Trip.NO_PLATFORM_ID, platformName = "",
+                startedAt = TRIP_START, endedAt = null, amountMinor = null, paymentMethod = null
+            ),
+            intervals = listOf(ConnectedInterval(1L, 7L, SESSION_START, SESSION_START + 1_000L))
+        )
+
+        val result = RehydrateShiftStateUseCase(repo)()
+
+        assertEquals(ShiftState.OnTrip(connectedSinceMs = SESSION_START, tripStartedAtMs = TRIP_START), result.state)
     }
 
     @Test
@@ -104,14 +159,15 @@ class RehydrateShiftStateUseCaseTest {
         assertTrue(result.state is ShiftState.Connected)
         assertEquals(SESSION_START, (result.state as ShiftState.Connected).connectedSinceMs)
         assertEquals(5L, result.sessionId)
+        assertNull(result.tripId)
     }
 
     @Test
     fun `active session with in-progress trip returns OnTrip with trip start`() = runTest {
         val inProgress = Trip(
-            id = 1L,
+            id = 41L,
             sessionId = 5L,
-            platformId = 1L, platformName = "InDriver",
+            platformId = Trip.NO_PLATFORM_ID, platformName = "",
             startedAt = TRIP_START,
             endedAt = null,
             amountMinor = null,
@@ -130,13 +186,17 @@ class RehydrateShiftStateUseCaseTest {
         assertEquals(SESSION_START, state.connectedSinceMs)
         assertEquals(TRIP_START, state.tripStartedAtMs)
         assertEquals(5L, result.sessionId)
+        assertEquals(41L, result.tripId)
     }
 }
 
 private class FakeRehydrateRepository(
     private val activeSessionResult: Session?,
-    private val inProgressTripResult: Trip? = null
+    private val inProgressTripResult: Trip? = null,
+    private val intervals: List<ConnectedInterval> = emptyList()
 ) : ShiftRepository {
+    override fun observeConnectedIntervals(sessionId: Long): Flow<List<ConnectedInterval>> = flowOf(intervals)
+
     override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
 
     override suspend fun createSession(startedAt: Long): Long = 1L
@@ -162,12 +222,12 @@ private class FakeRehydrateRepository(
 
     override suspend fun inProgressTrip(sessionId: Long): Trip? = inProgressTripResult
 
-    override suspend fun finishTrip(
-        sessionId: Long,
+    override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip = error("unused")
+    override suspend fun finishOpenTrip(
+        tripId: Long,
         platformId: Long,
-        startedAt: Long,
         endedAt: Long,
         amountMinor: Long,
         paymentMethod: PaymentMethod
-    ): Boolean = true
+    ): Boolean = error("unused")
 }

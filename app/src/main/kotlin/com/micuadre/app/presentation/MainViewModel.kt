@@ -1,6 +1,7 @@
 package com.micuadre.app.presentation
 
 import android.content.Context
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,6 +17,7 @@ import com.micuadre.app.domain.usecase.GetLastUsedPlatformUseCase
 import com.micuadre.app.presentation.home.Elapsed
 import com.micuadre.app.domain.usecase.ObservePeriodSummaryUseCase
 import com.micuadre.app.domain.usecase.ObserveShiftStateUseCase
+import com.micuadre.app.domain.usecase.RehydrateShiftStateUseCase
 import com.micuadre.app.service.ShiftError
 import com.micuadre.app.service.ShiftServiceController
 import com.micuadre.app.util.Clock
@@ -41,6 +43,7 @@ class MainViewModel @Inject constructor(
     private val getLastUsedPlatform: GetLastUsedPlatformUseCase,
     private val deductions: DeductionRepository,
     private val repository: ShiftRepository,
+    private val rehydrateShiftState: RehydrateShiftStateUseCase,
     private val observePeriodSummary: ObservePeriodSummaryUseCase,
     private val clock: Clock,
     @ApplicationContext context: Context
@@ -80,6 +83,17 @@ class MainViewModel @Inject constructor(
         observeState()
         observeSummary()
         observeErrors()
+        restorePersistedShift()
+    }
+
+    private fun restorePersistedShift() {
+        val restorer = PersistedShiftRestorer(
+            state = { controller.state.value },
+            hasRestorableShift = { rehydrateShiftState().state !is ShiftState.Disconnected },
+            restore = controller::restore,
+            onFailure = { Log.e(TAG, "Could not check for a stored shift; not restoring", it) }
+        )
+        viewModelScope.launch { restorer.restoreIfNeeded() }
     }
 
     private fun observeState() {
@@ -137,6 +151,7 @@ class MainViewModel @Inject constructor(
             controller.errorEvents.collect { error ->
                 when (error) {
                     ShiftError.InvalidFinishTrip -> postMessage(R.string.error_finish_trip)
+                    ShiftError.StartTripFailed -> postMessage(R.string.error_start_trip)
                 }
             }
         }
@@ -249,5 +264,9 @@ class MainViewModel @Inject constructor(
     override fun onCleared() {
         stopTicker()
         super.onCleared()
+    }
+
+    private companion object {
+        const val TAG = "MainViewModel"
     }
 }

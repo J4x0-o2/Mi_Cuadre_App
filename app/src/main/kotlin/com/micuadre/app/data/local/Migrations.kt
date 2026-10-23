@@ -188,3 +188,33 @@ val MIGRATION_3_4: Migration = object : Migration(3, 4) {
         )
     }
 }
+
+/**
+ * 4 -> 5: persisted open trips. `trips.platformId` becomes nullable (amount and payment already
+ * were) so a ride in progress can be stored with only its start time. SQLite cannot drop a NOT NULL
+ * constraint, so `trips` is rebuilt: same columns, ids, values, foreign keys and indexes.
+ */
+val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE `trips_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`sessionId` INTEGER NOT NULL, " +
+                "`platformId` INTEGER, " +
+                "`startedAt` INTEGER NOT NULL, " +
+                "`endedAt` INTEGER, " +
+                "`amountMinor` INTEGER, " +
+                "`paymentMethod` TEXT, " +
+                "FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`platformId`) REFERENCES `platforms`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )"
+        )
+        db.execSQL(
+            "INSERT INTO trips_new (id, sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                "SELECT id, sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod FROM trips"
+        )
+        db.execSQL("DROP TABLE `trips`")
+        db.execSQL("ALTER TABLE `trips_new` RENAME TO `trips`")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_trips_sessionId` ON `trips` (`sessionId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_trips_platformId` ON `trips` (`platformId`)")
+    }
+}
