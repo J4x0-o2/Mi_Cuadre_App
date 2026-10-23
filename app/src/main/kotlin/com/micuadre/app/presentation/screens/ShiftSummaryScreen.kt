@@ -146,7 +146,7 @@ private fun DeductionsSection(model: ShiftSummaryModel) {
         model.deductionLines.forEach { line ->
             FigureRow(
                 label = line.name,
-                value = ShiftSummaryModel.signedMoney(-line.amountMinor)
+                value = Formatters.signedMoney(-line.amountMinor)
             )
         }
         FigureRow(

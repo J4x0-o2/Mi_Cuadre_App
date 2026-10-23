@@ -146,4 +146,28 @@ class FormattersTest {
         assertEquals("1:00:00", Formatters.tripTimer(3_600L))
         assertEquals("1:02:03", Formatters.tripTimer(3_723L))
     }
+
+    // --- minus glyph ---
+
+    @Test
+    fun `signedMoney prefixes the app minus below zero and nothing otherwise`() {
+        assertEquals("$ 5.000", Formatters.signedMoney(500_000L))
+        assertEquals("$ 0", Formatters.signedMoney(0L))
+        assertEquals("− $ 5.000", Formatters.signedMoney(-500_000L))
+    }
+
+    @Test
+    fun `expenseMoney shows spent amounts with the minus and zero without it`() {
+        assertEquals("− $ 15.000", Formatters.expenseMoney(1_500_000L))
+        assertEquals("$ 0", Formatters.expenseMoney(0L))
+    }
+
+    @Test
+    fun `negative amounts never use a hyphen-minus`() {
+        val shown = listOf(Formatters.signedMoney(-1L), Formatters.expenseMoney(100L))
+        shown.forEach {
+            assertEquals("U+2212 expected in '$it'", '−', it.first())
+            assertEquals(false, it.contains('-'))
+        }
+    }
 }

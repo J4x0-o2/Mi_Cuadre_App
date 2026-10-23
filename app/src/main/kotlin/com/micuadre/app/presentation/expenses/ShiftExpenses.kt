@@ -47,14 +47,12 @@ data class ShiftExpensesModel(val grossMinor: Long, val totalMinor: Long) {
     val grossLabel: String get() = Formatters.moneyNoDecimals(grossMinor)
 
     /** "− $ X" when something was spent, "$ 0" otherwise. */
-    val totalLabel: String get() = if (totalMinor > 0L) "$MINUS ${Formatters.moneyNoDecimals(totalMinor)}" else Formatters.moneyNoDecimals(0L)
+    val totalLabel: String get() = Formatters.expenseMoney(totalMinor)
 
     val netLabel: String
-        get() = if (netMinor < 0L) "$MINUS ${Formatters.moneyNoDecimals(-netMinor)}" else Formatters.moneyNoDecimals(netMinor)
+        get() = Formatters.signedMoney(netMinor)
 
     companion object {
-        private const val MINUS = "−"
-
         fun of(state: ShiftExpensesState, grossMinor: Long) =
             ShiftExpensesModel(grossMinor, state.amounts().values.sum())
     }

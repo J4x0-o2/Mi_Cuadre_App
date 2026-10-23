@@ -3,7 +3,6 @@ package com.micuadre.app.presentation.period
 import com.micuadre.app.domain.model.Period
 import com.micuadre.app.domain.model.PeriodBucket
 import com.micuadre.app.domain.model.PeriodSummary
-import com.micuadre.app.presentation.summary.ShiftSummaryModel
 import com.micuadre.app.util.Formatters
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -147,7 +146,7 @@ data class PeriodSheetModel(
                 append("$name: ${Formatters.moneyNoDecimals(gross)}")
                 if (costs > 0L) {
                     append(", gastos ${Formatters.moneyNoDecimals(costs)}")
-                    append(", neto ${ShiftSummaryModel.signedMoney(gross - costs)}")
+                    append(", neto ${Formatters.signedMoney(gross - costs)}")
                 }
             }
             return BarModel(

@@ -41,18 +41,12 @@ data class ShiftSummaryModel(
     val netMinor: Long get() = totalMinor - deductionsTotalMinor
 
     /** Net as shown on screen: "− $ X" when below zero, never clamped. */
-    val netLabel: String get() = signedMoney(netMinor)
+    val netLabel: String get() = Formatters.signedMoney(netMinor)
 
     /** Total of the deductions as shown on screen: "− $ X" when something was spent. */
-    val deductionsTotalLabel: String get() = signedMoney(-deductionsTotalMinor)
+    val deductionsTotalLabel: String get() = Formatters.signedMoney(-deductionsTotalMinor)
 
     companion object {
-        /** Formats [minor] with whole pesos, prefixing "−" when it is below zero. */
-        fun signedMoney(minor: Long): String =
-            if (minor < 0L) "$MINUS ${Formatters.moneyNoDecimals(-minor)}" else Formatters.moneyNoDecimals(minor)
-
-        private const val MINUS = "−"
-
         fun from(
             summary: DailySummary,
             zone: ZoneId = ZoneId.systemDefault(),
