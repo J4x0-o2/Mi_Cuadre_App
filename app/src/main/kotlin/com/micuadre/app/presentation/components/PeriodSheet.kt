@@ -50,7 +50,6 @@ import com.micuadre.app.domain.model.PeriodSummary
 import com.micuadre.app.presentation.period.BarModel
 import com.micuadre.app.presentation.period.PeriodSheetModel
 import com.micuadre.app.presentation.period.StackedSegments
-import com.micuadre.app.presentation.summary.ShiftSummaryModel
 import com.micuadre.app.ui.theme.MiCuadreTheme
 import com.micuadre.app.util.Formatters
 import java.time.LocalDate
@@ -209,7 +208,7 @@ private fun NetPerDayTile(netPerDayMinor: Long?, placeholder: String, modifier: 
     ) {
         SectionLabel(text = stringResource(R.string.period_net_per_day_label), fontSize = 11.sp)
         Text(
-            text = netPerDayMinor?.let(ShiftSummaryModel::signedMoney) ?: placeholder,
+            text = netPerDayMinor?.let(Formatters::signedMoney) ?: placeholder,
             style = MiCuadreTheme.typography.moneySmall,
             color = if (negative) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onPrimaryContainer,
             maxLines = 1,
@@ -249,13 +248,13 @@ private fun CostsCard(model: PeriodSheetModel) {
         model.costLines.forEach { line ->
             CostRow(
                 label = line.name,
-                value = ShiftSummaryModel.signedMoney(-line.amountMinor),
+                value = Formatters.signedMoney(-line.amountMinor),
                 indented = true
             )
         }
         CostRow(
             label = stringResource(R.string.period_costs_total),
-            value = ShiftSummaryModel.signedMoney(-model.costsMinor),
+            value = Formatters.signedMoney(-model.costsMinor),
             strong = true
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -267,7 +266,7 @@ private fun CostsCard(model: PeriodSheetModel) {
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = ShiftSummaryModel.signedMoney(net),
+                text = Formatters.signedMoney(net),
                 style = MiCuadreTheme.typography.moneyLarge.copy(fontSize = 28.sp, lineHeight = 34.sp),
                 color = if (net < 0L) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             )

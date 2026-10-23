@@ -34,7 +34,7 @@ Out of scope: retaking the screenshots (done in the 1.1.0 release step, on the e
 ## Tasks
 - [x] T1 Neutral copy in strings.xml (+ Kotlin literals, README/CHANGELOG quotes) with the voseo
       guard test. Route: delegated writer (several files).
-- [ ] T2 Deduction follow-ups: toggle content description and the "−" glyph in the total.
+- [x] T2 Deduction follow-ups: toggle content description and the "−" glyph in the total.
       Route: delegated writer (same writer, separate commit).
 
 ## Acceptance criteria
@@ -54,5 +54,15 @@ Out of scope: retaking the screenshots (done in the 1.1.0 release step, on the e
   No Kotlin literals, other `values-*` locales, README or docs needed changes. CHANGELOG
   `[Unreleased]` entry added (neutral copy + F1 fix).
 
+- 2026-10-23 T2 done (route: delegated writer). a11y: `DeductionToggleA11y` (label
+  `deductions_toggle_cd` "Mostrar %1$s al terminar el turno" + state Visible/Oculta via
+  `stateDescription`); RED = `DeductionToggleA11yTest` failed to compile before the implementation,
+  GREEN after. The old static `deductions_visible_cd` was removed. Minus glyph: every expense or
+  negative display already used "−" but via two duplicated private constants; consolidated into
+  `Formatters.signedMoney` / `Formatters.expenseMoney` / `Formatters.MINUS` (used by the period
+  sheet, shift summary and end-shift expenses sheet), with `FormattersTest` locking U+2212 (these
+  tests passed immediately: refactor of already-correct behavior, no RED observed).
+  `./gradlew testDebugUnitTest` 722 tests, 0 failures; `assembleDebug` OK.
+
 ## Next step
-T2.
+Device check + release 1.1.0.

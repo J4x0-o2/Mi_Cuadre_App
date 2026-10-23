@@ -44,6 +44,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -58,6 +59,7 @@ import com.micuadre.app.presentation.components.cardSurface
 import com.micuadre.app.presentation.deductions.DeductionDialog
 import com.micuadre.app.presentation.deductions.DeductionFormError
 import com.micuadre.app.presentation.deductions.DeductionSecondary
+import com.micuadre.app.presentation.deductions.DeductionToggleA11y
 import com.micuadre.app.presentation.deductions.DeductionsViewModel
 import com.micuadre.app.presentation.deductions.secondaryLine
 import com.micuadre.app.presentation.finish.AmountInput
@@ -211,7 +213,8 @@ private fun DeductionRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val visibleLabel = stringResource(R.string.deductions_visible_cd, deduction.name)
+    val toggleLabel = stringResource(DeductionToggleA11y.LABEL_RES, deduction.name)
+    val toggleState = stringResource(DeductionToggleA11y.stateRes(deduction.visible))
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -258,7 +261,10 @@ private fun DeductionRow(
         Switch(
             checked = deduction.visible,
             onCheckedChange = onToggleVisible,
-            modifier = Modifier.semantics { contentDescription = visibleLabel }
+            modifier = Modifier.semantics {
+                contentDescription = toggleLabel
+                stateDescription = toggleState
+            }
         )
     }
 }

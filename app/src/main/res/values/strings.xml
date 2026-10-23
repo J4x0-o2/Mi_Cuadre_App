@@ -174,7 +174,9 @@
     <string name="deductions_usual">%1$s habitual</string>
     <string name="deductions_no_usual">Sin valor habitual</string>
     <string name="deductions_hidden">Oculta: no se pregunta</string>
-    <string name="deductions_visible_cd">%1$s: se pregunta al terminar un turno</string>
+    <string name="deductions_toggle_cd">Mostrar %1$s al terminar el turno</string>
+    <string name="deductions_toggle_state_visible">Visible</string>
+    <string name="deductions_toggle_state_hidden">Oculta</string>
     <string name="deductions_edit_cd">Editar %1$s</string>
     <string name="deductions_delete_cd">Eliminar %1$s</string>
     <string name="deductions_name_label">Nombre</string>

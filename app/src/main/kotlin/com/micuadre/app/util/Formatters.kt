@@ -112,6 +112,19 @@ object Formatters {
         return if (tenths % 10 == 0L) (tenths / 10).toString() else "${tenths / 10},${tenths % 10}"
     }
 
+    /** The single minus glyph of the app: U+2212, not the hyphen-minus produced by number formats. */
+    const val MINUS = "−"
+
+    /**
+     * Whole-peso money with the app minus: `$ 1.500` for zero or positive, `− $ 1.500` below zero.
+     * Every negative or expense amount shown to the user goes through this helper.
+     */
+    fun signedMoney(minor: Long): String =
+        if (minor < 0L) "$MINUS ${moneyNoDecimals(-minor)}" else moneyNoDecimals(minor)
+
+    /** An amount that was spent: `− $ 1.500` when [minor] is above zero, `$ 0` otherwise. */
+    fun expenseMoney(minor: Long): String = if (minor > 0L) signedMoney(-minor) else moneyNoDecimals(0L)
+
     /** Trip timer: `MM:SS` under an hour, `h:mm:ss` from one hour on. */
     fun tripTimer(seconds: Long): String {
         val s = if (seconds < 0) 0 else seconds

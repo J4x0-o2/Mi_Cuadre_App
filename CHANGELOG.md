@@ -15,6 +15,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The versi
 
 ### Fixed
 - A ride in progress is no longer lost when Android closes the app.
+- Settings › Deducciones: the show/hide switch of a deduction is announced by TalkBack with the
+  deduction name and its state ("Mostrar Combustible al terminar el turno", Visible / Oculta).
+- Expense and negative amounts share one formatter, so they always use the "−" (U+2212) sign.
 
 ## [1.0.0] - 2026-10-21
 
