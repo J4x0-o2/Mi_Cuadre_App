@@ -49,12 +49,12 @@
     <string name="trip_started_at">Iniciada %1$s</string>
     <string name="finish_trip_cta">Terminar carrera</string>
     <string name="disconnect_cta">Desconectar</string>
-    <string name="paused_hint">Seguís en turno. Conectate para seguir sumando carreras o terminá el turno.</string>
-    <string name="disconnect_hint">Terminá la carrera para desconectarte</string>
+    <string name="paused_hint">Sigues en turno. Conéctate para seguir sumando carreras o termina el turno.</string>
+    <string name="disconnect_hint">Termina la carrera para desconectarte</string>
     <string name="no_trips_yet">Sin carreras todavía</string>
 
     <string name="platform_label">Plataforma</string>
-    <string name="no_active_platforms">No tenés plataformas activas. Activá o creá una en Ajustes.</string>
+    <string name="no_active_platforms">No tienes plataformas activas. Activa o crea una en Ajustes.</string>
 
     <string name="trip_amount">Valor de la carrera</string>
     <string name="finish_sheet_title">Cerrar carrera</string>
@@ -91,7 +91,7 @@
     <string name="notif_trip_title">Carrera en curso</string>
     <string name="notif_trip_text">Iniciada %1$s · Hoy %2$s en %3$s</string>
     <string name="notif_connected_title">Hoy %1$s · %2$s</string>
-    <string name="notif_connected_text">Tocá Iniciar cuando subas al pasajero</string>
+    <string name="notif_connected_text">Toca Iniciar cuando subas al pasajero</string>
     <string name="notif_shift_saved_channel_name">Turno guardado</string>
     <string name="notif_shift_saved_title">Tu turno sigue guardado</string>
     <string name="notif_shift_saved_text">Toca para volver a MiCuadre.</string>
@@ -105,18 +105,18 @@
     <string name="notif_post_notifications_rationale">MiCuadre necesita mostrar una notificación para mantener el contador de jornada y de carrera activos.</string>
 
     <string name="notif_permission_denied_hint">Sin permiso de notificaciones no vas a ver el contador en la barra, pero la jornada sigue corriendo.</string>
-    <string name="error_start_trip">No se pudo iniciar la carrera. Intentá de nuevo.</string>
-    <string name="error_finish_trip">No se pudo guardar la carrera. Revisá los datos e intentá de nuevo.</string>
+    <string name="error_start_trip">No se pudo iniciar la carrera. Intenta de nuevo.</string>
+    <string name="error_finish_trip">No se pudo guardar la carrera. Revisa los datos e intenta de nuevo.</string>
 
     <string name="app_tagline">Tu jornada, en segundos</string>
     <string name="save_trip">Guardar carrera</string>
 
-    <string name="amount_required">Ingresá el monto</string>
+    <string name="amount_required">Ingresa el monto</string>
 
     <string name="settings_title">Ajustes</string>
     <string name="settings_open_cd">Ajustes</string>
     <string name="settings_back_cd">Volver</string>
-    <string name="settings_save_error">No se pudo guardar el ajuste. Intentá de nuevo.</string>
+    <string name="settings_save_error">No se pudo guardar el ajuste. Intenta de nuevo.</string>
     <string name="settings_appearance">Apariencia</string>
     <string name="settings_about">Acerca de</string>
     <string name="settings_version">Versión</string>
@@ -136,7 +136,7 @@
     <string name="settings_bubble_title">Burbuja flotante</string>
     <string name="settings_bubble_subtitle">Muestra acciones rápidas sobre otras apps mientras hay un turno activo</string>
     <string name="settings_bubble_permission_pending">Permiso pendiente: falta permitir mostrar MiCuadre sobre otras apps</string>
-    <string name="settings_bubble_permission_unavailable">No se pudo abrir el ajuste del permiso. Permití \"Mostrar sobre otras apps\" para MiCuadre desde los Ajustes del teléfono.</string>
+    <string name="settings_bubble_permission_unavailable">No se pudo abrir el ajuste del permiso. Permite \"Mostrar sobre otras apps\" para MiCuadre desde los Ajustes del teléfono.</string>
 
     <string name="bubble_cd">MiCuadre: acceso rápido</string>
     <string name="bubble_close_cd">Cerrar panel</string>
@@ -146,9 +146,9 @@
     <string name="bubble_discard_confirm">Confirmar</string>
 
     <string name="platforms_title">Plataformas</string>
-    <string name="platforms_hint">Elegí cuáles aparecen al terminar una carrera.</string>
+    <string name="platforms_hint">Elige cuáles aparecen al terminar una carrera.</string>
     <string name="platforms_none_visible">Ninguna plataforma va a aparecer al terminar una carrera.</string>
-    <string name="platforms_empty">Todavía no tenés plataformas. Agregá la primera.</string>
+    <string name="platforms_empty">Todavía no tienes plataformas. Agrega la primera.</string>
     <string name="platforms_add">Agregar plataforma</string>
     <string name="platforms_visible_cd">%1$s: visible al terminar una carrera</string>
     <string name="platforms_rename_cd">Renombrar %1$s</string>
@@ -161,10 +161,10 @@
     <string name="platforms_delete_title">¿Eliminar %1$s?</string>
     <string name="platforms_delete_message">Las carreras que ya registraste con esta plataforma se conservan con su nombre.</string>
     <string name="platforms_delete_confirm">Eliminar</string>
-    <string name="platforms_error_blank">Escribí un nombre</string>
+    <string name="platforms_error_blank">Escribe un nombre</string>
     <string name="platforms_error_duplicate">Ya existe una plataforma con ese nombre</string>
-    <string name="platforms_error_too_long">Usá hasta %1$d caracteres</string>
-    <string name="platforms_save_error">No se pudo guardar el cambio. Intentá de nuevo.</string>
+    <string name="platforms_error_too_long">Usa hasta %1$d caracteres</string>
+    <string name="platforms_save_error">No se pudo guardar el cambio. Intenta de nuevo.</string>
 
     <string name="deductions_title">Deducciones</string>
     <string name="deductions_hint">Elige qué gastos te pregunta la app al terminar un turno. Se descuentan de lo que ganaste.</string>

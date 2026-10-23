@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The version lives in
 `version.properties`; the Android `versionCode` is derived from it as `major*10000 + minor*100 + patch`.
 
+## [Unreleased]
+
+### Changed
+- All user-facing text now uses neutral Spanish (tú forms) instead of regional voseo, for example
+  "Toca Iniciar...", "Intenta de nuevo", "Sigues en turno. Conéctate...". A unit test guards
+  `strings.xml` against voseo forms.
+
+### Fixed
+- A ride in progress is no longer lost when Android closes the app.
+
 ## [1.0.0] - 2026-10-21
 
 ### Added
