@@ -160,7 +160,7 @@ Out of scope: copy changes, history, sync.
       RED: 2 new tests failed on behavior (overlapping failing start deleted the first row; the
       second start reached storage). GREEN: `./gradlew testDebugUnitTest` 715 tests, 0 failures
       (710 before, +5: 2 overlap, 3 gate); `./gradlew assembleDebug` BUILD SUCCESSFUL.
-- [ ] T3 Device QA: start a ride, force-stop or kill the process, reopen and see the ride with its
+- [x] T3 Device QA: start a ride, force-stop or kill the process, reopen and see the ride with its
       original start. Then finish it and check the totals. Also cancel after a restart.
       Also the background sticky restart: with a ride in progress, put the app in the background,
       turn the screen off or lock it, then `adb shell am kill com.micuadre.app.debug`. Expect either
@@ -168,6 +168,24 @@ Out of scope: copy changes, history, sync.
       (check `adb logcat -b crash`). Then open the app: the ride must show "En carrera" with its
       original start. Also end the shift mid-ride and confirm no open ride is left.
       Also pause the shift (Desconectar), kill the process and reopen: it must stay paused.
+      Result (2026-10-23, emulator Pixel_6, API 35, debug build of 0edd0dc installed over 0.4.0;
+      the DB was backed up first to Documents/MiCuadre-backups/emulator-db-0.4.0-2026-10-22):
+      - Migration v3->v5: PASS. 6 sessions / 13 trips / $167.000 kept; Home "Este mes" $167.000.
+      - Kill mid-ride (backgrounded, screen locked, `run-as kill -9`): PASS. The system restarted
+        ShiftService in 1 s; the foreground notification came back as "Carrera en curso · Iniciada
+        00:17"; no entries in `logcat -b crash`.
+      - Reopen: PASS. "En carrera", Iniciada 00:17, chronometer continuous. Finished at $15.000:
+        one trip, month $167.000 -> $182.000, no duplicate.
+      - Cancel after a kill: PASS. The restored ride was cancelled, killed again and reopened; it did
+        not come back and the totals were unchanged.
+      - Pause, kill, reopen: PASS. Stayed paused ("Seguís en turno..."); connected time unchanged;
+        the service did not restart.
+      - End shift mid-ride: NOT REACHABLE from the UI (OnTrip hides "Terminar turno" and disables
+        "Desconectar"; the notification only offers "Terminar carrera" / "Abrir app"). Covered by
+        ShiftServiceTest.
+      - Final DB: user_version 5, 7 sessions, 14 trips, sum $182.000, 0 open trips, 0 null platform.
+      - The refused-foreground notice was not triggered on the emulator (the restart was allowed);
+        that path is covered by unit tests.
 
 ## Acceptance criteria
 - Killing the process mid-ride and reopening shows "En carrera" with the original start time.
@@ -184,5 +202,7 @@ Out of scope: copy changes, history, sync.
 - 2026-10-22: T2d done (paused shift never auto-reconnected, atomic openTrip, readability refactors).
 - 2026-10-22: T2e done (single-flight trip start, readability and gate-test fixes).
 
+- 2026-10-23: T3 device QA passed on the emulator (see T3).
+
 ## Next step
-T3 device QA (kill the process mid-ride, reopen, finish and cancel; background sticky-restart case).
+Merge into main and release as 1.1.0 together with F2 (neutral Spanish copy), per the release plan.
