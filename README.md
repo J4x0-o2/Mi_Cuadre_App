@@ -7,6 +7,14 @@ separado en efectivo y transferencia.
 
 ![MiCuadre: total del turno, ganancias de la semana y del mes](docs/images/cover.png)
 
+## Novedades en 1.1.0
+
+- **Tus carreras ya no se pierden.** Si Android cierra la app en medio de una carrera, al volver
+  sigue ahí con su hora de inicio original. Un turno en pausa sigue en pausa.
+- **Español neutro.** Todos los textos de la app usan un español que se entiende en cualquier país.
+- **Accesibilidad.** TalkBack anuncia el nombre y el estado de cada deducción en *Ajustes ›
+  Deducciones*.
+
 ## Novedades en 1.0.0
 
 - **Deducciones personalizadas.** En *Ajustes › Deducciones* creas tus gastos (combustible, tarifa
@@ -173,5 +181,5 @@ versión se etiqueta en git (`v1.0.0`) y los cambios se listan en [CHANGELOG.md]
 
 ## Estado del proyecto
 
-MiCuadre está en desarrollo activo (versión actual **1.0.0**). Su autor la usa primero como
+MiCuadre está en desarrollo activo (versión actual **1.1.0**). Su autor la usa primero como
 herramienta diaria de conductor, con el objetivo de abrirla a cualquier conductor de plataformas.

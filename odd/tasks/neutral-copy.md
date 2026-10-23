@@ -64,5 +64,14 @@ Out of scope: retaking the screenshots (done in the 1.1.0 release step, on the e
   tests passed immediately: refactor of already-correct behavior, no RED observed).
   `./gradlew testDebugUnitTest` 722 tests, 0 failures; `assembleDebug` OK.
 
+- 2026-10-23 Review (base bd7ab00): medium, granted, reliability APPROVED + acknowledged
+  (3 suggestions: a11y proved at resource level only, guard covers only `<string>` in the default
+  locale, CHANGELOG F1 entry comes from the merged F1 work).
+- 2026-10-23 Device check on emulator Pixel_6 (1.1.0 debug): the paused hint, Plataformas and
+  Deducciones show the neutral copy; no app crashes. Screenshots retaken with the status bar in demo
+  mode: `docs/images/platforms.png` (neutral hint) and `docs/images/shift-expenses.png` (no bubble
+  overlap; "Tarifa de la app" became "Peajes" because the emulator keyboard autocapitalized "la").
+- 2026-10-23 Released as 1.1.0 together with F1 (persist-active-ride).
+
 ## Next step
-Device check + release 1.1.0.
+None. Phase F3 (history in Settings) is next in the release plan.
