@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The versi
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-25
+
+### Added
+- Settings › Historial: the totals of past shifts, kept on the phone. The year screen shows the
+  year total, net and shift count, and each month with shifts (the current one marked "en curso").
+  A month shows its total, expenses, net and shifts, and each Monday-to-Sunday week. A shift counts
+  on the day it started. The screens refresh when the day, month or time zone changes.
+
 ## [1.1.0] - 2026-10-23
 
 ### Changed

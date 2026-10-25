@@ -132,6 +132,30 @@
     <string name="settings_deductions_manage">Administrar deducciones</string>
     <string name="settings_deductions_none">Agrega combustible, tarifa, alimentación…</string>
 
+    <string name="settings_history">Historial</string>
+    <string name="settings_history_summary">Totales por mes y por semana</string>
+
+    <string name="history_title">Historial</string>
+    <string name="history_back_cd">Volver</string>
+    <string name="history_month_back_cd">Volver al historial</string>
+    <string name="history_previous_year_cd">Año anterior</string>
+    <string name="history_next_year_cd">Año siguiente</string>
+    <string name="history_year_total">Total del año</string>
+    <string name="history_month_total">Total del mes</string>
+    <string name="history_by_month">Por mes</string>
+    <string name="history_by_week">Por semana</string>
+    <string name="history_month_current">%1$s · en curso</string>
+    <string name="history_meta">Neto %1$s · %2$s</string>
+    <string name="history_tile_expenses">Gastos</string>
+    <string name="history_tile_net">Neto</string>
+    <string name="history_tile_shifts">Turnos</string>
+    <string name="history_empty_title">Aún no hay turnos en %1$d</string>
+    <string name="history_empty_hint">Cuando termines un turno, su total aparece aquí.</string>
+    <plurals name="history_shifts">
+        <item quantity="one">%d turno</item>
+        <item quantity="other">%d turnos</item>
+    </plurals>
+
     <string name="settings_quick_access">Acceso rápido</string>
     <string name="settings_bubble_title">Burbuja flotante</string>
     <string name="settings_bubble_subtitle">Muestra acciones rápidas sobre otras apps mientras hay un turno activo</string>

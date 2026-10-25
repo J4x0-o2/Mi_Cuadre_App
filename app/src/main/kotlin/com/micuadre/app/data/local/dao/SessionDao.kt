@@ -26,6 +26,10 @@ interface SessionDao {
     @Query("SELECT * FROM sessions ORDER BY startedAt DESC")
     fun observeAll(): Flow<List<SessionEntity>>
 
+    /** Start of the oldest session, or null when there are none. */
+    @Query("SELECT MIN(startedAt) FROM sessions")
+    fun observeEarliestStart(): Flow<Long?>
+
     @Query("SELECT * FROM sessions WHERE startedAt >= :fromMs AND startedAt < :toMs ORDER BY startedAt ASC")
     fun observeStartedBetween(fromMs: Long, toMs: Long): Flow<List<SessionEntity>>
 
