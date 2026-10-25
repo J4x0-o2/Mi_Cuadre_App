@@ -7,6 +7,7 @@ import com.micuadre.app.data.local.MiCuadreDatabase
 import com.micuadre.app.data.local.entity.DeductionEntity
 import com.micuadre.app.data.local.entity.PlatformEntity
 import com.micuadre.app.domain.model.PaymentMethod
+import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.usecase.ObserveMonthHistoryUseCase
 import com.micuadre.app.domain.usecase.ObserveYearHistoryUseCase
 import com.micuadre.app.util.FakeClock
@@ -63,7 +64,15 @@ class HistoryUseCaseTest {
     private suspend fun shift(date: String, gross: Long, openTrip: Boolean = false): Long {
         val id = repository.createSession(ms(date, "20:00"))
         repository.recordFinishedTrip(id, didiId, ms(date, "21:00"), ms(date, "21:10"), gross, PaymentMethod.CASH)
-        if (openTrip) repository.openTrip(id, ms(date, "22:00"))
+        // A trip still in progress that already carries an amount: it must never reach the gross.
+        if (openTrip) {
+            repository.insertTrip(
+                Trip(
+                    id = 0L, sessionId = id, platformId = Trip.NO_PLATFORM_ID, platformName = "",
+                    startedAt = ms(date, "22:00"), endedAt = null, amountMinor = 77_000L, paymentMethod = null
+                )
+            )
+        }
         return id
     }
 
@@ -90,6 +99,8 @@ class HistoryUseCaseTest {
 
         assertEquals(28_000L, h.totals.grossMinor)
         assertEquals(5_000L, h.totals.expensesMinor)
+        // Both 2026 shifts are still live (never ended) and count, open trip or not.
+        assertEquals(2, h.totals.shiftCount)
         assertEquals(listOf(YearMonth.of(2026, 10), YearMonth.of(2026, 9)), h.months.map { it.month })
         assertTrue(h.months.first().isCurrent)
         assertTrue(h.hasPreviousYear)
