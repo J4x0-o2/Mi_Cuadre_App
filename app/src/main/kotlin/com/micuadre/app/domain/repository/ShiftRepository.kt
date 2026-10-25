@@ -57,6 +57,9 @@ interface ShiftRepository {
      */
     fun observeSessionActivity(fromMs: Long, toMs: Long): Flow<List<SessionActivity>> = flowOf(emptyList())
 
+    /** Streams the start time of the oldest session, or null while there are none. */
+    fun observeEarliestSessionStart(): Flow<Long?> = flowOf(null)
+
     /**
      * Streams the platforms offered when finishing a trip: not deleted and visible, in creation
      * order.
