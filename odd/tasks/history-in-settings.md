@@ -45,8 +45,9 @@ Out of scope: Google Sheets backup (F5), any Room schema change, a NavHost.
 - [x] T1 Domain: pure history aggregation (year → months, month → weeks) plus use cases that
       observe a year and a month from `ShiftRepository` and `DeductionRepository`.
       Route: delegated writer (several non-trivial files).
-- [ ] T2 UI: HistoryViewModel, year and month screens, `AppScreen` entries with saved selection,
-      Settings row, strings and plurals. Route: delegated writer (several non-trivial files).
+- [x] T2 UI: HistoryViewModel, year and month screens, `AppScreen` entries with saved selection,
+      Settings row, strings and plurals; T1 review follow-ups (day-change refresh, stronger
+      integration test). Route: delegated writer (several non-trivial files).
 - [ ] T3 Device check on the emulator, screenshot retake ("Tarifa de la app"), README/CHANGELOG.
       Route: inline (emulator + docs).
 
@@ -68,5 +69,20 @@ Out of scope: Google Sheets backup (F5), any Room schema change, a NavHost.
   up to the one containing today. RED: the focused `*History*` run failed to compile (unresolved
   use cases and aggregator); GREEN: `testDebugUnitTest` 744 tests, 0 failures; `assembleDebug` OK.
 
+- 2026-10-25 T1 review (base 7ae3d78, through d7bb69b): medium, granted, reliability APPROVED +
+  acknowledged. Follow-ups accepted into T2: (a) WARNING the use cases read "today" only when the
+  repository flows emit, so "en curso", the next-year button and the week cutoff go stale across
+  midnight/month/year while the screen stays open — re-evaluate on local day changes (reuse
+  `PeriodSummaryCoordinator.localDays`); (b) SUGGESTION the integration test's open trip has no
+  amount and shiftCount is not asserted — strengthen it.
+
+- 2026-10-25 T2 done (route: delegated writer). Commits 262b736 (day-change refresh via
+  `switchOnDayChange` over `localDays`, stronger `HistoryUseCaseTest` with a priced open trip and
+  `shiftCount == 2`) and 3cadbb7 (`HistoryViewModel` with `SavedStateHandle` year/month,
+  `YearHistoryModel`/`MonthHistoryModel`, `HistoryScreen` + `HistoryMonthScreen`, `AppScreen`
+  History/HistoryMonth, Settings "Historial" section before "Acerca de", strings + plurals). RED:
+  compile failures (`switchOnDayChange`, `YearHistoryModel` unresolved); GREEN:
+  `testDebugUnitTest` 767 tests, 0 failures; `assembleDebug` OK.
+
 ## Next step
-T2.
+Review T2 commits, then T3.
