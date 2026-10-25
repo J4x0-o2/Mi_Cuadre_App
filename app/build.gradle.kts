@@ -22,6 +22,34 @@ val appVersionCode: Int = run {
     parts[0] * 10_000 + parts[1] * 100 + parts[2]
 }
 
+// Release signing values come from the git-ignored root local.properties, falling back to env vars
+// of the same name (CI/other machines). With none set the release build stays unsigned; a partial
+// set or a missing keystore file fails the configuration instead of silently shipping unsigned.
+val signingKeys = listOf(
+    "MICUADRE_KEYSTORE_FILE",
+    "MICUADRE_KEYSTORE_PASSWORD",
+    "MICUADRE_KEY_ALIAS",
+    "MICUADRE_KEY_PASSWORD",
+)
+val localProps = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+}
+val signingValues: Map<String, String> = signingKeys
+    .mapNotNull { key ->
+        (localProps.getProperty(key) ?: System.getenv(key))?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { key to it }
+    }
+    .toMap()
+val hasReleaseSigning = signingValues.size == signingKeys.size
+require(signingValues.isEmpty() || hasReleaseSigning) {
+    "Incomplete release signing config; missing: " +
+        signingKeys.filter { it !in signingValues }.joinToString()
+}
+val releaseKeystore: File? = signingValues["MICUADRE_KEYSTORE_FILE"]?.let { rootProject.file(it) }
+require(releaseKeystore == null || releaseKeystore.isFile) {
+    "MICUADRE_KEYSTORE_FILE points to a missing file: $releaseKeystore"
+}
+
 android {
     namespace = "com.micuadre.app"
     compileSdk = 35
@@ -38,11 +66,23 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = signingValues.getValue("MICUADRE_KEYSTORE_PASSWORD")
+                keyAlias = signingValues.getValue("MICUADRE_KEY_ALIAS")
+                keyPassword = signingValues.getValue("MICUADRE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
         }
         release {
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
