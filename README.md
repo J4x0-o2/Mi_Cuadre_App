@@ -64,6 +64,9 @@ todos los datos se quedan en tu teléfono.
   semana en el mes), días trabajados y el promedio por día trabajado. Si registraste gastos, suma
   una tarjeta **Gastos y neto** con el detalle por deducción, barras que separan neto y gastos, y el
   neto por día.
+- **Historial.** En *Ajustes › Historial* recorres tus años: el total, el neto y los turnos de
+  cada año y de cada mes, y al abrir un mes, el detalle por semana (lunes a domingo). Todo sale de
+  los datos guardados en el teléfono; nunca se borra nada.
 - **Tus plataformas.** En *Ajustes › Plataformas* creas, renombras, muestras u ocultas y eliminas
   plataformas. Eliminar una nunca cambia tu historial: las carreras pasadas conservan su nombre y
   sus totales.
@@ -177,7 +180,6 @@ versión se etiqueta en git (`v1.0.0`) y los cambios se listan en [CHANGELOG.md]
 ## Hoja de ruta
 
 - Sincronización opcional de las carreras con Google Sheets.
-- Una pantalla de historial para recorrer turnos y carreras pasados.
 
 ## Estado del proyecto
 
