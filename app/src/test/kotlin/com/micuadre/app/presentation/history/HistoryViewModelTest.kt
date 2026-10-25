@@ -1,6 +1,7 @@
 package com.micuadre.app.presentation.history
 
 import androidx.lifecycle.SavedStateHandle
+import com.micuadre.app.domain.model.MonthDetail
 import com.micuadre.app.domain.model.SessionDeductionAmount
 import com.micuadre.app.domain.usecase.ObserveMonthHistoryUseCase
 import com.micuadre.app.domain.usecase.ObserveYearHistoryUseCase
@@ -8,7 +9,9 @@ import com.micuadre.app.util.FakeClock
 import com.micuadre.app.util.Formatters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.TestScope
@@ -26,6 +29,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.YearMonth
+import java.time.ZoneId
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HistoryViewModelTest {
@@ -47,18 +51,23 @@ class HistoryViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel(handle: SavedStateHandle = SavedStateHandle()): HistoryViewModel {
-        val year = ObserveYearHistoryUseCase(shifts, FakeHistoryDeductions(amounts), clock)
-        val month = ObserveMonthHistoryUseCase(shifts, FakeHistoryDeductions(amounts), clock)
-        return HistoryViewModel(
-            savedState = handle,
-            observeYear = year::invoke,
-            observeMonth = month::invoke,
-            clock = clock,
-            zone = bogota,
-            clockChanges = MutableSharedFlow()
-        )
-    }
+    private val yearUseCase = ObserveYearHistoryUseCase(shifts, FakeHistoryDeductions(amounts), clock)
+    private val monthUseCase = ObserveMonthHistoryUseCase(shifts, FakeHistoryDeductions(amounts), clock)
+
+    private var zone: ZoneId = bogota
+    private val clockChanges = MutableSharedFlow<Unit>()
+
+    private fun viewModel(
+        handle: SavedStateHandle = SavedStateHandle(),
+        observeMonth: (YearMonth, ZoneId) -> Flow<MonthDetail> = monthUseCase::invoke
+    ): HistoryViewModel = HistoryViewModel(
+        savedState = handle,
+        observeYear = yearUseCase::invoke,
+        observeMonth = observeMonth,
+        clock = clock,
+        zone = { zone },
+        clockChanges = clockChanges
+    )
 
     /** Keeps the WhileSubscribed state flows hot for the duration of a test. */
     private fun TestScope.collectAll(vm: HistoryViewModel) {
@@ -143,5 +152,41 @@ class HistoryViewModelTest {
         runCurrent()
 
         assertFalse(vm.year.value!!.months.first().isCurrent)
+    }
+
+    @Test
+    fun `a new month selection clears the previous month until its first read`() = runTest {
+        val pending = MutableSharedFlow<MonthDetail>()
+        val vm = viewModel { month, zone ->
+            if (month == YearMonth.of(2026, 9)) monthUseCase(month, zone) else pending
+        }
+        collectAll(vm)
+
+        vm.onMonthSelected(YearMonth.of(2026, 9))
+        assertEquals("Septiembre", vm.month.value?.title)
+
+        vm.onMonthSelected(YearMonth.of(2026, 10))
+        assertNull(vm.month.value)
+
+        pending.emit(monthUseCase(YearMonth.of(2026, 10), bogota).first())
+        assertEquals("Octubre", vm.month.value?.title)
+    }
+
+    @Test
+    fun `a time zone change re-subscribes with the new zone`() = runTest {
+        val zones = mutableListOf<ZoneId>()
+        val vm = viewModel { month, zone ->
+            zones += zone
+            monthUseCase(month, zone)
+        }
+        collectAll(vm)
+        vm.onMonthSelected(YearMonth.of(2026, 9))
+        assertEquals(listOf(bogota), zones)
+
+        zone = ZoneId.of("Asia/Tokyo")
+        clockChanges.emit(Unit)
+        runCurrent()
+
+        assertEquals(listOf(bogota, ZoneId.of("Asia/Tokyo")), zones)
     }
 }

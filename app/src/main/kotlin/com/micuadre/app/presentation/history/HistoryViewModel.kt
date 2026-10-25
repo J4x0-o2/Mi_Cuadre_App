@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import java.time.Instant
 import java.time.YearMonth
@@ -40,7 +41,7 @@ class HistoryViewModel internal constructor(
     observeYear: (Int, ZoneId) -> Flow<YearHistory>,
     observeMonth: (YearMonth, ZoneId) -> Flow<MonthDetail>,
     clock: Clock,
-    zone: ZoneId,
+    zone: () -> ZoneId,
     clockChanges: Flow<Unit>
 ) : ViewModel() {
 
@@ -50,15 +51,14 @@ class HistoryViewModel internal constructor(
         observeYear: ObserveYearHistoryUseCase,
         observeMonth: ObserveMonthHistoryUseCase,
         clock: Clock,
-        zone: ZoneId,
         @ApplicationContext context: Context
-    ) : this(savedState, observeYear::invoke, observeMonth::invoke, clock, zone, clockChanges(context))
+    ) : this(savedState, observeYear::invoke, observeMonth::invoke, clock, ZoneId::systemDefault, clockChanges(context))
 
-    private val days = localDays(clock, { zone }, clockChanges)
+    private val days = localDays(clock, zone, clockChanges)
 
     private val selectedYear = savedState.getStateFlow(
         KEY_YEAR,
-        Instant.ofEpochMilli(clock.nowMs()).atZone(zone).year
+        Instant.ofEpochMilli(clock.nowMs()).atZone(zone()).year
     )
     private val selectedMonth = savedState.getStateFlow<String?>(KEY_MONTH, null)
 
@@ -74,7 +74,11 @@ class HistoryViewModel internal constructor(
     val month: StateFlow<MonthHistoryModel?> = selectedMonth
         .flatMapLatest { text ->
             val selected = text?.let(YearMonth::parse) ?: return@flatMapLatest emptyFlow()
-            days.switchOnDayChange { observeMonth(selected, it.zone) }.map { MonthHistoryModel.from(it) }
+            days.switchOnDayChange { observeMonth(selected, it.zone) }
+                .map<MonthDetail, MonthHistoryModel?> { MonthHistoryModel.from(it) }
+                // The screen is activity-scoped: drop the previous month at once instead of
+                // drawing it until the new selection's first read arrives.
+                .onStart { emit(null) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
