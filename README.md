@@ -135,6 +135,25 @@ en Android Studio) y un dispositivo o emulador con Android 10 (API 29) o superio
 La versión de depuración se instala como una app aparte (`com.micuadre.app.debug`), así que nunca
 toca los datos de una instalación de producción.
 
+### Build de release
+
+`./gradlew assembleRelease` genera el APK de producción, reducido con R8. Se firma con la clave de
+subida si estos cuatro valores existen en `local.properties` (que git ignora) o como variables de
+entorno:
+
+```properties
+MICUADRE_KEYSTORE_FILE=/ruta/fuera/del/repo/micuadre-upload.jks
+MICUADRE_KEYSTORE_PASSWORD=...
+MICUADRE_KEY_ALIAS=upload
+MICUADRE_KEY_PASSWORD=...
+```
+
+Sin ellos el APK sale sin firmar (`app-release-unsigned.apk`); con solo algunos, el build falla y
+dice cuáles faltan. El keystore nunca va dentro del repositorio.
+
+GitHub Actions (`.github/workflows/ci.yml`) corre las pruebas unitarias y los builds de depuración y
+de release en cada push y pull request.
+
 ## Stack técnico
 
 | Área | Elección |
