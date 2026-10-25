@@ -21,6 +21,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.micuadre.app.domain.model.ThemeSchedule
 import com.micuadre.app.presentation.LaunchRouting
 import com.micuadre.app.presentation.MainViewModel
+import com.micuadre.app.presentation.screens.HistoryMonthScreen
+import com.micuadre.app.presentation.screens.HistoryScreen
 import com.micuadre.app.presentation.screens.HomeScreen
 import com.micuadre.app.presentation.screens.DeductionsScreen
 import com.micuadre.app.presentation.screens.PlatformsScreen
@@ -31,7 +33,7 @@ import com.micuadre.app.ui.theme.colorSchemeFor
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.ZoneId
 
-private enum class AppScreen { Home, Settings, Platforms, Deductions }
+private enum class AppScreen { Home, Settings, Platforms, Deductions, History, HistoryMonth }
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -63,10 +65,17 @@ class MainActivity : ComponentActivity() {
                         AppScreen.Settings -> SettingsScreen(
                             onBack = { screen = AppScreen.Home },
                             onOpenPlatforms = { screen = AppScreen.Platforms },
-                            onOpenDeductions = { screen = AppScreen.Deductions }
+                            onOpenDeductions = { screen = AppScreen.Deductions },
+                            onOpenHistory = { screen = AppScreen.History }
                         )
                         AppScreen.Platforms -> PlatformsScreen(onBack = { screen = AppScreen.Settings })
                         AppScreen.Deductions -> DeductionsScreen(onBack = { screen = AppScreen.Settings })
+                        // The selected year and month live in HistoryViewModel's SavedStateHandle.
+                        AppScreen.History -> HistoryScreen(
+                            onBack = { screen = AppScreen.Settings },
+                            onOpenMonth = { screen = AppScreen.HistoryMonth }
+                        )
+                        AppScreen.HistoryMonth -> HistoryMonthScreen(onBack = { screen = AppScreen.History })
                     }
                 }
             }

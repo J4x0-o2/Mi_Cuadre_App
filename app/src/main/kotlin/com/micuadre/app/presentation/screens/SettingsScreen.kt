@@ -59,6 +59,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenPlatforms: () -> Unit,
     onOpenDeductions: () -> Unit,
+    onOpenHistory: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val selected by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -165,6 +166,15 @@ fun SettingsScreen(
                     if (names.isEmpty()) stringResource(R.string.settings_deductions_none) else names.joinToString(", ")
                 },
                 onClick = onOpenDeductions
+            )
+            SectionLabel(
+                text = stringResource(R.string.settings_history),
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
+            )
+            SettingsLinkRow(
+                title = stringResource(R.string.settings_history),
+                summary = stringResource(R.string.settings_history_summary),
+                onClick = onOpenHistory
             )
             SectionLabel(
                 text = stringResource(R.string.settings_about),
