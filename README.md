@@ -7,6 +7,12 @@ separado en efectivo y transferencia.
 
 ![MiCuadre: total del turno, ganancias de la semana y del mes](docs/images/cover.png)
 
+## Novedades en 1.2.0
+
+- **Historial.** En *Ajustes › Historial* ves el total, el neto y los turnos de cada año y de cada
+  mes. Al abrir un mes, ves el detalle por semana (lunes a domingo). Todo queda guardado en el
+  teléfono.
+
 ## Novedades en 1.1.0
 
 - **Tus carreras ya no se pierden.** Si Android cierra la app en medio de una carrera, al volver
@@ -183,5 +189,5 @@ versión se etiqueta en git (`v1.0.0`) y los cambios se listan en [CHANGELOG.md]
 
 ## Estado del proyecto
 
-MiCuadre está en desarrollo activo (versión actual **1.1.0**). Su autor la usa primero como
+MiCuadre está en desarrollo activo (versión actual **1.2.0**). Su autor la usa primero como
 herramienta diaria de conductor, con el objetivo de abrirla a cualquier conductor de plataformas.

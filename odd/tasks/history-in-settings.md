@@ -102,5 +102,7 @@ Out of scope: Google Sheets backup (F5), any Room schema change, a NavHost.
   Not checked on device: the empty state of a year without shifts and the disabled previous-year
   button (covered by unit tests only).
 
+- 2026-10-25 Released as 1.2.0 (merged into main with --no-ff, tag v1.2.0).
+
 ## Next step
-Review the 73e418d..8c052c9 slice if due, then merge and release 1.2.0 when the user decides.
+None. Phase F4 (release base) is next in the release plan.
