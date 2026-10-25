@@ -30,6 +30,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -280,8 +283,7 @@ private fun MonthHero(month: MonthHistoryModel) {
             Tile(
                 label = stringResource(R.string.history_tile_shifts),
                 value = month.shiftCount.toString(),
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -299,16 +301,24 @@ private fun Tile(label: String, value: String, color: Color, modifier: Modifier 
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        // Large amounts shrink to fit instead of being cut off.
+        var fontSize by remember(value) { mutableStateOf(TILE_VALUE_SIZE) }
         Text(
             text = value,
-            style = MiCuadreTheme.typography.moneySmall.copy(fontSize = 15.sp),
+            style = MiCuadreTheme.typography.moneySmall.copy(fontSize = fontSize),
             color = color,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
+            onTextLayout = { layout ->
+                if (layout.didOverflowWidth && fontSize > TILE_VALUE_MIN_SIZE) fontSize *= 0.9f
+            },
             modifier = Modifier.padding(top = 2.dp)
         )
     }
 }
+
+private val TILE_VALUE_SIZE = 15.sp
+private val TILE_VALUE_MIN_SIZE = 10.sp
 
 @Composable
 private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
