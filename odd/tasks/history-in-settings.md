@@ -48,7 +48,7 @@ Out of scope: Google Sheets backup (F5), any Room schema change, a NavHost.
 - [x] T2 UI: HistoryViewModel, year and month screens, `AppScreen` entries with saved selection,
       Settings row, strings and plurals; T1 review follow-ups (day-change refresh, stronger
       integration test). Route: delegated writer (several non-trivial files).
-- [ ] T3 Device check on the emulator, screenshot retake ("Tarifa de la app"), README/CHANGELOG.
+- [x] T3 Device check on the emulator, screenshot retake ("Tarifa de la app"), README/CHANGELOG.
       Route: inline (emulator + docs).
 
 ## Acceptance criteria
@@ -84,5 +84,23 @@ Out of scope: Google Sheets backup (F5), any Room schema change, a NavHost.
   compile failures (`switchOnDayChange`, `YearHistoryModel` unresolved); GREEN:
   `testDebugUnitTest` 767 tests, 0 failures; `assembleDebug` OK.
 
+- 2026-10-25 T2 review (base d7bb69b, through 15672cc): medium, granted, reliability APPROVED +
+  acknowledged. Follow-ups fixed in 73e418d (delegated writer): a new month selection clears the
+  previous month (`onStart { emit(null) }`), and the zone is read through `ZoneId::systemDefault`
+  on every day/clock change. RED: the month test failed on `assertNull`; the zone test failed to
+  compile. GREEN: 769 tests. Not applied to `year` (would blank the stepper and drop rapid taps).
+- 2026-10-25 T3 (route: inline). Emulator Pixel_6, debug build: Settings › Historial opens; the year
+  shows $ 222.500, Neto $ 195.000, 7 turnos, matching Home "Este mes"; October lists 1–4, 5–11,
+  12–18, 19–25 oct whose totals add up to the month (19–25 equals Home "Esta semana" $ 214.500);
+  back goes month → year → Settings; no crash in the crash buffer. Found on device: the Gastos tile
+  cut "− $ 27.5…"; fixed in 85d2879 (amount shrinks to fit, Turnos tile takes its natural width),
+  re-checked on the emulator. Compose layout only, so no unit RED was possible; full suite 769
+  green, `assembleDebug` OK. Screenshot `docs/images/shift-expenses.png` retaken with "Tarifa de la
+  app" (Gboard disabled during typing to avoid autocapitalization); README feature + roadmap and
+  CHANGELOG `[Unreleased]` updated in 8c052c9. Emulator DB restored from
+  `Documents/MiCuadre-backups/emulator-db-1.1.0-2026-10-25`.
+  Not checked on device: the empty state of a year without shifts and the disabled previous-year
+  button (covered by unit tests only).
+
 ## Next step
-Review T2 commits, then T3.
+Review the 73e418d..8c052c9 slice if due, then merge and release 1.2.0 when the user decides.
