@@ -81,6 +81,17 @@ the builds and the device smoke test instead, recorded per task.
   sheet with Combustible − $5.000, History: $35.000, Neto $30.000, 2 turnos. Crash buffer empty the
   whole time. No keep-rule change needed. Transport switched back to GMS afterwards.
 - 2026-10-25 T5 (route: inline) README "Build de release" section + CHANGELOG `[Unreleased]`.
+- 2026-10-26 Review (base e66ea24, through 48da9f2, 10 files, 293 lines): high (gradlew mode,
+  CI shell), granted by the user, 4 lenses APPROVED and acknowledged (lineage
+  review-203146a14258b87a). Non-blocking follow-ups, not applied:
+  - WARNING R4: signing `require()` runs at configuration time, so a partial signing set or a moved
+    keystore also breaks `assembleDebug` / `testDebugUnitTest`; scope the check to release tasks.
+  - WARNING R2: `BackupRulesTest.includes()` KDoc says direct children but uses
+    `getElementsByTagName` (all descendants); fix the comment or iterate child nodes.
+  - SUGGESTION R1: add `permissions: contents: read` to ci.yml; optionally pin actions to SHAs.
+  - SUGGESTION R3: do not trim the passwords, only the path and alias.
+  - SUGGESTION R3: no automated check of the partial-config / missing-keystore / signed paths.
+  - SUGGESTION R2: `assertEquals` instead of `assertTrue(tagName == ...)`.
 
 ## Next step
 Push the branch so CI runs once on GitHub; merge and release (1.3.0 or a 1.2.1) when the user decides.
