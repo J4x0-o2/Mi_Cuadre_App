@@ -18,6 +18,8 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      - name: Check signing guard
+        run: ./scripts/check-signing-guard.sh
       # No signing secrets here, so assembleRelease produces an unsigned APK.
       - name: Test and build
         run: ./gradlew testDebugUnitTest assembleDebug assembleRelease

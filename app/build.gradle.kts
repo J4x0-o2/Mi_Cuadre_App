@@ -23,32 +23,43 @@ val appVersionCode: Int = run {
 }
 
 // Release signing values come from the git-ignored root local.properties, falling back to env vars
-// of the same name (CI/other machines). With none set the release build stays unsigned; a partial
-// set or a missing keystore file fails the configuration instead of silently shipping unsigned.
-val signingKeys = listOf(
-    "MICUADRE_KEYSTORE_FILE",
-    "MICUADRE_KEYSTORE_PASSWORD",
-    "MICUADRE_KEY_ALIAS",
-    "MICUADRE_KEY_PASSWORD",
-)
+// of the same name (CI/other machines). With none set the release build stays unsigned. A partial
+// set or a missing keystore file only fails release builds (validateReleaseSigning), so debug
+// builds and unit tests keep working.
+val KEYSTORE_FILE_KEY = "MICUADRE_KEYSTORE_FILE"
+val KEYSTORE_PASSWORD_KEY = "MICUADRE_KEYSTORE_PASSWORD"
+val KEY_ALIAS_KEY = "MICUADRE_KEY_ALIAS"
+val KEY_PASSWORD_KEY = "MICUADRE_KEY_PASSWORD"
+val signingKeys = listOf(KEYSTORE_FILE_KEY, KEYSTORE_PASSWORD_KEY, KEY_ALIAS_KEY, KEY_PASSWORD_KEY)
 val localProps = Properties().apply {
     rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
 }
+// Only the path and the alias are trimmed; passwords pass through untouched (empty means absent).
 val signingValues: Map<String, String> = signingKeys
     .mapNotNull { key ->
-        (localProps.getProperty(key) ?: System.getenv(key))?.trim()?.takeIf { it.isNotEmpty() }
+        (localProps.getProperty(key) ?: System.getenv(key))
+            ?.let { if (key == KEYSTORE_FILE_KEY || key == KEY_ALIAS_KEY) it.trim() else it }
+            ?.takeIf { it.isNotEmpty() }
             ?.let { key to it }
     }
     .toMap()
-val hasReleaseSigning = signingValues.size == signingKeys.size
-require(signingValues.isEmpty() || hasReleaseSigning) {
-    "Incomplete release signing config; missing: " +
-        signingKeys.filter { it !in signingValues }.joinToString()
+val releaseKeystore: File? = signingValues[KEYSTORE_FILE_KEY]?.let { rootProject.file(it) }
+val signingProblem: String? = when {
+    signingValues.isEmpty() -> null
+    signingValues.size != signingKeys.size ->
+        "Incomplete release signing config; missing: " +
+            signingKeys.filter { it !in signingValues }.joinToString()
+    releaseKeystore?.isFile != true -> "$KEYSTORE_FILE_KEY points to a missing file: $releaseKeystore"
+    else -> null
 }
-val releaseKeystore: File? = signingValues["MICUADRE_KEYSTORE_FILE"]?.let { rootProject.file(it) }
-require(releaseKeystore == null || releaseKeystore.isFile) {
-    "MICUADRE_KEYSTORE_FILE points to a missing file: $releaseKeystore"
+val hasReleaseSigning = signingValues.size == signingKeys.size && signingProblem == null
+
+val validateReleaseSigning by tasks.registering {
+    description = "Fails when the release signing config is partial or its keystore file is missing."
+    val problem = signingProblem
+    doLast { if (problem != null) throw GradleException(problem) }
 }
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(validateReleaseSigning) }
 
 android {
     namespace = "com.micuadre.app"
@@ -70,9 +81,9 @@ android {
         if (hasReleaseSigning) {
             create("release") {
                 storeFile = releaseKeystore
-                storePassword = signingValues.getValue("MICUADRE_KEYSTORE_PASSWORD")
-                keyAlias = signingValues.getValue("MICUADRE_KEY_ALIAS")
-                keyPassword = signingValues.getValue("MICUADRE_KEY_PASSWORD")
+                storePassword = signingValues.getValue(KEYSTORE_PASSWORD_KEY)
+                keyAlias = signingValues.getValue(KEY_ALIAS_KEY)
+                keyPassword = signingValues.getValue(KEY_PASSWORD_KEY)
             }
         }
     }
