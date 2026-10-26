@@ -44,6 +44,15 @@ the builds and the device smoke test instead, recorded per task.
 - [x] T3 GitHub Actions CI workflow
 - [x] T4 Backup and device-transfer rules in the manifest
 - [x] T5 Docs: README build/release section, CHANGELOG `[Unreleased]`
+- [x] T6 Review follow-ups, signing (2026-10-26, authorized by the user): move the partial-config /
+  missing-keystore check out of configuration time into a `validateReleaseSigning` task that only
+  release builds depend on (debug builds and unit tests keep working); trim only the path and alias,
+  never the passwords; key names as named constants; a `scripts/check-signing-guard.sh` that proves
+  the guard (debug config OK with a partial set, release validation fails, unsigned fallback) and
+  runs in CI.
+- [x] T7 Review follow-ups, tests and CI: `BackupRulesTest.includes()` reads direct children only, as
+  its KDoc says; `assertEquals` for the root tag; `permissions: contents: read` in ci.yml; a comment in
+  both backup rule files to exclude any future token or secret.
 
 ## Acceptance criteria
 - `assembleRelease` produces a signed APK when the signing values exist, and an unsigned one
@@ -92,6 +101,17 @@ the builds and the device smoke test instead, recorded per task.
   - SUGGESTION R3: do not trim the passwords, only the path and alias.
   - SUGGESTION R3: no automated check of the partial-config / missing-keystore / signed paths.
   - SUGGESTION R2: `assertEquals` instead of `assertTrue(tagName == ...)`.
+- 2026-10-26 T6 (route: delegated writer, trigger: 2+ non-trivial files) `27b2c91`: the signing
+  check is a `validateReleaseSigning` task that `preReleaseBuild` depends on; key names as constants;
+  only the path and alias are trimmed; `scripts/check-signing-guard.sh` runs in CI. RED in a clean
+  worktree at 647d096 (no local.properties): `help` with a partial set FAILED, no-values validation
+  FAILED (task missing). GREEN: 4/4 PASS, re-run at 400b39a.
+- 2026-10-26 T7 (delegated) `400b39a`: `includes()` reads direct children only; root tag checked with
+  `assertEquals`; `permissions: contents: read` in ci.yml; exclude-secrets comment in both rule files.
+  RED: new test `includes ignores nested include elements` failed; GREEN after the fix.
+  Writer: 774 tests, 0 failures; assembleRelease still signed (SHA-1 715482...866d4a). Parent spot
+  check: `validateReleaseSigning testDebugUnitTest` OK, 774 tests, 0 failures.
+  Not applied: pinning actions to commit SHAs (optional; harder updates).
 
 ## Next step
-Push the branch so CI runs once on GitHub; merge and release (1.3.0 or a 1.2.1) when the user decides.
+Review T6–T7 if due, then push the branch so CI runs once on GitHub (user decision).
