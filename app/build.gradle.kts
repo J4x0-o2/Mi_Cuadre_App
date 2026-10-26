@@ -59,7 +59,9 @@ val validateReleaseSigning by tasks.registering {
     val problem = signingProblem
     doLast { if (problem != null) throw GradleException(problem) }
 }
-tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(validateReleaseSigning) }
+// AGP creates preReleaseBuild late, hence afterEvaluate. `named` fails the build if AGP ever renames
+// the task, instead of silently dropping the guard and shipping an unsigned release.
+afterEvaluate { tasks.named("preReleaseBuild") { dependsOn(validateReleaseSigning) } }
 
 android {
     namespace = "com.micuadre.app"
