@@ -3,6 +3,8 @@
    Policy (API 29-30 auto backup): back up the Room database (incl. -wal/-shm) and the DataStore
    settings; everything else (caches, no-backup dirs) stays out.
    API 31+ uses data_extraction_rules.xml instead.
+   Remember: any future token, credential or secret stored in the database or DataStore must get an
+   <exclude> rule here.
 -->
 <full-backup-content>
     <include domain="database" path="." />

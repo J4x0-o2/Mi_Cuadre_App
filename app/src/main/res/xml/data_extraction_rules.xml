@@ -3,6 +3,8 @@
    Policy (API 31+): the Room database (incl. -wal/-shm) and the DataStore settings go to both
    Google cloud backup and device-to-device transfer; nothing else is included.
    API 29-30 uses backup_rules.xml instead.
+   Remember: any future token, credential or secret stored in the database or DataStore must get an
+   <exclude> rule here.
 -->
 <data-extraction-rules>
     <cloud-backup>

@@ -3,7 +3,6 @@ package com.micuadre.app
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
 
@@ -26,11 +25,15 @@ class BackupRulesTest {
         getElementsByTagName(tag).item(0) as? Element ?: error("<$tag> missing in <${this.tagName}>")
 
     /** domain:path pairs of every <include> directly under this element. */
-    private fun Element.includes(): Set<String> =
-        (0 until getElementsByTagName("include").length)
-            .map { getElementsByTagName("include").item(it) as Element }
+    private fun Element.includes(): Set<String> {
+        val children = childNodes
+        return (0 until children.length)
+            .map { children.item(it) }
+            .filterIsInstance<Element>()
+            .filter { it.tagName == "include" }
             .map { "${it.getAttribute("domain")}:${it.getAttribute("path")}" }
             .toSet()
+    }
 
     private val expected = setOf("database:.", "file:datastore/")
 
@@ -57,9 +60,17 @@ class BackupRulesTest {
     }
 
     @Test
+    fun `includes ignores nested include elements`() {
+        val xml = """<cloud-backup><wrapper><include domain="database" path="."/></wrapper></cloud-backup>"""
+        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+            .parse(xml.byteInputStream()).documentElement
+        assertEquals(emptySet<String>(), root.includes())
+    }
+
+    @Test
     fun `full backup content includes database and datastore`() {
         val rules = parse("res/xml/backup_rules.xml")
+        assertEquals("full-backup-content", rules.tagName)
         assertEquals(expected, rules.includes())
-        assertTrue(rules.tagName == "full-backup-content")
     }
 }
