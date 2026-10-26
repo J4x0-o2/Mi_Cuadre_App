@@ -53,6 +53,11 @@ the builds and the device smoke test instead, recorded per task.
 - [x] T7 Review follow-ups, tests and CI: `BackupRulesTest.includes()` reads direct children only, as
   its KDoc says; `assertEquals` for the root tag; `permissions: contents: read` in ci.yml; a comment in
   both backup rule files to exclude any future token or secret.
+- [x] T8 Last review round (2026-10-26, authorized by the user): wire the guard with
+  `afterEvaluate { tasks.named("preReleaseBuild") }` so a renamed task fails loudly; the guard
+  script runs a real `assembleRelease` with a partial set and requires the guard's exact message,
+  keeps each Gradle log and prints its tail on FAIL; description passed as an argument; KEYS linked
+  to the build.gradle.kts constants. Later suggestions go to follow-ups, no further rounds.
 
 ## Acceptance criteria
 - `assembleRelease` produces a signed APK when the signing values exist, and an unsigned one
@@ -112,6 +117,23 @@ the builds and the device smoke test instead, recorded per task.
   Writer: 774 tests, 0 failures; assembleRelease still signed (SHA-1 715482...866d4a). Parent spot
   check: `validateReleaseSigning testDebugUnitTest` OK, 774 tests, 0 failures.
   Not applied: pinning actions to commit SHAs (optional; harder updates).
+- 2026-10-26 Review T6–T7 (base 647d096, 7 files, 153 lines): high (shell script, CI), granted,
+  4 lenses APPROVED and acknowledged (lineage review-27dbf917816f5898). Warnings: the guard is wired
+  by the string "preReleaseBuild" through `tasks.matching`, so a rename silently drops it and ships
+  an unsigned release; the guard script discards Gradle output and `expect_fail` accepts any
+  failure. Suggestions: description as an argument; link KEYS to the build constants. All taken in T8.
+- 2026-10-26 Not reviewed: the accumulated branch candidate (e66ea24..0dfe651); every slice already
+  has an acknowledged receipt.
+- 2026-10-26 T8 (route: delegated writer, trigger: 2 non-trivial files) `c0ea128`: guard wired with
+  `afterEvaluate { tasks.named("preReleaseBuild") }`; the guard script logs every Gradle run, requires
+  the guard's exact message, prints the log tail on FAIL, runs a real `assembleRelease` with a partial
+  set. Mutation in a clean worktree ("preReleaseBuild" -> "preReleaseBuildRenamed"): the OLD script
+  still passed 4/4 (the hole); the NEW script FAILED check 2 ("build succeeded"); with the fix,
+  `help` fails loudly ("Task with name 'preReleaseBuildRenamed' not found"). GREEN: 4/4 PASS.
+  Writer: 774 tests, 0 failures; release still signed (SHA-1 715482...866d4a). Parent spot check:
+  `help validateReleaseSigning` exit 0. Observed once in the worktree: with a Windows `sdk.dir` in a
+  copied local.properties, check 2 failed on `lintVitalReportRelease` "Invalid file path" — the new
+  script surfaced it; not reproducible in CI (Linux, ANDROID_HOME). Confirm on the first CI run.
 
 ## Next step
-Review T6–T7 if due, then push the branch so CI runs once on GitHub (user decision).
+Review T8, then push the branch so CI runs once on GitHub (user decision).
