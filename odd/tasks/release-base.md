@@ -134,6 +134,19 @@ the builds and the device smoke test instead, recorded per task.
   `help validateReleaseSigning` exit 0. Observed once in the worktree: with a Windows `sdk.dir` in a
   copied local.properties, check 2 failed on `lintVitalReportRelease` "Invalid file path" — the new
   script surfaced it; not reproducible in CI (Linux, ANDROID_HOME). Confirm on the first CI run.
+- 2026-10-26 Pushed `feat/release-base` (the gh CLI token needed the `workflow` scope). First CI run
+  40421930077: signing guard 4/4 PASS on Linux; 773/774 tests passed. Failed:
+  `ShiftRepositoryPeriodTest` "observation re-emits when a trip is finished", expected [0, 1] but
+  was [0, 0] — a pre-existing flaky test from F1 (`3dbbae9`): Room re-emits the same data and the test
+  counts emissions. User decision: do not fix now.
+- 2026-10-26 Released as 1.3.0 (merged into main with --no-ff, tag v1.3.0). Version note: the release
+  plan had 1.3.0 for F5; the Sheets backup becomes 1.4.0.
+
+## Follow-ups (not applied)
+- Flaky `ShiftRepositoryPeriodTest` re-emission test (fix: wait for an emission with 1 trip).
+- `check-signing-guard.sh` check 2 can fail on release tasks that do not depend on preReleaseBuild
+  (lintVital) before the guard runs; guard messages duplicated in the script without a link comment.
+- CI annotations: `actions/setup-java@v4` deprecated (v5); Node 20 actions deprecated.
 
 ## Next step
-Review T8, then push the branch so CI runs once on GitHub (user decision).
+None. Phase F5 (optional Google Sheets backup, 1.4.0) is next in the release plan.

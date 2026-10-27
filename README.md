@@ -7,6 +7,12 @@ separado en efectivo y transferencia.
 
 ![MiCuadre: total del turno, ganancias de la semana y del mes](docs/images/cover.png)
 
+## Novedades en 1.3.0
+
+- **Tus datos viajan contigo.** Las carreras, los turnos y los ajustes entran en el respaldo
+  automático de Google y pasan al teléfono nuevo cuando lo configuras. Si había una carrera en curso,
+  vuelve con su hora de inicio original.
+
 ## Novedades en 1.2.0
 
 - **Historial.** En *Ajustes › Historial* ves el total, el neto y los turnos de cada año y de cada
@@ -208,5 +214,5 @@ versión se etiqueta en git (`v1.0.0`) y los cambios se listan en [CHANGELOG.md]
 
 ## Estado del proyecto
 
-MiCuadre está en desarrollo activo (versión actual **1.2.0**). Su autor la usa primero como
+MiCuadre está en desarrollo activo (versión actual **1.3.0**). Su autor la usa primero como
 herramienta diaria de conductor, con el objetivo de abrirla a cualquier conductor de plataformas.

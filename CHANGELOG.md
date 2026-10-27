@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The versi
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-26
+
 ### Added
 - Android backup: the rides, shifts and settings are included in Google's automatic backup and in
   the transfer to a new phone. A ride in progress is restored with its original start time.
