@@ -22,6 +22,47 @@ val appVersionCode: Int = run {
     parts[0] * 10_000 + parts[1] * 100 + parts[2]
 }
 
+// Release signing values come from the git-ignored root local.properties, falling back to env vars
+// of the same name (CI/other machines). With none set the release build stays unsigned. A partial
+// set or a missing keystore file only fails release builds (validateReleaseSigning), so debug
+// builds and unit tests keep working.
+val KEYSTORE_FILE_KEY = "MICUADRE_KEYSTORE_FILE"
+val KEYSTORE_PASSWORD_KEY = "MICUADRE_KEYSTORE_PASSWORD"
+val KEY_ALIAS_KEY = "MICUADRE_KEY_ALIAS"
+val KEY_PASSWORD_KEY = "MICUADRE_KEY_PASSWORD"
+val signingKeys = listOf(KEYSTORE_FILE_KEY, KEYSTORE_PASSWORD_KEY, KEY_ALIAS_KEY, KEY_PASSWORD_KEY)
+val localProps = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+}
+// Only the path and the alias are trimmed; passwords pass through untouched (empty means absent).
+val signingValues: Map<String, String> = signingKeys
+    .mapNotNull { key ->
+        (localProps.getProperty(key) ?: System.getenv(key))
+            ?.let { if (key == KEYSTORE_FILE_KEY || key == KEY_ALIAS_KEY) it.trim() else it }
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { key to it }
+    }
+    .toMap()
+val releaseKeystore: File? = signingValues[KEYSTORE_FILE_KEY]?.let { rootProject.file(it) }
+val signingProblem: String? = when {
+    signingValues.isEmpty() -> null
+    signingValues.size != signingKeys.size ->
+        "Incomplete release signing config; missing: " +
+            signingKeys.filter { it !in signingValues }.joinToString()
+    releaseKeystore?.isFile != true -> "$KEYSTORE_FILE_KEY points to a missing file: $releaseKeystore"
+    else -> null
+}
+val hasReleaseSigning = signingValues.size == signingKeys.size && signingProblem == null
+
+val validateReleaseSigning by tasks.registering {
+    description = "Fails when the release signing config is partial or its keystore file is missing."
+    val problem = signingProblem
+    doLast { if (problem != null) throw GradleException(problem) }
+}
+// AGP creates preReleaseBuild late, hence afterEvaluate. `named` fails the build if AGP ever renames
+// the task, instead of silently dropping the guard and shipping an unsigned release.
+afterEvaluate { tasks.named("preReleaseBuild") { dependsOn(validateReleaseSigning) } }
+
 android {
     namespace = "com.micuadre.app"
     compileSdk = 35
@@ -38,11 +79,23 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = signingValues.getValue(KEYSTORE_PASSWORD_KEY)
+                keyAlias = signingValues.getValue(KEY_ALIAS_KEY)
+                keyPassword = signingValues.getValue(KEY_PASSWORD_KEY)
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
         }
         release {
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

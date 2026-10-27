@@ -1,13 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Policy (API 29-30 auto backup): back up the Room database (incl. -wal/-shm) and the DataStore
+   settings; everything else (caches, no-backup dirs) stays out.
+   API 31+ uses data_extraction_rules.xml instead.
+   Remember: any future token, credential or secret stored in the database or DataStore must get an
+   <exclude> rule here.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <include domain="database" path="." />
+    <include domain="file" path="datastore/" />
 </full-backup-content>
