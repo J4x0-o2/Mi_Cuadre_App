@@ -7,6 +7,25 @@ separado en efectivo y transferencia.
 
 ![MiCuadre: total del turno, ganancias de la semana y del mes](docs/images/cover.png)
 
+## Cómo instalar
+
+MiCuadre se distribuye desde las [releases de GitHub](https://github.com/J4x0-o2/Mi_Cuadre_App/releases/latest).
+Requiere Android 10 o superior.
+
+**Con Obtainium (recomendado).** [Obtainium](https://github.com/ImranR98/Obtainium) instala apps
+desde GitHub y te avisa de cada versión nueva.
+
+1. Instala Obtainium desde su [página de releases](https://github.com/ImranR98/Obtainium/releases/latest).
+2. En Obtainium, agrega una app con la URL `https://github.com/J4x0-o2/Mi_Cuadre_App`.
+3. Instálala. Si Android lo pide, permite que Obtainium instale apps.
+
+**Directo.** Descarga el archivo `MiCuadre-<versión>.apk` de la
+[última release](https://github.com/J4x0-o2/Mi_Cuadre_App/releases/latest), ábrelo y permite la
+instalación desde esa fuente cuando Android lo pida. Así no recibes avisos de versiones nuevas.
+
+Todas las versiones se firman con el mismo certificado, cuya huella SHA-256 está en las notas de cada
+release. Android rechaza una actualización firmada con otro certificado.
+
 ## Novedades en 1.3.0
 
 - **Tus datos viajan contigo.** Las carreras, los turnos y los ajustes entran en el respaldo
