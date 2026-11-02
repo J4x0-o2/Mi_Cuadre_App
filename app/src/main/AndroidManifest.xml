@@ -8,6 +8,17 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- FlowTa integration. The permission is declared here too (same definition as FlowTa's) so it is
+         granted even when MiCuadre is installed before FlowTa; both apps share the signing key. -->
+    <permission
+        android:name="com.j4x.flowta.permission.RECORD_INCOME"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.j4x.flowta.permission.RECORD_INCOME" />
+
+    <queries>
+        <package android:name="com.j4x.flowta" />
+    </queries>
+
     <application
         android:name=".MiCuadreApp"
         android:allowBackup="true"
