@@ -121,6 +121,12 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
     (insert-ignore for enqueue, keep `upsert` only if needed); test the `oldest()` tripId tie-break;
     `markFailed` on a missing row is a no-op (document/test).
 
+- 2026-11-02: M3+M4 done (69190d4). Review (reliability, medium, slice budget): granted → approved,
+  acknowledged (lineage review-f3f0f2b3027e428c); reviewed boundary = 69190d4. Suggestions folded into M5:
+  cancel the previous link-status refresh (a slow NOT_LINKED can overwrite a fresh LINKED); test
+  `ContentResolverFlowTaClient` failure paths (throw / null → UNAVAILABLE) with Robolectric; make the
+  DataStore durability test use a second DataStore over the same file.
+
 ## Next step
 
 M5 (enqueue + send).
