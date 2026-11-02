@@ -3,6 +3,7 @@ package com.micuadre.app.flowta
 import android.content.Context
 import android.net.Uri
 import com.micuadre.app.BuildConfig
+import com.micuadre.app.data.local.entity.PendingFlowTaIncomeEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,6 +29,9 @@ enum class FlowTaLinkStatus {
 interface FlowTaClient {
     /** Blocking provider call; implementations move it off the main thread. */
     suspend fun linkStatus(): FlowTaLinkStatus
+
+    /** Sends one queued income; never throws, every failure is a [FlowTaSendResult]. */
+    suspend fun recordIncome(row: PendingFlowTaIncomeEntity): FlowTaSendResult
 }
 
 class ContentResolverFlowTaClient @Inject constructor(
@@ -44,9 +48,21 @@ class ContentResolverFlowTaClient @Inject constructor(
         }
     }
 
+    override suspend fun recordIncome(row: PendingFlowTaIncomeEntity): FlowTaSendResult = withContext(Dispatchers.IO) {
+        try {
+            val reply = context.contentResolver.call(
+                AUTHORITY_URI, METHOD_RECORD_INCOME, null, FlowTaIncomeContract.extras(row)
+            )
+            FlowTaSendResult.fromReply(reply)
+        } catch (e: Exception) {
+            FlowTaSendResult.fromFailure(e)
+        }
+    }
+
     private companion object {
         val AUTHORITY_URI: Uri = Uri.parse("content://${BuildConfig.FLOWTA_AUTHORITY}")
         const val METHOD_LINK_STATUS = "linkStatus"
+        const val METHOD_RECORD_INCOME = "recordIncome"
         const val KEY_STATUS = "status"
     }
 }

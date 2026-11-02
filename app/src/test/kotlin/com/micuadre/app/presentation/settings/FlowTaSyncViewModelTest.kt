@@ -1,10 +1,14 @@
 package com.micuadre.app.presentation.settings
 
 import com.micuadre.app.R
+import com.micuadre.app.data.local.entity.PendingFlowTaIncomeEntity
 import com.micuadre.app.domain.repository.FlowTaSyncPreferenceRepository
 import com.micuadre.app.flowta.FlowTaAvailability
 import com.micuadre.app.flowta.FlowTaClient
 import com.micuadre.app.flowta.FlowTaLinkStatus
+import com.micuadre.app.flowta.FlowTaSendResult
+import com.micuadre.app.flowta.FlowTaSyncScheduler
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -42,17 +46,36 @@ class FlowTaSyncViewModelTest {
 
     private class FakeClient(var status: FlowTaLinkStatus = FlowTaLinkStatus.LINKED) : FlowTaClient {
         var calls = 0
+
+        /** When set, the next [linkStatus] call suspends on it instead of answering [status]. */
+        var gate: CompletableDeferred<FlowTaLinkStatus>? = null
+
         override suspend fun linkStatus(): FlowTaLinkStatus {
             calls++
+            gate?.let { pending ->
+                gate = null
+                return pending.await()
+            }
             return status
+        }
+
+        override suspend fun recordIncome(row: PendingFlowTaIncomeEntity): FlowTaSendResult =
+            FlowTaSendResult.Delivered
+    }
+
+    private class FakeScheduler : FlowTaSyncScheduler {
+        var calls = 0
+        override fun schedule() {
+            calls++
         }
     }
 
     private val prefs = FakePrefs()
     private val availability = FakeAvailability()
     private val client = FakeClient()
+    private val scheduler = FakeScheduler()
 
-    private fun viewModel() = FlowTaSyncViewModel(prefs, availability, client)
+    private fun viewModel() = FlowTaSyncViewModel(prefs, availability, client, scheduler)
 
     @Before
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -205,6 +228,43 @@ class FlowTaSyncViewModelTest {
         val vm = viewModel()
         vm.onResume()
         vm.onToggled(false)
+        assertFalse(vm.state.value.showReconnect)
+    }
+
+    @Test
+    fun `a successful connect schedules a sync, a canceled one does not`() = runTest {
+        val vm = viewModel()
+        vm.onConnectResult(false)
+        assertEquals(0, scheduler.calls)
+        vm.onConnectResult(true)
+        assertEquals(1, scheduler.calls)
+    }
+
+    @Test
+    fun `a slow stale NOT_LINKED cannot overwrite a newer LINKED`() = runTest {
+        prefs.state.value = true
+        val slow = CompletableDeferred<FlowTaLinkStatus>()
+        client.gate = slow
+        val vm = viewModel() // initial refresh suspends on the gate
+        client.status = FlowTaLinkStatus.LINKED
+        vm.onResume() // newer refresh answers LINKED right away
+        assertFalse(vm.state.value.showReconnect)
+
+        slow.complete(FlowTaLinkStatus.NOT_LINKED)
+
+        assertFalse(vm.state.value.showReconnect)
+    }
+
+    @Test
+    fun `a pending refresh cannot overwrite the LINKED set by a successful connect`() = runTest {
+        prefs.state.value = true
+        val slow = CompletableDeferred<FlowTaLinkStatus>()
+        client.gate = slow
+        val vm = viewModel()
+
+        vm.onConnectResult(true)
+        slow.complete(FlowTaLinkStatus.NOT_LINKED)
+
         assertFalse(vm.state.value.showReconnect)
     }
 }

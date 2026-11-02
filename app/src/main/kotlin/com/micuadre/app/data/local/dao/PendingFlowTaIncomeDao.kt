@@ -10,9 +10,12 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PendingFlowTaIncomeDao {
 
-    /** Inserts the row or replaces the one already queued for the same trip. */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(row: PendingFlowTaIncomeEntity)
+    /**
+     * Queues the row. A trip already queued keeps its row as it is (attempts, last error and
+     * creation time included), so enqueueing twice never resets the retry bookkeeping.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun enqueue(row: PendingFlowTaIncomeEntity)
 
     /** The next rows to deliver: oldest first, at most [limit]. */
     @Query("SELECT * FROM pending_flowta_income ORDER BY createdAt ASC, tripId ASC LIMIT :limit")
@@ -21,7 +24,7 @@ interface PendingFlowTaIncomeDao {
     @Query("DELETE FROM pending_flowta_income WHERE tripId = :tripId")
     suspend fun delete(tripId: Long)
 
-    /** Records a failed delivery attempt: one more attempt and the error it ended with. */
+    /** Records a failed delivery attempt: one more attempt and the error it ended with. A missing row is a no-op. */
     @Query("UPDATE pending_flowta_income SET attempts = attempts + 1, lastError = :error WHERE tripId = :tripId")
     suspend fun markFailed(tripId: Long, error: String?)
 

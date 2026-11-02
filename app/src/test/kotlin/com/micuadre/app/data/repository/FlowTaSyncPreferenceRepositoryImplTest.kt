@@ -18,6 +18,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
 import java.io.IOException
 
 /** The real repository over a real Preferences DataStore backed by a temp file. */
@@ -27,14 +28,14 @@ class FlowTaSyncPreferenceRepositoryImplTest {
     val tmp = TemporaryFolder()
 
     private val scope = CoroutineScope(Job() + Dispatchers.IO)
+    private lateinit var file: File
     private lateinit var dataStore: DataStore<Preferences>
     private lateinit var repository: FlowTaSyncPreferenceRepositoryImpl
 
     @Before
     fun setUp() {
-        dataStore = PreferenceDataStoreFactory.create(scope = scope) {
-            tmp.newFile("settings.preferences_pb").also { it.delete() }
-        }
+        file = tmp.newFile("settings.preferences_pb").also { it.delete() }
+        dataStore = PreferenceDataStoreFactory.create(scope = scope) { file }
         repository = FlowTaSyncPreferenceRepositoryImpl(dataStore)
     }
 
@@ -57,9 +58,16 @@ class FlowTaSyncPreferenceRepositoryImplTest {
     }
 
     @Test
-    fun `value survives a new repository over the same store`() = runBlocking {
+    fun `value survives a second DataStore over the same file`() = runBlocking {
         repository.setEnabled(true)
-        assertEquals(true, FlowTaSyncPreferenceRepositoryImpl(dataStore).observe().first())
+        scope.cancel() // release the first store's file ownership before opening the file again
+        val secondScope = CoroutineScope(Job() + Dispatchers.IO)
+        try {
+            val second = PreferenceDataStoreFactory.create(scope = secondScope) { file }
+            assertEquals(true, FlowTaSyncPreferenceRepositoryImpl(second).observe().first())
+        } finally {
+            secondScope.cancel()
+        }
     }
 
     @Test

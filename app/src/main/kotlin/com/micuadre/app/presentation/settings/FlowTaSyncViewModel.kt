@@ -7,9 +7,11 @@ import com.micuadre.app.domain.repository.FlowTaSyncPreferenceRepository
 import com.micuadre.app.flowta.FlowTaAvailability
 import com.micuadre.app.flowta.FlowTaClient
 import com.micuadre.app.flowta.FlowTaLinkStatus
+import com.micuadre.app.flowta.FlowTaSyncScheduler
 import com.micuadre.app.presentation.UiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -43,7 +45,8 @@ sealed interface FlowTaSyncEffect {
 class FlowTaSyncViewModel @Inject constructor(
     private val preferences: FlowTaSyncPreferenceRepository,
     private val availability: FlowTaAvailability,
-    private val client: FlowTaClient
+    private val client: FlowTaClient,
+    private val scheduler: FlowTaSyncScheduler
 ) : ViewModel() {
 
     private val linkStatus = MutableStateFlow(FlowTaLinkStatus.UNAVAILABLE)
@@ -72,7 +75,12 @@ class FlowTaSyncViewModel @Inject constructor(
         viewModelScope.launch {
             preferences.observe().distinctUntilChanged().collect { on ->
                 enabled.value = on
-                if (on) refreshLinkStatus() else linkStatus.value = FlowTaLinkStatus.UNAVAILABLE
+                if (on) {
+                    refreshLinkStatus()
+                } else {
+                    refreshJob?.cancel()
+                    linkStatus.value = FlowTaLinkStatus.UNAVAILABLE
+                }
             }
         }
     }
@@ -83,7 +91,7 @@ class FlowTaSyncViewModel @Inject constructor(
 
     /** The user may have just reconnected, reinstalled or cleared FlowTa; ask again. */
     fun onResume() {
-        if (enabled.value) viewModelScope.launch { refreshLinkStatus() }
+        if (enabled.value) refreshLinkStatus()
     }
 
     fun onToggled(on: Boolean) {
@@ -102,7 +110,10 @@ class FlowTaSyncViewModel @Inject constructor(
     fun onConnectResult(connected: Boolean) {
         if (!connected) return
         persist(true)
+        refreshJob?.cancel() // a pending answer from before the connect is stale
         linkStatus.value = FlowTaLinkStatus.LINKED
+        // Rows queued while FlowTa was not linked can go out now.
+        scheduler.schedule()
     }
 
     /** FlowTa's connect screen could not be opened. */
@@ -114,8 +125,12 @@ class FlowTaSyncViewModel @Inject constructor(
         installDialog.value = false
     }
 
-    private suspend fun refreshLinkStatus() {
-        linkStatus.value = client.linkStatus()
+    private var refreshJob: Job? = null
+
+    /** Asks FlowTa again; only the newest answer may update the state, so older ones are cancelled. */
+    private fun refreshLinkStatus() {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch { linkStatus.value = client.linkStatus() }
     }
 
     private fun persist(on: Boolean) {

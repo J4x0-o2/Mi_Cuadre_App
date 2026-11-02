@@ -47,21 +47,46 @@ class PendingFlowTaIncomeDaoTest {
     )
 
     @Test
-    fun `upsert replaces the row with the same trip id`() = runBlocking {
-        dao.upsert(row(1, 100L, amountMinor = 5000L))
-        dao.upsert(row(1, 100L, amountMinor = 7500L))
+    fun `enqueue keeps a row already queued for the same trip untouched`() = runBlocking {
+        dao.enqueue(row(1, 100L, amountMinor = 5000L))
+        dao.markFailed(1, "timeout")
 
-        val rows = dao.oldest(10)
-        assertEquals(1, rows.size)
-        assertEquals(7500L, rows.single().amountMinor)
+        dao.enqueue(row(1, 900L, amountMinor = 7500L))
+
+        val only = dao.oldest(10).single()
+        assertEquals(5000L, only.amountMinor)
+        assertEquals(100L, only.createdAt)
+        assertEquals(1, only.attempts)
+        assertEquals("timeout", only.lastError)
+        assertEquals(1, dao.count())
+    }
+
+    @Test
+    fun `oldest breaks createdAt ties by trip id ascending`() = runBlocking {
+        dao.enqueue(row(7, 100L))
+        dao.enqueue(row(3, 100L))
+        dao.enqueue(row(5, 100L))
+
+        assertEquals(listOf(3L, 5L, 7L), dao.oldest(10).map { it.tripId })
+    }
+
+    @Test
+    fun `markFailed on a missing row changes nothing`() = runBlocking {
+        dao.enqueue(row(1, 100L))
+
+        dao.markFailed(99, "boom")
+
+        val only = dao.oldest(10).single()
+        assertEquals(0, only.attempts)
+        assertNull(only.lastError)
         assertEquals(1, dao.count())
     }
 
     @Test
     fun `oldest returns rows by createdAt ascending and honours the limit`() = runBlocking {
-        dao.upsert(row(1, 300L))
-        dao.upsert(row(2, 100L))
-        dao.upsert(row(3, 200L))
+        dao.enqueue(row(1, 300L))
+        dao.enqueue(row(2, 100L))
+        dao.enqueue(row(3, 200L))
 
         assertEquals(listOf(2L, 3L, 1L), dao.oldest(10).map { it.tripId })
         assertEquals(listOf(2L, 3L), dao.oldest(2).map { it.tripId })
@@ -69,8 +94,8 @@ class PendingFlowTaIncomeDaoTest {
 
     @Test
     fun `markFailed increments attempts and stores the last error`() = runBlocking {
-        dao.upsert(row(1, 100L))
-        dao.upsert(row(2, 200L))
+        dao.enqueue(row(1, 100L))
+        dao.enqueue(row(2, 200L))
 
         dao.markFailed(1, "timeout")
         dao.markFailed(1, "http 500")
@@ -85,7 +110,7 @@ class PendingFlowTaIncomeDaoTest {
 
     @Test
     fun `markFailed accepts a null error`() = runBlocking {
-        dao.upsert(row(1, 100L))
+        dao.enqueue(row(1, 100L))
         dao.markFailed(1, "boom")
         dao.markFailed(1, null)
 
@@ -96,8 +121,8 @@ class PendingFlowTaIncomeDaoTest {
 
     @Test
     fun `delete removes only that trip`() = runBlocking {
-        dao.upsert(row(1, 100L))
-        dao.upsert(row(2, 200L))
+        dao.enqueue(row(1, 100L))
+        dao.enqueue(row(2, 200L))
 
         dao.delete(1)
 
@@ -109,8 +134,8 @@ class PendingFlowTaIncomeDaoTest {
         assertEquals(0, dao.count())
         assertEquals(0, dao.observeCount().first())
 
-        dao.upsert(row(1, 100L))
-        dao.upsert(row(2, 200L))
+        dao.enqueue(row(1, 100L))
+        dao.enqueue(row(2, 200L))
 
         assertEquals(2, dao.count())
         assertEquals(2, dao.observeCount().first())

@@ -2,6 +2,7 @@ package com.micuadre.app.service
 
 import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.usecase.FinishTripUseCase
+import com.micuadre.app.flowta.FlowTaIncomeOutbox
 import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
@@ -12,7 +13,8 @@ import javax.inject.Inject
  * surfaces an error instead of dropping the request silently.
  */
 class FinishTripHandler @Inject constructor(
-    private val finishTrip: FinishTripUseCase
+    private val finishTrip: FinishTripUseCase,
+    private val flowTaOutbox: FlowTaIncomeOutbox
 ) {
 
     sealed interface Outcome {
@@ -50,7 +52,10 @@ class FinishTripHandler @Inject constructor(
             return Outcome.Rejected
         }
         return when (result) {
-            FinishTripUseCase.Result.Saved -> Outcome.Finished
+            FinishTripUseCase.Result.Saved -> {
+                flowTaOutbox.enqueue(tripId, platformId, amountMinor, payment, endedAt)
+                Outcome.Finished
+            }
             FinishTripUseCase.Result.Invalid -> Outcome.Rejected
         }
     }
