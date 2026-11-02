@@ -90,10 +90,28 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
       re-ran the FlowTa tests. Emulator: toggle → FlowTa `ConnectSourceActivity` opens across apps
       (debug key both) with "Efectivo"/"Nequi" preselected; Cancelar → back in MiCuadre, toggle off.
       Known: a LaunchConnect effect emitted while the screen is not collecting is dropped (no replay).
-- [ ] **M5 Enqueue + send** — after `Saved` and only if enabled: insert into queue, enqueue unique
+- [x] **M5 Enqueue + send** — after `Saved` and only if enabled: insert into queue, enqueue unique
       `FlowTaSyncWorker` (network not required, exponential backoff). Client maps contract statuses as in
       the design. Tests: client mapping with a fake caller, worker drain logic, no enqueue when disabled.
       [route: delegated]
+      Evidence 2026-11-02 (5fb2648): hook in `FinishTripHandler.handle` on `Saved` →
+      `FlowTaIncomeOutbox.enqueue` (never throws; platform name via `ShiftRepository.platformName`);
+      DAO `enqueue` = insert-ignore; `FlowTaClient.recordIncome` + pure extras/result mapping
+      (`Delivered`/`NotLinked`/`Rejected`/`Retry`); `FlowTaSyncRunner` + thin `@HiltWorker FlowTaSyncWorker`,
+      unique work `flowta-sync` APPEND_OR_REPLACE, exponential backoff 30 s, no constraints; drain also
+      scheduled after a successful (re)connect. M3+M4 follow-ups done (cancellable refresh job, Robolectric
+      `ContentResolverFlowTaClientTest`, DataStore durability over a second store). RED: `Unresolved
+      reference 'enqueue'`. GREEN: testDebugUnitTest 836, 0 failures; assembleDebug; assembleRelease (R8
+      keeps the worker). Parent re-ran the FlowTa + FinishTripHandler + DAO tests: green.
+      **End-to-end on the emulator (Pixel_6, both debug builds):** connect with "Nuevo tipo… Carreras" →
+      FlowTa `integration_link` (Carreras / Efectivo / Nequi). Cash trip $15.000 (Didi) → FlowTa income
+      in Efectivo (347 500 → 362 500), note "MiCuadre · Didi", `created_at` = trip end, worker SUCCESS.
+      Transfer trip $20.000 → Nequi (4 160 000 → 4 180 000). Link deleted in FlowTa → trip $12.000 stays
+      queued (`attempts` 1, `lastError` NOT_LINKED), Settings shows "Reconectar FlowTa"; reconnect →
+      queue drains, income in Efectivo, hint gone. Delivered trip 19 re-queued by hand + new trip →
+      queue empty, trip 19 not duplicated, balances changed only by the new trip. FlowTa emulator DB
+      restored afterwards from `Documents/FlowTa-backups/2026-11-02-pre-e2e` (194 tx, sum and balances identical).
+      Product gap (not decided): an INVALID reply drops the row with only a log; the user is not told.
 - [ ] **M6 Docs** — CLAUDE.md / README: feature, contract reference, Room v6. [route: inline]
 
 ## Acceptance criteria
@@ -129,4 +147,4 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
 
 ## Next step
 
-M5 (enqueue + send).
+M6 (docs), then delivery decisions (push / PR / merge) for both repos.
