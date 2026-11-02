@@ -101,6 +101,17 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
 - 2026-11-02: FlowTa side F1–F7 done on FlowTa branch `feat/micuadre-integration` (unpushed). Branch
   `feat/flowta-integration` created here; M1 done.
 
+- 2026-11-02: M2 done (24a6349). Review (M1+M2, reliability, medium, slice budget): granted → approved,
+  acknowledged (lineage review-e16b5007e3df0498); reviewed boundary = 24a6349. Findings:
+  - WARNING (kept, documented): declaring the permission in both apps makes Android reject installing
+    the second app with `INSTALL_FAILED_DUPLICATE_PERMISSION` when the two are signed with DIFFERENT keys
+    (e.g. debug MiCuadre next to release FlowTa). Accepted tradeoff: real installs (both release, same key)
+    and dev installs (both debug) are fine, and it removes the install-order grant problem. Never mix a
+    debug build of one app with a release build of the other. → M6 docs.
+  - Folded into M5: enqueue must not reset `attempts`/`lastError`/`createdAt` of a row already queued
+    (insert-ignore for enqueue, keep `upsert` only if needed); test the `oldest()` tripId tie-break;
+    `markFailed` on a missing row is a no-op (document/test).
+
 ## Next step
 
 M3 (setting + detection).
