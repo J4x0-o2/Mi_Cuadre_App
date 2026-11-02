@@ -7,9 +7,11 @@ import com.micuadre.app.data.local.MIGRATION_1_2
 import com.micuadre.app.data.local.MIGRATION_2_3
 import com.micuadre.app.data.local.MIGRATION_3_4
 import com.micuadre.app.data.local.MIGRATION_4_5
+import com.micuadre.app.data.local.MIGRATION_5_6
 import com.micuadre.app.data.local.MiCuadreDatabase
 import com.micuadre.app.data.local.dao.ConnectedIntervalDao
 import com.micuadre.app.data.local.dao.DeductionDao
+import com.micuadre.app.data.local.dao.PendingFlowTaIncomeDao
 import com.micuadre.app.data.local.dao.PlatformDao
 import com.micuadre.app.data.local.dao.SessionDao
 import com.micuadre.app.data.local.dao.SessionDeductionDao
@@ -33,7 +35,7 @@ object DatabaseModule {
             MiCuadreDatabase::class.java,
             MiCuadreDatabase.NAME
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .addCallback(DefaultPlatforms.callback)
             .build()
 
@@ -51,6 +53,9 @@ object DatabaseModule {
 
     @Provides
     fun provideSessionDeductionDao(db: MiCuadreDatabase): SessionDeductionDao = db.sessionDeductionDao()
+
+    @Provides
+    fun providePendingFlowTaIncomeDao(db: MiCuadreDatabase): PendingFlowTaIncomeDao = db.pendingFlowTaIncomeDao()
 
     @Provides
     fun provideConnectedIntervalDao(db: MiCuadreDatabase): ConnectedIntervalDao = db.connectedIntervalDao()

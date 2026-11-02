@@ -68,9 +68,15 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
       merged manifest has the permission, uses-permission and `<queries>`. Emulator: installing
       MiCuadre debug next to FlowTa debug (both debug key, both declaring the permission) succeeds and
       `dumpsys package` shows `RECORD_INCOME: granted=true`. No unit test: build/manifest only.
-- [ ] **M2 Room v6 queue** — `pending_flowta_income(tripId PK, amountMinor, paymentMethod, endedAt,
+- [x] **M2 Room v6 queue** — `pending_flowta_income(tripId PK, amountMinor, paymentMethod, endedAt,
       platformName, attempts, lastError, createdAt)`, `MIGRATION_5_6`, DAO, `MigrationTest` 5 → 6
       (and 4 → 5 if missing). [route: delegated]
+      Evidence 2026-11-02: entity + `PendingFlowTaIncomeDao` (upsert, oldest(limit), delete, markFailed,
+      count, observeCount), `MIGRATION_5_6`, `6.json`. No FK: a queued row survives trip deletion.
+      `paymentMethod` stored as the enum name String, like `TripEntity`. RED: `Unresolved reference
+      'MIGRATION_5_6'`. GREEN: testDebugUnitTest 783 tests, 0 failures; assembleDebug. Parent re-ran
+      MigrationTest (29) + PendingFlowTaIncomeDaoTest (6): green. 4 → 5 was already covered.
+      Gotcha: the first test run after adding a version can fail until `6.json` is generated.
 - [ ] **M3 Setting + detection** — `FlowTaSyncPreferenceRepository` (`flowta_sync_enabled`),
       `FlowTaAvailability` (installed?), Settings row + install dialog, ViewModel tests. [route: delegated]
 - [ ] **M4 Connect launch** — ActivityResult contract for `CONNECT_SOURCE`; OK → enabled, cancel →
@@ -97,4 +103,4 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
 
 ## Next step
 
-M2 (Room v6 queue).
+M3 (setting + detection).

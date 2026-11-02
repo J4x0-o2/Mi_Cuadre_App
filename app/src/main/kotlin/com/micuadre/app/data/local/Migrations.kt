@@ -218,3 +218,24 @@ val MIGRATION_4_5: Migration = object : Migration(4, 5) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_trips_platformId` ON `trips` (`platformId`)")
     }
 }
+
+/**
+ * 5 -> 6: the FlowTa income queue. Creates `pending_flowta_income` (one row per finished trip
+ * waiting to be delivered, keyed by trip id). Nothing is rebuilt or seeded.
+ */
+val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `pending_flowta_income` (" +
+                "`tripId` INTEGER NOT NULL, " +
+                "`amountMinor` INTEGER NOT NULL, " +
+                "`paymentMethod` TEXT NOT NULL, " +
+                "`endedAt` INTEGER NOT NULL, " +
+                "`platformName` TEXT NOT NULL, " +
+                "`attempts` INTEGER NOT NULL, " +
+                "`lastError` TEXT, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`tripId`))"
+        )
+    }
+}
