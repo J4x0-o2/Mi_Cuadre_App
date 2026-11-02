@@ -77,10 +77,19 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
       'MIGRATION_5_6'`. GREEN: testDebugUnitTest 783 tests, 0 failures; assembleDebug. Parent re-ran
       MigrationTest (29) + PendingFlowTaIncomeDaoTest (6): green. 4 → 5 was already covered.
       Gotcha: the first test run after adding a version can fail until `6.json` is generated.
-- [ ] **M3 Setting + detection** — `FlowTaSyncPreferenceRepository` (`flowta_sync_enabled`),
+- [x] **M3 Setting + detection** — `FlowTaSyncPreferenceRepository` (`flowta_sync_enabled`),
       `FlowTaAvailability` (installed?), Settings row + install dialog, ViewModel tests. [route: delegated]
-- [ ] **M4 Connect launch** — ActivityResult contract for `CONNECT_SOURCE`; OK → enabled, cancel →
+- [x] **M4 Connect launch** — ActivityResult contract for `CONNECT_SOURCE`; OK → enabled, cancel →
       disabled; "Reconnect" entry when FlowTa reports `NOT_LINKED`. [route: delegated]
+      Evidence M3+M4 2026-11-02 (one delegated writer, one commit): `FlowTaSyncPreferenceRepository`
+      (DataStore `flowta_sync_enabled`), `FlowTaAvailability`, `FlowTaClient.linkStatus()` (pure
+      `FlowTaLinkStatus.fromResult`; any failure → UNAVAILABLE), `ConnectFlowTaContract`, separate
+      `FlowTaSyncViewModel` (state enabled/showReconnect/showInstallDialog, effect LaunchConnect),
+      "Integraciones" section in Settings, install dialog → FlowTa GitHub releases. RED: `Unresolved
+      reference 'FlowTaSyncViewModel'`. GREEN: testDebugUnitTest 804, 0 failures; assembleDebug; parent
+      re-ran the FlowTa tests. Emulator: toggle → FlowTa `ConnectSourceActivity` opens across apps
+      (debug key both) with "Efectivo"/"Nequi" preselected; Cancelar → back in MiCuadre, toggle off.
+      Known: a LaunchConnect effect emitted while the screen is not collecting is dropped (no replay).
 - [ ] **M5 Enqueue + send** — after `Saved` and only if enabled: insert into queue, enqueue unique
       `FlowTaSyncWorker` (network not required, exponential backoff). Client maps contract statuses as in
       the design. Tests: client mapping with a fake caller, worker drain logic, no enqueue when disabled.
@@ -114,4 +123,4 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
 
 ## Next step
 
-M3 (setting + detection).
+M5 (enqueue + send).

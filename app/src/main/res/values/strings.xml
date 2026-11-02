@@ -162,6 +162,16 @@
     <string name="settings_bubble_permission_pending">Permiso pendiente: falta permitir mostrar MiCuadre sobre otras apps</string>
     <string name="settings_bubble_permission_unavailable">No se pudo abrir el ajuste del permiso. Permite \"Mostrar sobre otras apps\" para MiCuadre desde los Ajustes del teléfono.</string>
 
+    <string name="settings_integrations">Integraciones</string>
+    <string name="settings_flowta_title">Enviar ingresos a FlowTa</string>
+    <string name="settings_flowta_subtitle">Registra en FlowTa cada carrera que termines</string>
+    <string name="settings_flowta_reconnect_hint">FlowTa ya no tiene la conexión guardada</string>
+    <string name="settings_flowta_reconnect">Reconectar FlowTa</string>
+    <string name="settings_flowta_launch_error">No se pudo abrir FlowTa. Intenta de nuevo.</string>
+    <string name="settings_flowta_install_title">Necesitas FlowTa</string>
+    <string name="settings_flowta_install_message">Para enviar tus ingresos primero instala la app FlowTa.</string>
+    <string name="settings_flowta_install_action">Descargar FlowTa</string>
+    <string name="settings_flowta_install_dismiss">Ahora no</string>
     <string name="bubble_cd">MiCuadre: acceso rápido</string>
     <string name="bubble_close_cd">Cerrar panel</string>
     <string name="bubble_connected_time">Tiempo conectado</string>
