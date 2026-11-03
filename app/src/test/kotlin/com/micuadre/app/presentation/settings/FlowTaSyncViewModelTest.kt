@@ -269,7 +269,9 @@ class FlowTaSyncViewModelTest {
     }
 
     @Test
-    fun `the refresh started in init is cancelled by a later refresh`() = runTest {
+    // Under the test dispatcher the init collector runs after construction, so this does not catch the
+    // refreshJob declaration-order bug (only reproducible with Main.immediate); it covers stale-answer handling.
+    fun `a stale answer from the first refresh does not overwrite a later LINKED`() = runTest {
         prefs.state.value = true
         val first = CompletableDeferred<FlowTaLinkStatus>()
         client.gate = first
@@ -280,6 +282,5 @@ class FlowTaSyncViewModelTest {
         first.complete(FlowTaLinkStatus.NOT_LINKED)
 
         assertFalse(vm.state.value.showReconnect)
-        assertTrue(first.isCompleted)
     }
 }

@@ -2,7 +2,6 @@ package com.micuadre.app.flowta
 
 import android.app.Application
 import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.content.pm.ProviderInfo
 import android.content.pm.Signature
 import androidx.test.core.app.ApplicationProvider
@@ -68,10 +67,5 @@ class PackageManagerFlowTaProviderVerifierTest {
         install("com.evil.app", "key-a", BuildConfig.FLOWTA_AUTHORITY)
 
         assertFalse(verifier.isVerified())
-    }
-
-    @Test
-    fun `signature match constant is what the verifier requires`() {
-        assertTrue(PackageManager.SIGNATURE_MATCH == 0)
     }
 }

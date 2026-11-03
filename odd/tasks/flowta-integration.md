@@ -130,7 +130,13 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
       RED: `Unresolved reference 'FlowTaProviderVerifier'` (+ new result types). GREEN: testDebugUnitTest
       852, 0 failures; assembleDebug; parent re-ran the FlowTa tests. Emulator: with no FlowTa link,
       Settings shows "Reconectar FlowTa" → the verified `linkStatus` call reached FlowTa (verifier passes
-      for same-key builds). The ViewModel init-order test is a regression guard (not observed RED).
+      for same-key builds).
+      Review (M5b, 4 lenses, high): granted → approved, acknowledged (lineage review-7f6ce7b9adcc8003);
+      reviewed boundary = a170d22. Parent experiment: restoring the old `refreshJob` order still passes
+      `FlowTaSyncViewModelTest` → the init-order fix has NO automated guard (the test dispatcher runs the
+      init collector after construction; the bug needs Main.immediate). Test renamed honestly, its
+      tautological `isCompleted` assert and a constant-only verifier test removed. Remaining suggestions
+      (log the verifier failure reason; consecutive RowFailures could stop a run) left as later polish.
 - [ ] **M6 Docs** — CLAUDE.md / README: feature, contract reference, Room v6. [route: inline]
 
 ## Acceptance criteria
