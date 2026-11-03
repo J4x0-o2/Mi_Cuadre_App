@@ -137,7 +137,7 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
       init collector after construction; the bug needs Main.immediate). Test renamed honestly, its
       tautological `isCompleted` assert and a constant-only verifier test removed. Remaining suggestions
       (log the verifier failure reason; consecutive RowFailures could stop a run) left as later polish.
-- [ ] **M6 Docs** — CLAUDE.md / README: feature, contract reference, Room v6. [route: inline]
+- [x] **M6 Docs** — CLAUDE.md / README: feature, contract reference, Room v6. [route: inline]
 
 ## Acceptance criteria
 
@@ -173,6 +173,9 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
 - 2026-11-02: M5 done (5fb2648) + E2E emulator check passed. Review (4 lenses, risk high): granted →
   approved, acknowledged (lineage review-f7b14cc0153ae7bb); reviewed boundary = 25e3c01. WARNINGs → M5b.
 
+- 2026-11-02: M6 docs — README (feature, signing rule, stack, architecture, Room v6) and CHANGELOG
+  Unreleased (feature + known limitations). No CLAUDE.md in this repo. Passive docs.
+
 ## Next step
 
-M6 (docs), then delivery decisions (push / PR / merge) for both repos.
+All tasks done. Delivery decisions (push / PR / merge, release version) for both repos are the user's.

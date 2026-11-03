@@ -8,6 +8,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The versi
 
 ## [Unreleased]
 
+### Added
+- Optional "Send income to FlowTa" setting (Settings › Integraciones). Each finished trip is sent to
+  FlowTa as an income, routed to the account the user picked for cash or for transfer trips. Trips
+  wait in a local queue (Room v6, `pending_flowta_income`) when FlowTa is unavailable and are sent
+  in the background with WorkManager; FlowTa deduplicates resends. A "Reconnect FlowTa" action
+  appears when FlowTa no longer has the connection.
+
+### Known limitations
+- A trip finished exactly when the app process is killed, after the trip is saved but before it is
+  queued, is not sent to FlowTa.
+- A trip that FlowTa rejects as invalid is dropped from the queue and only logged.
+- MiCuadre and FlowTa must be signed with the same key (both debug or both release).
+
 ## [1.3.0] - 2026-10-26
 
 ### Added
