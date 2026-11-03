@@ -83,6 +83,8 @@ class ShiftRepositoryImpl @Inject constructor(
 
     override fun observeEarliestSessionStart(): Flow<Long?> = sessionDao.observeEarliestStart()
 
+    override suspend fun platformName(platformId: Long): String? = platformDao.byId(platformId)?.name
+
     override suspend fun cancelInProgressTrip(sessionId: Long) {
         tripDao.deleteInProgressBySession(sessionId)
     }

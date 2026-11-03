@@ -9,6 +9,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.micuadre.app.di.BubbleModule
 import com.micuadre.app.di.ClockModule
 import com.micuadre.app.di.DeductionModule
+import com.micuadre.app.di.FlowTaOutboxModule
+import com.micuadre.app.flowta.FlowTaIncomeOutbox
 import com.micuadre.app.di.ForegroundModule
 import com.micuadre.app.di.RepositoryModule
 import com.micuadre.app.domain.model.Platform
@@ -67,7 +69,7 @@ import org.robolectric.annotation.Config
 @HiltAndroidTest
 @UninstallModules(
     RepositoryModule::class, ClockModule::class, BubbleModule::class, DeductionModule::class,
-    ForegroundModule::class
+    ForegroundModule::class, FlowTaOutboxModule::class
 )
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [34])
@@ -115,6 +117,19 @@ class ShiftServiceTest {
     @BindValue
     @JvmField
     val overlay: BubbleOverlay = bubbleOverlay
+
+    // The FlowTa queue has its own tests; here finishing a trip must not touch it.
+    @BindValue
+    @JvmField
+    val flowTaOutbox: FlowTaIncomeOutbox = object : FlowTaIncomeOutbox {
+        override suspend fun enqueue(
+            tripId: Long,
+            platformId: Long,
+            amountMinor: Long,
+            paymentMethod: PaymentMethod,
+            endedAt: Long
+        ) {}
+    }
 
     private val foregroundStarter = RefusableForegroundStarter()
 
@@ -1271,6 +1286,7 @@ class ShiftServiceTest {
 
 /** In-memory [ShiftRepository] that suspends once per call, like a Room query hopping threads. */
 class InMemoryShiftRepository : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
     override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     val sessions = mutableListOf<Session>()
     var createdSessions = 0

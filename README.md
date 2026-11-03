@@ -26,6 +26,13 @@ instalación desde esa fuente cuando Android lo pida. Así no recibes avisos de 
 Todas las versiones se firman con el mismo certificado, cuya huella SHA-256 está en las notas de cada
 release. Android rechaza una actualización firmada con otro certificado.
 
+## Novedades en 1.4.0
+
+- **Envío a FlowTa.** Si usas [FlowTa](https://github.com/J4x0-o2/FlowTa) para tus finanzas, activa
+  *Ajustes › Integraciones › Enviar ingresos a FlowTa* y cada carrera que termines se registra allí
+  como ingreso, en la cuenta que elijas para efectivo o para transferencia. Si FlowTa no está
+  disponible, las carreras esperan y se envían después, sin duplicarse.
+
 ## Novedades en 1.3.0
 
 - **Tus datos viajan contigo.** Las carreras, los turnos y los ajustes entran en el respaldo
@@ -102,6 +109,13 @@ todos los datos se quedan en tu teléfono.
   plataformas. Eliminar una nunca cambia tu historial: las carreras pasadas conservan su nombre y
   sus totales.
 - **Tema.** Sistema, claro, oscuro o automático por horario (oscuro de 18:00 a 06:00).
+- **Envío a FlowTa.** Opcional, en *Ajustes › Integraciones*. Si usas
+  [FlowTa](https://github.com/J4x0-o2/FlowTa) para tus finanzas, cada carrera que termines se
+  registra allí como ingreso. Al activarlo, FlowTa te pide el tipo de ingreso y una cuenta para las
+  carreras en efectivo y otra para las de transferencia. Si FlowTa no está disponible, las carreras
+  esperan en una cola y se envían después; reenviar una carrera nunca la duplica. Si desconectas
+  MiCuadre desde FlowTa, Ajustes muestra *Reconectar FlowTa*. Las carreras terminadas antes de
+  activarlo no se envían.
 
 ## Cómo se cuentan los números
 
@@ -176,6 +190,13 @@ MICUADRE_KEY_PASSWORD=...
 Sin ellos el APK sale sin firmar (`app-release-unsigned.apk`); con solo algunos, el build falla y
 dice cuáles faltan. El keystore nunca va dentro del repositorio.
 
+**FlowTa y la firma.** MiCuadre y FlowTa se comunican con un permiso de nivel `signature`
+(`com.j4x.flowta.permission.RECORD_INCOME`) que ambas apps declaran, así que deben estar firmadas
+con la misma llave: las dos de depuración o las dos de release. Si mezclas una de depuración con
+una de release, Android rechaza instalar la segunda (`INSTALL_FAILED_DUPLICATE_PERMISSION`).
+El contrato de la integración (v1) está en el repositorio de FlowTa,
+`odd/tasks/micuadre-integration.md`.
+
 GitHub Actions (`.github/workflows/ci.yml`) corre las pruebas unitarias y los builds de depuración y
 de release en cada push y pull request.
 
@@ -187,9 +208,9 @@ de release en cada push y pull request.
 | UI | Jetpack Compose con Material 3 (tema propio, fuentes Sora y Manrope) |
 | Inyección de dependencias | Hilt |
 | Almacenamiento | Room (turnos, carreras, intervalos conectados, plataformas, deducciones y sus montos por turno) y DataStore (preferencias) |
-| Trabajo en segundo plano | Un servicio en primer plano con acciones en la notificación y una ventana superpuesta (burbuja) |
+| Trabajo en segundo plano | Un servicio en primer plano con acciones en la notificación, una ventana superpuesta (burbuja) y WorkManager para enviar carreras a FlowTa |
 | Asincronía | Kotlin Coroutines y Flow |
-| Pruebas | JUnit 4, Robolectric, `MigrationTestHelper` de Room (unas 630 pruebas) |
+| Pruebas | JUnit 4, Robolectric, `MigrationTestHelper` de Room (unas 850 pruebas) |
 | Build | Gradle Kotlin DSL con catálogo de versiones; `minSdk 29`, `targetSdk 35` |
 
 ## Arquitectura
@@ -204,6 +225,7 @@ app/src/main/kotlin/com/micuadre/app/
 ├── presentation/  ViewModels, coordinadores, modelos de UI y pantallas Compose
 ├── service/       Servicio del turno en primer plano, notificación y su máquina de estados
 ├── overlay/       Burbuja flotante: ventana, panel, arrastre y permiso
+├── flowta/        Integración con FlowTa: cliente del provider, cola de envío y worker
 ├── ui/theme/      Colores, tipografía y tema
 ├── di/            Módulos de Hilt
 └── util/          Utilidades de formato, versión y tiempo
@@ -212,7 +234,7 @@ app/src/main/kotlin/com/micuadre/app/
 Decisiones clave:
 
 - **Las migraciones de base de datos son reales y están probadas.** Cada versión del esquema (hoy
-  v4) trae una `Migration` y una prueba con `MigrationTestHelper` que la ejecuta sobre datos
+  v6) trae una `Migration` y una prueba con `MigrationTestHelper` que la ejecuta sobre datos
   existentes.
 - **El tiempo se inyecta.** Un `Clock` y la zona horaria los provee Hilt, así que los límites de
   día, semana y mes, el cambio de medianoche y los cambios de zona horaria tienen pruebas unitarias.
@@ -233,5 +255,5 @@ versión se etiqueta en git (`v1.0.0`) y los cambios se listan en [CHANGELOG.md]
 
 ## Estado del proyecto
 
-MiCuadre está en desarrollo activo (versión actual **1.3.0**). Su autor la usa primero como
+MiCuadre está en desarrollo activo (versión actual **1.4.0**). Su autor la usa primero como
 herramienta diaria de conductor, con el objetivo de abrirla a cualquier conductor de plataformas.

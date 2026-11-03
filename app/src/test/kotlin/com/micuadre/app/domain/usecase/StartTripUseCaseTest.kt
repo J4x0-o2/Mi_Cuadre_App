@@ -51,6 +51,7 @@ class StartTripUseCaseTest {
         private val existingStart: Long? = null,
         private val openFailure: Throwable? = null
     ) : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
         val opened = mutableListOf<Pair<Long, Long>>()
 
         override suspend fun openTrip(sessionId: Long, startedAt: Long): Trip {

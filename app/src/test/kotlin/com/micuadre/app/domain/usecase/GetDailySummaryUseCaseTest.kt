@@ -77,6 +77,7 @@ class GetDailySummaryUseCaseTest {
     }
 
     private class FakeShifts(private val summary: DailySummary) : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
         override suspend fun summary(sessionId: Long): DailySummary = summary
 
         override suspend fun createSession(startedAt: Long): Long = error("unused")

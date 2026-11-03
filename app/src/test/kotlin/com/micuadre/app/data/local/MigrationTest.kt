@@ -14,7 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Runs the real migrations against the exported schemas 1 to 4. */
+/** Runs the real migrations against the exported schemas 1 to 5. */
 @RunWith(RobolectricTestRunner::class)
 // The exported schemas are copied into the unit-test assets of every variant by build.gradle.kts.
 @Config(sdk = [34])
@@ -560,6 +560,81 @@ class MigrationTest {
         assertEquals(listOf(1L to "Uber"), db.tripPlatforms())
         assertEquals(1, db.count("connected_intervals"))
         assertEquals(0, db.count("deductions"))
+    }
+
+    // ---- 5 -> 6: FlowTa income queue ----
+
+    private fun createV5(block: (SupportSQLiteDatabase) -> Unit = {}) {
+        helper.createDatabase(DB_NAME, 5).apply {
+            execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            execSQL(
+                "INSERT INTO platforms (id, name, visible, createdAt, deletedAt) VALUES (1, 'Didi', 1, $START_1, NULL)"
+            )
+            execSQL(
+                "INSERT INTO trips (id, sessionId, platformId, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (7, 1, 1, $START_1, ${START_1 + 60_000L}, 5000, 'CASH')"
+            )
+            block(this)
+            close()
+        }
+    }
+
+    private fun migrate6(): SupportSQLiteDatabase =
+        helper.runMigrationsAndValidate(DB_NAME, 6, true, MIGRATION_5_6)
+
+    @Test
+    fun `5 to 6 keeps the existing data`() {
+        createV5()
+
+        val db = migrate6()
+
+        assertEquals(1, db.count("sessions"))
+        assertEquals(1, db.count("platforms"))
+        assertEquals(1, db.count("trips"))
+        db.query("SELECT amountMinor, paymentMethod FROM trips WHERE id = 7").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(5000L, it.getLong(0))
+            assertEquals("CASH", it.getString(1))
+        }
+    }
+
+    @Test
+    fun `5 to 6 creates an empty pending_flowta_income that accepts a row`() {
+        createV5()
+
+        val db = migrate6()
+
+        assertEquals(0, db.count("pending_flowta_income"))
+        db.execSQL(
+            "INSERT INTO pending_flowta_income " +
+                "(tripId, amountMinor, paymentMethod, endedAt, platformName, attempts, lastError, createdAt) " +
+                "VALUES (7, 5000, 'CASH', $END_1, 'Didi', 0, NULL, $START_1)"
+        )
+        db.query("SELECT tripId, attempts, lastError FROM pending_flowta_income").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(7L, it.getLong(0))
+            assertEquals(0, it.getInt(1))
+            assertTrue(it.isNull(2))
+        }
+    }
+
+    @Test
+    fun `1 to 6 chain validates and keeps the old trips`() {
+        helper.createDatabase(DB_NAME, 1).apply {
+            execSQL("INSERT INTO sessions (id, startedAt, endedAt) VALUES (1, $START_1, $END_1)")
+            execSQL(
+                "INSERT INTO trips (sessionId, platform, platformOtherLabel, startedAt, endedAt, amountMinor, paymentMethod) " +
+                    "VALUES (1, 'OTHER', 'Uber', $START_1, $END_1, 5000, 'CASH')"
+            )
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(
+            DB_NAME, 6, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6
+        )
+
+        assertEquals(1, db.count("trips"))
+        assertEquals(0, db.count("pending_flowta_income"))
     }
 
     private companion object {

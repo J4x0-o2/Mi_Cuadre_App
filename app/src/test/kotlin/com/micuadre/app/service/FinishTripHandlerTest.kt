@@ -6,6 +6,7 @@ import com.micuadre.app.domain.model.PaymentMethod
 import com.micuadre.app.domain.model.Trip
 import com.micuadre.app.domain.repository.ShiftRepository
 import com.micuadre.app.domain.usecase.FinishTripUseCase
+import com.micuadre.app.flowta.FlowTaIncomeOutbox
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -14,7 +15,44 @@ import org.junit.Test
 
 class FinishTripHandlerTest {
 
-    private fun handler(repo: HandlerFakeRepository) = FinishTripHandler(FinishTripUseCase(repo))
+    private class RecordingOutbox : FlowTaIncomeOutbox {
+        class Call(val tripId: Long, val platformId: Long, val amountMinor: Long, val payment: PaymentMethod, val endedAt: Long)
+
+        val calls = mutableListOf<Call>()
+        override suspend fun enqueue(
+            tripId: Long,
+            platformId: Long,
+            amountMinor: Long,
+            paymentMethod: PaymentMethod,
+            endedAt: Long
+        ) {
+            calls += Call(tripId, platformId, amountMinor, paymentMethod, endedAt)
+        }
+    }
+
+    private val outbox = RecordingOutbox()
+
+    private fun handler(repo: HandlerFakeRepository) = FinishTripHandler(FinishTripUseCase(repo), outbox)
+
+    @Test
+    fun `a saved trip is handed to the FlowTa outbox`() = runTest {
+        handler(HandlerFakeRepository(saves = true)).run()
+
+        val call = outbox.calls.single()
+        assertEquals(5L, call.tripId)
+        assertEquals(2L, call.platformId)
+        assertEquals(5_000L, call.amountMinor)
+        assertEquals(PaymentMethod.CASH, call.payment)
+        assertEquals(2_000L, call.endedAt)
+    }
+
+    @Test
+    fun `a rejected trip is never enqueued`() = runTest {
+        handler(HandlerFakeRepository(saves = false)).run()
+        handler(HandlerFakeRepository(saves = true)).run(payment = null)
+
+        assertEquals(0, outbox.calls.size)
+    }
 
     private suspend fun FinishTripHandler.run(
         platformId: Long? = 2L,
@@ -86,6 +124,7 @@ private class HandlerFakeRepository(
     private val saves: Boolean,
     private val failure: Throwable? = null
 ) : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
     override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     var finishCalls = 0
 

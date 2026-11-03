@@ -77,6 +77,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        // FlowTa integration target. FlowTa debug has no applicationId suffix, so every build type
+        // talks to the same package; the signature permission only matches builds signed with the same key.
+        buildConfigField("String", "FLOWTA_PACKAGE", "\"com.j4x.flowta\"")
+        buildConfigField("String", "FLOWTA_AUTHORITY", "\"com.j4x.flowta.integration\"")
     }
 
     signingConfigs {
@@ -167,6 +171,9 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
     implementation(libs.kotlinx.coroutines.android)
 
     debugImplementation(libs.androidx.compose.ui.tooling)

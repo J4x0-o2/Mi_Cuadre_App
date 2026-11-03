@@ -195,6 +195,7 @@ private class FakeRehydrateRepository(
     private val inProgressTripResult: Trip? = null,
     private val intervals: List<ConnectedInterval> = emptyList()
 ) : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
     override fun observeConnectedIntervals(sessionId: Long): Flow<List<ConnectedInterval>> = flowOf(intervals)
 
     override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())

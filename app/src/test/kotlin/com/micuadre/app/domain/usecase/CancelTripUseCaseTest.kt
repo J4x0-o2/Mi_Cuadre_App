@@ -24,6 +24,7 @@ class CancelTripUseCaseTest {
     }
 
     private class RecordingRepository : ShiftRepository {
+        override suspend fun platformName(platformId: Long): String? = null
         val cancelled = mutableListOf<Long>()
 
         override suspend fun cancelInProgressTrip(sessionId: Long) {

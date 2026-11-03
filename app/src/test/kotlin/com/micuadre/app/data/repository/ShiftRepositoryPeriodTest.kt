@@ -102,11 +102,11 @@ class ShiftRepositoryPeriodTest {
         val secondEmission = CompletableDeferred<Unit>()
         val collector = launch(Dispatchers.IO) {
             repository.observeSessionActivity(ms("2026-10-18"), ms("2026-10-19")).collect {
-                seen.add(it.single().trips.size)
-                when (seen.size) {
-                    1 -> firstEmission.complete(Unit)
-                    2 -> secondEmission.complete(Unit)
-                }
+                val trips = it.single().trips.size
+                seen.add(trips)
+                // Room may emit intermediate states while the trip is written; wait for the one with it.
+                if (seen.size == 1) firstEmission.complete(Unit)
+                if (trips == 1) secondEmission.complete(Unit)
             }
         }
         withTimeout(5_000L) { firstEmission.await() }
@@ -115,7 +115,8 @@ class ShiftRepositoryPeriodTest {
         withTimeout(5_000L) { secondEmission.await() }
         collector.cancel()
 
-        assertEquals(listOf(0, 1), seen.take(2))
+        assertEquals(0, seen.first())
+        assertEquals(1, seen.last())
     }
 
     @Test
