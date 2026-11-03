@@ -88,6 +88,7 @@ class GetLastUsedPlatformUseCaseTest {
         private val last: Trip?,
         private val visible: List<Platform>
     ) : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
         override suspend fun lastFinishedTrip(): Trip? = last
         override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(visible)
         override suspend fun createSession(startedAt: Long): Long = error("unused")

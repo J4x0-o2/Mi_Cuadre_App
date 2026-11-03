@@ -9,6 +9,8 @@ import com.micuadre.app.flowta.DefaultFlowTaIncomeOutbox
 import com.micuadre.app.flowta.FlowTaClient
 import com.micuadre.app.flowta.FlowTaIncomeOutbox
 import com.micuadre.app.flowta.FlowTaPlatformNames
+import com.micuadre.app.flowta.FlowTaProviderVerifier
+import com.micuadre.app.flowta.PackageManagerFlowTaProviderVerifier
 import com.micuadre.app.flowta.FlowTaSyncScheduler
 import com.micuadre.app.flowta.WorkManagerFlowTaSyncScheduler
 import com.micuadre.app.flowta.PackageManagerFlowTaAvailability
@@ -29,6 +31,9 @@ abstract class FlowTaModule {
 
     @Binds
     abstract fun bindAvailability(impl: PackageManagerFlowTaAvailability): FlowTaAvailability
+
+    @Binds
+    abstract fun bindProviderVerifier(impl: PackageManagerFlowTaProviderVerifier): FlowTaProviderVerifier
 
     @Binds
     abstract fun bindClient(impl: ContentResolverFlowTaClient): FlowTaClient

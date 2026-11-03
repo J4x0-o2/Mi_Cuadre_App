@@ -18,6 +18,7 @@ import java.time.ZoneId
 
 /** Shared test doubles for the History tests: the read side of the repositories over fixed data. */
 internal class FakeHistoryShifts(private val activity: List<SessionActivity>) : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
 
     override fun observeSessionActivity(fromMs: Long, toMs: Long): Flow<List<SessionActivity>> =
         flowOf(activity.filter { it.session.startedAt in fromMs until toMs })

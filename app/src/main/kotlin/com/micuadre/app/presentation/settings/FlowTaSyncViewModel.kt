@@ -71,6 +71,9 @@ class FlowTaSyncViewModel @Inject constructor(
 
     private var messageSeq = 0L
 
+    // Declared before init: an initializer placed after it would reset the job init starts.
+    private var refreshJob: Job? = null
+
     init {
         viewModelScope.launch {
             preferences.observe().distinctUntilChanged().collect { on ->
@@ -124,8 +127,6 @@ class FlowTaSyncViewModel @Inject constructor(
     fun onInstallDialogDismissed() {
         installDialog.value = false
     }
-
-    private var refreshJob: Job? = null
 
     /** Asks FlowTa again; only the newest answer may update the state, so older ones are cancelled. */
     private fun refreshLinkStatus() {

@@ -37,39 +37,56 @@ class FlowTaSendResultTest {
     }
 
     @Test
-    fun `ERROR, unknown status, missing status and null reply are retried`() {
-        assertTrue(FlowTaSendResult.fromReply(reply("ERROR", "db locked")) is FlowTaSendResult.Retry)
-        assertTrue(FlowTaSendResult.fromReply(reply("WHATEVER")) is FlowTaSendResult.Retry)
-        assertTrue(FlowTaSendResult.fromReply(reply(null)) is FlowTaSendResult.Retry)
-        assertTrue(FlowTaSendResult.fromReply(null) is FlowTaSendResult.Retry)
+    fun `ERROR, unknown status and missing status are row failures`() {
+        assertTrue(FlowTaSendResult.fromReply(reply("ERROR", "db locked")) is FlowTaSendResult.RowFailure)
+        assertTrue(FlowTaSendResult.fromReply(reply("WHATEVER")) is FlowTaSendResult.RowFailure)
+        assertTrue(FlowTaSendResult.fromReply(reply(null)) is FlowTaSendResult.RowFailure)
     }
 
     @Test
-    fun `retry reasons say what happened`() {
+    fun `a null reply is an environment failure`() {
+        assertEquals(FlowTaSendResult.EnvironmentFailure("NO_REPLY"), FlowTaSendResult.fromReply(null))
+    }
+
+    @Test
+    fun `failure reasons say what happened`() {
         assertEquals(
-            FlowTaSendResult.Retry("ERROR: db locked"),
+            FlowTaSendResult.RowFailure("ERROR: db locked"),
             FlowTaSendResult.fromReply(reply("ERROR", "db locked"))
         )
-        assertEquals(FlowTaSendResult.Retry("NO_REPLY"), FlowTaSendResult.fromReply(null))
         assertEquals(
-            FlowTaSendResult.Retry("UNKNOWN_STATUS: WHATEVER"),
+            FlowTaSendResult.RowFailure("UNKNOWN_STATUS: WHATEVER"),
             FlowTaSendResult.fromReply(reply("WHATEVER"))
         )
     }
 
     @Test
-    fun `every failure is retried with the exception name`() {
+    fun `every thrown failure is an environment failure with the exception name`() {
         assertEquals(
-            FlowTaSendResult.Retry("SecurityException: key mismatch"),
+            FlowTaSendResult.EnvironmentFailure("SecurityException: key mismatch"),
             FlowTaSendResult.fromFailure(SecurityException("key mismatch"))
         )
         assertEquals(
-            FlowTaSendResult.Retry("IllegalArgumentException: Unknown authority"),
+            FlowTaSendResult.EnvironmentFailure("IllegalArgumentException: Unknown authority"),
             FlowTaSendResult.fromFailure(IllegalArgumentException("Unknown authority"))
         )
         assertEquals(
-            FlowTaSendResult.Retry("IllegalStateException: boom"),
+            FlowTaSendResult.EnvironmentFailure("IllegalStateException: boom"),
             FlowTaSendResult.fromFailure(IllegalStateException("boom"))
+        )
+    }
+
+    @Test
+    fun `reply keys and status values live in the contract`() {
+        assertEquals("status", FlowTaIncomeContract.KEY_STATUS)
+        assertEquals("message", FlowTaIncomeContract.KEY_MESSAGE)
+        assertEquals(
+            listOf("OK", "DUPLICATE", "NOT_LINKED", "INVALID", "ERROR", "LINKED"),
+            listOf(
+                FlowTaIncomeContract.STATUS_OK, FlowTaIncomeContract.STATUS_DUPLICATE,
+                FlowTaIncomeContract.STATUS_NOT_LINKED, FlowTaIncomeContract.STATUS_INVALID,
+                FlowTaIncomeContract.STATUS_ERROR, FlowTaIncomeContract.STATUS_LINKED
+            )
         )
     }
 

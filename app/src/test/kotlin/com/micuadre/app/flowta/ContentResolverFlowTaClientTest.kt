@@ -50,14 +50,18 @@ class ContentResolverFlowTaClientTest {
     )
 
     private lateinit var client: ContentResolverFlowTaClient
+    private lateinit var verifier: FlowTaProviderVerifier
+    private var verified = true
 
     @Before
     fun setUp() {
         FakeProvider.behaviour = { null }
         FakeProvider.lastMethod = null
         FakeProvider.lastExtras = null
+        verified = true
         Robolectric.buildContentProvider(FakeProvider::class.java).create(BuildConfig.FLOWTA_AUTHORITY)
-        client = ContentResolverFlowTaClient(ApplicationProvider.getApplicationContext<Application>())
+        verifier = FlowTaProviderVerifier { verified }
+        client = ContentResolverFlowTaClient(ApplicationProvider.getApplicationContext<Application>(), verifier)
     }
 
     @After
@@ -79,14 +83,14 @@ class ContentResolverFlowTaClientTest {
     @Test
     fun `a null reply is retried and link status is unavailable`() = runBlocking {
         FakeProvider.behaviour = { null }
-        assertTrue(client.recordIncome(row) is FlowTaSendResult.Retry)
+        assertTrue(client.recordIncome(row) is FlowTaSendResult.EnvironmentFailure)
         assertEquals(FlowTaLinkStatus.UNAVAILABLE, client.linkStatus())
     }
 
     @Test
     fun `a provider that throws is retried and link status is unavailable`() = runBlocking {
         FakeProvider.behaviour = { throw SecurityException("key mismatch") }
-        assertTrue(client.recordIncome(row) is FlowTaSendResult.Retry)
+        assertTrue(client.recordIncome(row) is FlowTaSendResult.EnvironmentFailure)
         assertEquals(FlowTaLinkStatus.UNAVAILABLE, client.linkStatus())
     }
 
@@ -94,5 +98,27 @@ class ContentResolverFlowTaClientTest {
     fun `link status maps the provider reply`() = runBlocking {
         FakeProvider.behaviour = { status("NOT_LINKED") }
         assertEquals(FlowTaLinkStatus.NOT_LINKED, client.linkStatus())
+    }
+
+    @Test
+    fun `an unverified provider is never called`() = runBlocking {
+        verified = false
+        FakeProvider.behaviour = { status("OK") }
+
+        assertTrue(client.recordIncome(row) is FlowTaSendResult.EnvironmentFailure)
+        assertEquals(FlowTaLinkStatus.UNAVAILABLE, client.linkStatus())
+        assertEquals(null, FakeProvider.lastMethod)
+    }
+
+    @Test
+    fun `a failing verifier is an environment failure and never calls the provider`() = runBlocking {
+        client = ContentResolverFlowTaClient(
+            ApplicationProvider.getApplicationContext<Application>(),
+            FlowTaProviderVerifier { throw IllegalStateException("pm died") }
+        )
+
+        assertTrue(client.recordIncome(row) is FlowTaSendResult.EnvironmentFailure)
+        assertEquals(FlowTaLinkStatus.UNAVAILABLE, client.linkStatus())
+        assertEquals(null, FakeProvider.lastMethod)
     }
 }

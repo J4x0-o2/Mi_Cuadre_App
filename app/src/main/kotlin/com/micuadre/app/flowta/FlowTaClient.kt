@@ -18,8 +18,8 @@ enum class FlowTaLinkStatus {
     companion object {
         /** Maps the `status` string of a `linkStatus` result; anything unknown is [UNAVAILABLE]. */
         fun fromResult(status: String?): FlowTaLinkStatus = when (status) {
-            "LINKED" -> LINKED
-            "NOT_LINKED" -> NOT_LINKED
+            FlowTaIncomeContract.STATUS_LINKED -> LINKED
+            FlowTaIncomeContract.STATUS_NOT_LINKED -> NOT_LINKED
             else -> UNAVAILABLE
         }
     }
@@ -35,13 +35,15 @@ interface FlowTaClient {
 }
 
 class ContentResolverFlowTaClient @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val verifier: FlowTaProviderVerifier
 ) : FlowTaClient {
 
     override suspend fun linkStatus(): FlowTaLinkStatus = withContext(Dispatchers.IO) {
         try {
+            if (!verifier.isVerified()) return@withContext FlowTaLinkStatus.UNAVAILABLE
             val result = context.contentResolver.call(AUTHORITY_URI, METHOD_LINK_STATUS, null, null)
-            FlowTaLinkStatus.fromResult(result?.getString(KEY_STATUS))
+            FlowTaLinkStatus.fromResult(result?.getString(FlowTaIncomeContract.KEY_STATUS))
         } catch (e: Exception) {
             // Missing provider, key mismatch (SecurityException) or a provider crash: do not alarm the user.
             FlowTaLinkStatus.UNAVAILABLE
@@ -50,6 +52,7 @@ class ContentResolverFlowTaClient @Inject constructor(
 
     override suspend fun recordIncome(row: PendingFlowTaIncomeEntity): FlowTaSendResult = withContext(Dispatchers.IO) {
         try {
+            if (!verifier.isVerified()) return@withContext FlowTaSendResult.EnvironmentFailure("PROVIDER_NOT_VERIFIED")
             val reply = context.contentResolver.call(
                 AUTHORITY_URI, METHOD_RECORD_INCOME, null, FlowTaIncomeContract.extras(row)
             )
@@ -63,6 +66,5 @@ class ContentResolverFlowTaClient @Inject constructor(
         val AUTHORITY_URI: Uri = Uri.parse("content://${BuildConfig.FLOWTA_AUTHORITY}")
         const val METHOD_LINK_STATUS = "linkStatus"
         const val METHOD_RECORD_INCOME = "recordIncome"
-        const val KEY_STATUS = "status"
     }
 }

@@ -106,9 +106,9 @@ class FlowTaSyncRunnerTest {
     }
 
     @Test
-    fun `retry stops the drain, keeps rows, counts the attempt and asks for a retry`() = runBlocking {
+    fun `an environment failure stops the drain, keeps rows, counts the attempt and asks for a retry`() = runBlocking {
         queue(1, 2)
-        val client = ScriptedClient { FlowTaSendResult.Retry("SecurityException: key mismatch") }
+        val client = ScriptedClient { FlowTaSendResult.EnvironmentFailure("SecurityException: key mismatch") }
 
         assertEquals(FlowTaSyncRunner.Outcome.RETRY, runner(client).drain())
 
@@ -118,6 +118,57 @@ class FlowTaSyncRunnerTest {
         assertEquals(1, left.first().attempts)
         assertEquals("SecurityException: key mismatch", left.first().lastError)
         assertEquals(0, left.last().attempts)
+    }
+
+    @Test
+    fun `a poisoned head row does not block later rows`() = runBlocking {
+        queue(1, 2, 3)
+        val client = ScriptedClient {
+            if (it.tripId == 1L) FlowTaSendResult.RowFailure("ERROR: bad") else FlowTaSendResult.Delivered
+        }
+
+        assertEquals(FlowTaSyncRunner.Outcome.RETRY, runner(client).drain())
+
+        assertEquals(listOf(1L, 2L, 3L), client.sent)
+        val left = dao.oldest(10).single()
+        assertEquals(1L, left.tripId)
+        assertEquals(1, left.attempts)
+        assertEquals("ERROR: bad", left.lastError)
+    }
+
+    @Test
+    fun `rows that keep failing are tried once per run, also across batches`() = runBlocking {
+        queue(1, 2, 3, 4, 5)
+        val client = ScriptedClient {
+            if (it.tripId <= 2L) FlowTaSendResult.RowFailure("ERROR") else FlowTaSendResult.Delivered
+        }
+
+        assertEquals(FlowTaSyncRunner.Outcome.RETRY, runner(client, batchSize = 2).drain())
+
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), client.sent)
+        assertEquals(listOf(1L, 2L), dao.oldest(10).map { it.tripId })
+
+        client.sent.clear()
+        assertEquals(FlowTaSyncRunner.Outcome.RETRY, runner(client, batchSize = 2).drain())
+        assertEquals(listOf(1L, 2L), client.sent)
+        assertEquals(listOf(2, 2), dao.oldest(10).map { it.attempts })
+    }
+
+    @Test
+    fun `an environment failure after a row failure still stops and retries`() = runBlocking {
+        queue(1, 2, 3)
+        val client = ScriptedClient {
+            when (it.tripId) {
+                1L -> FlowTaSendResult.RowFailure("ERROR")
+                2L -> FlowTaSendResult.EnvironmentFailure("SecurityException: x")
+                else -> FlowTaSendResult.Delivered
+            }
+        }
+
+        assertEquals(FlowTaSyncRunner.Outcome.RETRY, runner(client).drain())
+
+        assertEquals(listOf(1L, 2L), client.sent)
+        assertEquals(3, dao.count())
     }
 
     @Test

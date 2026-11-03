@@ -1,16 +1,19 @@
 package com.micuadre.app.flowta
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ListenableWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -27,11 +30,12 @@ class WorkManagerFlowTaSyncScheduler @Inject constructor(
         val request = OneTimeWorkRequestBuilder<FlowTaSyncWorker>()
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
             .build()
-        // No network constraint: FlowTa is on the same device. APPEND_OR_REPLACE rather than KEEP: a
-        // trip queued while a drain is already running (after its last read of the queue) would be
-        // dropped by KEEP and wait for the next trigger; appending runs one more pass after it.
+        // No network constraint: FlowTa is on the same device. REPLACE rather than APPEND_OR_REPLACE: an
+        // append chain never ends while a run keeps asking for a retry. A new trip cancels the pending
+        // or in-flight run, resets the backoff and drains promptly. Cancelling a send midway is safe:
+        // FlowTa dedupes by (source_app, external_id).
         WorkManager.getInstance(context)
-            .enqueueUniqueWork(UNIQUE_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+            .enqueueUniqueWork(UNIQUE_NAME, ExistingWorkPolicy.REPLACE, request)
     }
 
     companion object {
@@ -48,8 +52,19 @@ class FlowTaSyncWorker @AssistedInject constructor(
     private val runner: FlowTaSyncRunner
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result = when (runner.drain()) {
-        FlowTaSyncRunner.Outcome.DONE -> Result.success()
-        FlowTaSyncRunner.Outcome.RETRY -> Result.retry()
-    }
+    override suspend fun doWork(): Result = workResultOf(runner::drain)
 }
+
+/** Maps a drain to the work result; an unexpected exception retries rather than failing the work for good. */
+internal suspend fun workResultOf(drain: suspend () -> FlowTaSyncRunner.Outcome): ListenableWorker.Result =
+    try {
+        when (drain()) {
+            FlowTaSyncRunner.Outcome.DONE -> ListenableWorker.Result.success()
+            FlowTaSyncRunner.Outcome.RETRY -> ListenableWorker.Result.retry()
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.e("FlowTaSync", "Unexpected failure while draining the FlowTa queue", e)
+        ListenableWorker.Result.retry()
+    }

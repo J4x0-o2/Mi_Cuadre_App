@@ -1286,6 +1286,7 @@ class ShiftServiceTest {
 
 /** In-memory [ShiftRepository] that suspends once per call, like a Room query hopping threads. */
 class InMemoryShiftRepository : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
     override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     val sessions = mutableListOf<Session>()
     var createdSessions = 0

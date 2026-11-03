@@ -103,6 +103,7 @@ private data class FinishCall(
 private class FakeShiftRepository(
     private val finishResult: Boolean
 ) : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
     override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     val finishCalls = mutableListOf<FinishCall>()
 

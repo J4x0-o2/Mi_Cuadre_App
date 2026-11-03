@@ -124,6 +124,7 @@ private class HandlerFakeRepository(
     private val saves: Boolean,
     private val failure: Throwable? = null
 ) : ShiftRepository {
+    override suspend fun platformName(platformId: Long): String? = null
     override fun observeVisiblePlatforms(): Flow<List<Platform>> = flowOf(emptyList())
     var finishCalls = 0
 

@@ -67,7 +67,7 @@ interface ShiftRepository {
     fun observeVisiblePlatforms(): Flow<List<Platform>>
 
     /** The name of platform [platformId] (deleted ones included), or null when it is unknown. */
-    suspend fun platformName(platformId: Long): String? = null
+    suspend fun platformName(platformId: Long): String?
 
     /**
      * Discards the in-progress trip of [sessionId] (the row whose `endedAt` is null), if any.

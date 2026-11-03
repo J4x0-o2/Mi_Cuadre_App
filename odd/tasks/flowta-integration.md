@@ -112,7 +112,7 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
       queue empty, trip 19 not duplicated, balances changed only by the new trip. FlowTa emulator DB
       restored afterwards from `Documents/FlowTa-backups/2026-11-02-pre-e2e` (194 tx, sum and balances identical).
       Product gap (not decided): an INVALID reply drops the row with only a log; the user is not told.
-- [ ] **M5b Review hardening** (from the M5 4-lens review, all WARNINGs, accepted 2026-11-02):
+- [x] **M5b Review hardening** (from the M5 4-lens review, all WARNINGs, accepted 2026-11-02):
       verify the provider before sending (authority resolves to `FLOWTA_PACKAGE` and signatures match,
       else Retry/unavailable); a Retry on one row must not block later rows (row-level ERROR → mark and
       continue; environment failures — provider missing / SecurityException / verification failed → stop
@@ -122,6 +122,15 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
       abstract; contract reply keys in `FlowTaIncomeContract` only. Known limitation kept (documented in
       M6): outbox insert is after the trip commit, so a process kill in between loses that FlowTa copy.
       [route: delegated]
+      Evidence 2026-11-02: `FlowTaProviderVerifier` (provider package + `checkSignatures`); `Retry` split
+      into `RowFailure` (ERROR / unknown status → mark, continue) and `EnvironmentFailure` (null bundle,
+      unverified/missing provider, SecurityException, other exceptions → mark, stop); per-run failed set
+      so a row is tried once per run; `REPLACE` policy; `workResultOf` maps unexpected exceptions to
+      retry; `refreshJob` above `init`; `platformName` abstract; reply keys in `FlowTaIncomeContract`.
+      RED: `Unresolved reference 'FlowTaProviderVerifier'` (+ new result types). GREEN: testDebugUnitTest
+      852, 0 failures; assembleDebug; parent re-ran the FlowTa tests. Emulator: with no FlowTa link,
+      Settings shows "Reconectar FlowTa" → the verified `linkStatus` call reached FlowTa (verifier passes
+      for same-key builds). The ViewModel init-order test is a regression guard (not observed RED).
 - [ ] **M6 Docs** — CLAUDE.md / README: feature, contract reference, Room v6. [route: inline]
 
 ## Acceptance criteria
@@ -160,4 +169,4 @@ Mode: strict (on), source: user global config. Runner: `./gradlew testDebugUnitT
 
 ## Next step
 
-M5b (review hardening), then M6 (docs), then delivery decisions (push / PR / merge) for both repos.
+M6 (docs), then delivery decisions (push / PR / merge) for both repos.

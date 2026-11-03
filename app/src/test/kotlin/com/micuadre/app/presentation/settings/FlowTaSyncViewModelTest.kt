@@ -267,4 +267,19 @@ class FlowTaSyncViewModelTest {
 
         assertFalse(vm.state.value.showReconnect)
     }
+
+    @Test
+    fun `the refresh started in init is cancelled by a later refresh`() = runTest {
+        prefs.state.value = true
+        val first = CompletableDeferred<FlowTaLinkStatus>()
+        client.gate = first
+        val vm = viewModel() // init refresh suspends on the gate
+        client.status = FlowTaLinkStatus.LINKED
+        vm.onResume() // must cancel the init refresh, not leave it running
+
+        first.complete(FlowTaLinkStatus.NOT_LINKED)
+
+        assertFalse(vm.state.value.showReconnect)
+        assertTrue(first.isCompleted)
+    }
 }
