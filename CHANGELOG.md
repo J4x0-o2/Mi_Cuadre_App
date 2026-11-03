@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). The versi
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-02
+
 ### Added
 - Optional "Send income to FlowTa" setting (Settings › Integraciones). Each finished trip is sent to
   FlowTa as an income, routed to the account the user picked for cash or for transfer trips. Trips

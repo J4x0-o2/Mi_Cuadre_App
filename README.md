@@ -26,6 +26,13 @@ instalación desde esa fuente cuando Android lo pida. Así no recibes avisos de 
 Todas las versiones se firman con el mismo certificado, cuya huella SHA-256 está en las notas de cada
 release. Android rechaza una actualización firmada con otro certificado.
 
+## Novedades en 1.4.0
+
+- **Envío a FlowTa.** Si usas [FlowTa](https://github.com/J4x0-o2/FlowTa) para tus finanzas, activa
+  *Ajustes › Integraciones › Enviar ingresos a FlowTa* y cada carrera que termines se registra allí
+  como ingreso, en la cuenta que elijas para efectivo o para transferencia. Si FlowTa no está
+  disponible, las carreras esperan y se envían después, sin duplicarse.
+
 ## Novedades en 1.3.0
 
 - **Tus datos viajan contigo.** Las carreras, los turnos y los ajustes entran en el respaldo
@@ -248,5 +255,5 @@ versión se etiqueta en git (`v1.0.0`) y los cambios se listan en [CHANGELOG.md]
 
 ## Estado del proyecto
 
-MiCuadre está en desarrollo activo (versión actual **1.3.0**). Su autor la usa primero como
+MiCuadre está en desarrollo activo (versión actual **1.4.0**). Su autor la usa primero como
 herramienta diaria de conductor, con el objetivo de abrirla a cualquier conductor de plataformas.
